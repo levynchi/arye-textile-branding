@@ -170,6 +170,30 @@ ul.menu a:focus-visible::after {
 }
 
 /* Demo spacer */
+.gallery {
+    max-width: 1500px;
+    margin: 90px auto 40px;
+    padding: 0 40px;
+}
+.gallery-grid {
+    display: grid;
+    gap: 70px 55px;
+    /* Max 3 columns */
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    align-items: start;
+}
+/* Collapse to 2 columns on medium screens */
+@media (max-width: 1050px) {
+    .gallery-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+/* Single column on small screens */
+@media (max-width: 640px) {
+    .gallery-grid { grid-template-columns: 1fr; }
+}
+.g-item {text-align:center;}
+.g-item img {width:100%; aspect-ratio: 37/25; object-fit:cover; display:block; border:4px solid #1976d2; background:#eee;}
+.g-item .cap {font-weight:600; font-size:.9rem; margin:12px 0 0;}
+
 .spacer {
     height: 140vh;
     background: linear-gradient(#fff, #e9edf1);
