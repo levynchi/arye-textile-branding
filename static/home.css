@@ -1,5 +1,4 @@
-/* Base + page specific (hero, divider, gallery) */
-:root { --bg:#f5f6f7; --text:#111317; --accent:#0f5c9c; --accent-grad:linear-gradient(90deg,#0f5c9c,#357fc7); --menu-height:68px; --font-sans:'Arial','Heebo',sans-serif; --font-title:'Suez One',serif; }
+/* Page specific (hero, divider, gallery) */
 *{box-sizing:border-box;}
 body{margin:0;font-family:var(--font-sans);background:var(--bg);color:var(--text);} 
 
