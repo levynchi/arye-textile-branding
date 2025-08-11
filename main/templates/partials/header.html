@@ -1,0 +1,23 @@
+{% load static %}
+<header>
+    <div class="nav-bar" role="navigation" aria-label="תפריט ראשי">
+        <div class="logo">
+            <img src="{% static 'logo-arye.svg' %}" alt="לוגו אריה" />
+        </div>
+        <nav>
+            <ul class="menu">
+                <li><a href="#services">מתפרה</a></li>
+                <li><a href="#consult">תדמיתנות</a></li>
+                <li><a href="#dev">בדים</a></li>
+                <li><a href="#prints">פיתוח מוצרי טקסטיל</a></li>
+                <li><a href="#factory">שירותי עיצוב</a></li>
+                <li><a href="#about">יעוץ וליווי</a></li>
+            </ul>
+        </nav>
+        <div class="search-wrap">
+            <input type="search" placeholder="חיפוש" aria-label="חיפוש" />
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16a6.471 6.471 0 0 0 4.23-1.57l.27.28v.79l5 5 1.5-1.5-5-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.505 4.505 0 0 1 9.5 14Z"/></svg>
+        </div>
+
+    </div>
+</header>
