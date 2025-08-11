@@ -1,0 +1,47 @@
+:root {
+    --bg: #f5f6f7;
+    --text: #111317;
+    --accent: #0f5c9c;
+    --accent-grad: linear-gradient(90deg, #0f5c9c, #357fc7);
+    --menu-height: 68px;
+    --font-sans: 'Arial','Heebo',sans-serif;
+    --font-title: 'Suez One', serif;
+}
+
+/* Header & Navigation */
+header {position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.06);} 
+.nav-bar {max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:40px;height:var(--menu-height);padding:0 32px;}
+.logo {display:flex;align-items:center;gap:12px;font-weight:700;font-size:1.3rem;letter-spacing:.5px;white-space:nowrap;}
+.logo img {height:52px;width:auto;display:block;}
+nav {flex:1;}
+ul.menu {list-style:none;margin:0;padding:0;display:flex;justify-content:flex-end;gap:56px;font-weight:400;font-family:var(--font-title);font-size:1.05rem;}
+ul.menu a {text-decoration:none;color:var(--text);position:relative;padding:4px 0;display:inline-block;}
+ul.menu a::after {content:"";position:absolute;right:0;left:0;bottom:-4px;height:2px;background:var(--accent-grad);transform:scaleX(0);transform-origin:right;transition:.35s;border-radius:2px;}
+ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);} 
+.search-wrap {position:relative;}
+.search-wrap input {border:1px solid #ccc;border-radius:30px;padding:6px 34px 6px 14px;font-size:.85rem;min-width:200px;background:#fff;transition:border-color .25s, box-shadow .25s;}
+.search-wrap input:focus {outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,92,156,.25);}
+.search-wrap svg {position:absolute;top:50%;transform:translateY(-50%);right:10px;width:16px;height:16px;fill:#555;}
+
+/* Footer */
+.site-footer {background:#000;color:#fff;font-family:'Nunito',var(--font-sans);margin-top:0;padding:70px 0 30px;position:relative;}
+.site-footer:before {content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,#7d3cff,#ff33cc,#7d3cff);opacity:.4;top:0;}
+.f-inner {max-width:1400px;margin:0 auto;padding:0 40px;}
+.f-cols {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:40px;align-items:flex-start;}
+.f-col {list-style:none;margin:0;padding:0;font-size:.73rem;line-height:1.9;font-weight:600;}
+.f-col li {white-space:nowrap;}
+.f-brand {display:flex;flex-direction:column;gap:26px;align-items:flex-start;}
+.logo-stack .brand-line {font-weight:700;font-size:1.05rem;}
+.logo-stack .brand-name {font-family:'Suez One',serif;font-size:2.1rem;line-height:1;}
+.logo-stack .brand-phone {font-size:.78rem;margin-top:6px;}
+.social {display:flex;gap:18px;font-size:1.35rem;}
+.social .ico {text-decoration:none;color:#fff;display:inline-flex;align-items:center;justify-content:center;transition:.3s;}
+.social .ico:hover {color:#7db7ff;}
+/* icon images (kept white) */
+.social img {width:22px;height:22px;display:block;}
+.f-bottom {text-align:center;margin-top:60px;font-size:.65rem;opacity:.55;}
+
+/* Responsive adjustments */
+@media (max-width:1100px){.f-cols{grid-template-columns:repeat(2,minmax(0,1fr));}.f-brand{order:-1;} ul.menu{gap:32px;font-size:.9rem;}}
+@media (max-width:860px){.nav-bar{flex-wrap:wrap;gap:18px;height:auto;padding:12px 20px 18px;}nav{order:3;flex-basis:100%;}ul.menu{justify-content:center;flex-wrap:wrap;gap:24px;} .search-wrap{order:2;}}
+@media (max-width:660px){.f-cols{grid-template-columns:1fr;}.f-col{font-size:.8rem;} .social{font-size:1.5rem;} .site-footer{padding:60px 0 28px;}}
