@@ -7,13 +7,12 @@
     {% load static %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Suez+One&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'home.css' %}" />
 </head>
 <body>
     {% include 'partials/header.html' %}
     <section class="hero" aria-label="תמונת באנר" {% if banner and banner.image %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
-        <h1>מפעל טקסטיל אישי</h1>
     </section>
     <div class="divider">
         מפעל טקסטיל לייצור, הדפסה ומיתוג בהתאמה אישית ובסיטונאות
@@ -49,5 +48,6 @@
         </div>
     </section>
     <div class="spacer" aria-hidden="true"></div>
+    {% include 'partials/footer.html' %}
 </body>
 </html>
