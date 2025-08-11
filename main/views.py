@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib import messages
-from .models import Gallery, Banner, ContactRequest
+from .models import Gallery, Banner, ContactRequest, Slide
 from .forms import ContactRequestForm
 
 
@@ -15,4 +15,5 @@ def home(request):
 			form = ContactRequestForm()  # reset
 	else:
 		form = ContactRequestForm()
-	return render(request, 'home.html', {"gallery": gallery, "banner": banner, "contact_form": form})
+	slides = list(Slide.objects.all())
+	return render(request, 'home.html', {"gallery": gallery, "banner": banner, "contact_form": form, "slides": slides})

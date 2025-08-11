@@ -19,6 +19,22 @@ class ContactRequest(models.Model):
 	def __str__(self):  # pragma: no cover
 		return f"{self.full_name} - {self.created:%Y-%m-%d}" 
 
+
+class Slide(models.Model):
+	"""Single image for the horizontal scrolling slider."""
+	image = models.ImageField(upload_to="slider/", blank=True, null=True, verbose_name="תמונה")
+	alt = models.CharField("ALT", max_length=150, blank=True)
+	order = models.PositiveIntegerField("סדר", default=0, help_text="מספר קטן = קודם")
+	created = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		ordering = ("order", "id")
+		verbose_name = "תמונת סליידר"
+		verbose_name_plural = "תמונות סליידר"
+
+	def __str__(self):  # pragma: no cover
+		return f"Slide #{self.pk} (order {self.order})"
+
 class Banner(models.Model):
 	"""Homepage hero banner image (single latest used)."""
 	image = models.ImageField(upload_to="banner/", blank=True, null=True, help_text="תמונת באנר רקע (אופציונלי)")

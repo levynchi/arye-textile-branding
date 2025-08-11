@@ -47,6 +47,19 @@
                 <p class="cap">{{ gallery.caption6|default:'הדפסה' }}</p>
             </div>
         </div>
+                <div class="h-slider" aria-label="גלריה נעה אופקית">
+                        <div class="track">
+                                {% if slides %}
+                                    {% for s in slides %}
+                                        <figure class="slide"><img src="{% if s.image %}{{ s.image.url }}{% else %}https://placehold.co/220x220?text=Slide{% endif %}" alt="{{ s.alt }}" loading="lazy" /></figure>
+                                    {% endfor %}
+                                {% else %}
+                                    {% for i in "12345678" %}
+                                        <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
+                                    {% endfor %}
+                                {% endif %}
+                        </div>
+                </div>
     </section>
     <div class="spacer" aria-hidden="true"></div>
     <section class="contact-wrap" id="contact" aria-label="טופס יצירת קשר">

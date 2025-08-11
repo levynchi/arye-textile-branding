@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Gallery, Banner, ContactRequest
+from .models import Gallery, Banner, ContactRequest, Slide
 
 
 @admin.register(Gallery)
@@ -21,3 +21,9 @@ class ContactRequestAdmin(admin.ModelAdmin):
 	list_filter = ("answered", "created")
 	search_fields = ("full_name", "email", "phone", "company")
 	readonly_fields = ("created",)
+
+@admin.register(Slide)
+class SlideAdmin(admin.ModelAdmin):
+	list_display = ("id", "order", "alt", "created")
+	list_editable = ("order",)
+	ordering = ("order", "id")
