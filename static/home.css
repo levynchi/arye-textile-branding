@@ -122,11 +122,13 @@ ul.menu a:focus-visible::after {
     width: 100%;
     aspect-ratio: 16/6;
     max-height: 560px;
-    background: #000 url('https://images.unsplash.com/photo-1584947113979-bae6e72e8f5c?auto=format&fit=crop&w=1600&q=60') center/cover no-repeat;
+    /* Default grey placeholder background */
+    background: #666 center/cover no-repeat;
     display: flex;
     align-items: flex-end;
     justify-content: center;
 }
+/* When dynamic banner image present, inline style will override background */
 .hero::after {
     content: "";
     position: absolute;

@@ -12,7 +12,7 @@
 </head>
 <body>
     {% include 'partials/header.html' %}
-    <section class="hero" aria-label="תמונת באנר">
+    <section class="hero" aria-label="תמונת באנר" {% if banner and banner.image %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
         <h1>מפעל טקסטיל אישי</h1>
     </section>
     <div class="divider">

@@ -1,6 +1,20 @@
 from django.db import models
 
 
+
+class Banner(models.Model):
+	"""Homepage hero banner image (single latest used)."""
+	image = models.ImageField(upload_to="banner/", blank=True, null=True, help_text="תמונת באנר רקע (אופציונלי)")
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "באנר"
+		verbose_name_plural = "באנרים"  # though usually only one
+
+	def __str__(self):  # pragma: no cover
+		return f"Banner #{self.pk}" if self.pk else "Banner"
+
+
 class Gallery(models.Model):
 	"""Simple gallery of up to six images for home page blocks."""
 	title = models.CharField(max_length=120, blank=True, help_text="Optional overall gallery title")
