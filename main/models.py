@@ -1,6 +1,23 @@
 from django.db import models
 
 
+class ContactRequest(models.Model):
+	"""Contact form submissions stored in DB."""
+	full_name = models.CharField("שם מלא", max_length=120)
+	company = models.CharField("חברה", max_length=120, blank=True)
+	email = models.EmailField("אימייל")
+	phone = models.CharField("טלפון", max_length=40, blank=True)
+	message = models.TextField("תיאור הבקשה", blank=True)
+	created = models.DateTimeField(auto_now_add=True)
+	answered = models.BooleanField("טופל", default=False)
+
+	class Meta:
+		ordering = ("-created",)
+		verbose_name = "פניית יצירת קשר"
+		verbose_name_plural = "פניות יצירת קשר"
+
+	def __str__(self):  # pragma: no cover
+		return f"{self.full_name} - {self.created:%Y-%m-%d}" 
 
 class Banner(models.Model):
 	"""Homepage hero banner image (single latest used)."""

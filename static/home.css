@@ -21,3 +21,20 @@ body{margin:0;font-family:var(--font-sans);background:var(--bg);color:var(--text
 .g-item .cap{font-weight:600;font-size:.9rem;margin:12px 0 0;}
 
 .spacer{height:140vh;background:linear-gradient(#fff,#e9edf1);}
+
+/* Contact form section */
+.contact-wrap{background:linear-gradient(110deg,#53c6ff,#0d3852 55%);padding:0;display:flex;justify-content:center;}
+.contact-inner{max-width:1400px;width:100%;display:grid;grid-template-columns:1fr 1fr;align-items:stretch;}
+.contact-visual{background:url('https://placehold.co/620x820/000000/FFF?text=Hoodie') center/cover no-repeat;min-height:620px;}
+.contact-form-card{background:#fff;margin:60px 70px 80px;padding:38px 38px 46px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.18);display:flex;flex-direction:column;}
+.contact-form-card h2{margin:0 0 28px;text-align:center;font-weight:600;font-size:1.8rem;letter-spacing:.5px;}
+.contact-form-card form{display:flex;flex-direction:column;gap:22px;}
+.contact-form-card .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px;}
+.contact-form-card .grid .full{grid-column:1 / -1;}
+.contact-form-card input, .contact-form-card textarea{width:100%;font:inherit;border:1px solid #b9bcc0;border-radius:2px;padding:10px 14px;background:#fff;transition:.25s;}
+.contact-form-card textarea{resize:vertical;min-height:160px;}
+.contact-form-card input:focus, .contact-form-card textarea:focus{outline:none;border-color:#0f5c9c;box-shadow:0 0 0 2px rgba(15,92,156,.25);}
+.send-btn{margin-top:6px;width:100%;background:#000;color:#fff;font-size:2rem;font-weight:700;border:none;padding:10px 0;border-radius:0;cursor:pointer;transition:.3s;}
+.send-btn:hover{background:#111;}
+.form-messages{list-style:none;margin:14px 0 0;padding:0;color:#0a6c2f;font-weight:600;text-align:center;}
+@media (max-width:1050px){.contact-inner{grid-template-columns:1fr;} .contact-visual{display:none;} .contact-form-card{margin:70px 40px;}}

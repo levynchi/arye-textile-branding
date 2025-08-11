@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Gallery, Banner
+from .models import Gallery, Banner, ContactRequest
 
 
 @admin.register(Gallery)
@@ -14,3 +14,10 @@ class BannerAdmin(admin.ModelAdmin):
 	readonly_fields = ("updated",)
 
 # Register your models here.
+
+@admin.register(ContactRequest)
+class ContactRequestAdmin(admin.ModelAdmin):
+	list_display = ("id", "full_name", "email", "phone", "created", "answered")
+	list_filter = ("answered", "created")
+	search_fields = ("full_name", "email", "phone", "company")
+	readonly_fields = ("created",)

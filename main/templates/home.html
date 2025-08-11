@@ -49,6 +49,28 @@
         </div>
     </section>
     <div class="spacer" aria-hidden="true"></div>
+    <section class="contact-wrap" id="contact" aria-label="טופס יצירת קשר">
+        <div class="contact-inner">
+            <div class="contact-form-card">
+                <h2>השאירו פרטים ונחזור אליכם בהקדם</h2>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="grid">
+                        <div class="field">{{ contact_form.full_name }}</div>
+                        <div class="field">{{ contact_form.company }}</div>
+                        <div class="field">{{ contact_form.email }}</div>
+                        <div class="field">{{ contact_form.phone }}</div>
+                        <div class="field full">{{ contact_form.message }}</div>
+                    </div>
+                    <button type="submit" class="send-btn">שלח</button>
+                    {% if messages %}
+                      <ul class="form-messages">{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="contact-visual" aria-hidden="true"></div>
+        </div>
+    </section>
     {% include 'partials/footer.html' %}
 </body>
 </html>
