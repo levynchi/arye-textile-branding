@@ -19,6 +19,35 @@
         מפעל טקסטיל לייצור, הדפסה ומיתוג בהתאמה אישית ובסיטונאות
         <span class="arrow" aria-hidden="true"></span>
     </div>
+    <section class="gallery" id="services" aria-label="גלריית שירותים">
+        <div class="gallery-grid">
+            {# Explicit six slots pulling from gallery fields if exist, else placeholder #}
+            <div class="g-item">
+                <img src="{% if gallery and gallery.image1 %}{{ gallery.image1.url }}{% else %}https://placehold.co/370x250?text=1{% endif %}" alt="{{ gallery.caption1|default:'' }}" loading="lazy" />
+                <p class="cap">{{ gallery.caption1|default:'ייעוץ וליווי' }}</p>
+            </div>
+            <div class="g-item">
+                <img src="{% if gallery and gallery.image2 %}{{ gallery.image2.url }}{% else %}https://placehold.co/370x250?text=2{% endif %}" alt="{{ gallery.caption2|default:'' }}" loading="lazy" />
+                <p class="cap">{{ gallery.caption2|default:'מיתוג' }}</p>
+            </div>
+            <div class="g-item">
+                <img src="{% if gallery and gallery.image3 %}{{ gallery.image3.url }}{% else %}https://placehold.co/370x250?text=3{% endif %}" alt="{{ gallery.caption3|default:'' }}" loading="lazy" />
+                <p class="cap">{{ gallery.caption3|default:'תפירה לפי כמויות, סיטונאות' }}</p>
+            </div>
+            <div class="g-item">
+                <img src="{% if gallery and gallery.image4 %}{{ gallery.image4.url }}{% else %}https://placehold.co/370x250?text=4{% endif %}" alt="{{ gallery.caption4|default:'' }}" loading="lazy" />
+                <p class="cap">{{ gallery.caption4|default:'ייצור' }}</p>
+            </div>
+            <div class="g-item">
+                <img src="{% if gallery and gallery.image5 %}{{ gallery.image5.url }}{% else %}https://placehold.co/370x250?text=5{% endif %}" alt="{{ gallery.caption5|default:'' }}" loading="lazy" />
+                <p class="cap">{{ gallery.caption5|default:'תלייה' }}</p>
+            </div>
+            <div class="g-item">
+                <img src="{% if gallery and gallery.image6 %}{{ gallery.image6.url }}{% else %}https://placehold.co/370x250?text=6{% endif %}" alt="{{ gallery.caption6|default:'' }}" loading="lazy" />
+                <p class="cap">{{ gallery.caption6|default:'הדפסה' }}</p>
+            </div>
+        </div>
+    </section>
     <div class="spacer" aria-hidden="true"></div>
 </body>
 </html>
