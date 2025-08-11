@@ -3,12 +3,39 @@
 <head>
     <meta charset="UTF-8" />
     <title>אריה</title>
-    <style>
-        body {font-family: Arial, sans-serif; background:#111; color:#f5f5f5; display:flex; align-items:center; justify-content:center; height:100vh; margin:0;}
-        h1 {font-size:7rem; letter-spacing:.2rem; text-shadow:0 0 25px #ffcc33,0 0 8px #ffa500;}
-    </style>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/static/home.css" />
 </head>
 <body>
-    <h1>אריה</h1>
+    <header>
+        <div class="nav-bar" role="navigation" aria-label="תפריט ראשי">
+            <div class="logo">
+                <img src="/static/logo-arye.svg" alt="לוגו אריה" />
+                <span>בית חרושת<br>"אריה"</span>
+            </div>
+            <div class="search-wrap">
+                <input type="search" placeholder="חיפוש" aria-label="חיפוש" />
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16a6.471 6.471 0 0 0 4.23-1.57l.27.28v.79l5 5 1.5-1.5-5-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.505 4.505 0 0 1 9.5 14Z"/></svg>
+            </div>
+            <nav>
+                <ul class="menu">
+                    <li><a href="#services">שירותי עיצוב</a></li>
+                    <li><a href="#consult">ייעוץ וליווי</a></li>
+                    <li><a href="#dev">פיתוח מוצר טקסטיל</a></li>
+                    <li><a href="#prints">הדפסות</a></li>
+                    <li><a href="#factory">מפבריקה</a></li>
+                    <li><a href="#about">הדפסות על טקסטיל</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <section class="hero" aria-label="תמונת באנר">
+        <h1>מפעל טקסטיל אישי</h1>
+    </section>
+    <div class="divider">
+        מפעל טקסטיל לייצור, הדפסה ומיתוג בהתאמה אישית ובסיטונאות
+        <span class="arrow" aria-hidden="true"></span>
+    </div>
+    <div class="spacer" aria-hidden="true"></div>
 </body>
 </html>
