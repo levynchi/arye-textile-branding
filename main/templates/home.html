@@ -14,11 +14,9 @@
 <body>
     {% include 'partials/header.html' %}
     <section class="hero" aria-label="תמונת באנר" {% if banner and banner.image %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
+        <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
     </section>
-    <div class="divider">
-        מפעל טקסטיל לייצור, הדפסה ומיתוג בהתאמה אישית ובסיטונאות
-        <span class="arrow" aria-hidden="true"></span>
-    </div>
+    <div class="divider divider-plain">כל רעיון הופך למציאות</div>
     <section class="gallery" id="services" aria-label="גלריית שירותים">
         <div class="gallery-grid">
             {# Six slots: figure/figcaption so text overlays center of image #}
@@ -47,7 +45,16 @@
                 <figcaption class="cap">{{ gallery.caption6|default:'הדפסה' }}</figcaption>
             </figure>
         </div>
-                <div class="h-slider" aria-label="גלריה נעה אופקית">
+        <div class="gallery-cta">
+            <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
+            <h2 class="about-teaser" aria-label="מי אנחנו">מי אנחנו</h2>
+        </div>
+                <div class="slider-band">
+                    <div class="slider-head">
+                        <h2 class="slider-title">מהמוצרים שלנו</h2>
+                        <a class="slider-all" href="#products" aria-label="לכל המוצרים">לכל המוצרים</a>
+                    </div>
+                    <div class="h-slider" id="products" aria-label="גלריה נעה אופקית">
                         <div class="track">
                                 {% for s in slides %}
                                     <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt }}" loading="lazy" /></figure>
@@ -57,6 +64,7 @@
                                     {% endfor %}
                                 {% endfor %}
                         </div>
+                    </div>
                 </div>
     </section>
         <script>
