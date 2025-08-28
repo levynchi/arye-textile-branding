@@ -49,18 +49,42 @@
         </div>
                 <div class="h-slider" aria-label="גלריה נעה אופקית">
                         <div class="track">
-                                {% if slides %}
-                                    {% for s in slides %}
-                                        <figure class="slide"><img src="{% if s.image %}{{ s.image.url }}{% else %}https://placehold.co/220x220?text=Slide{% endif %}" alt="{{ s.alt }}" loading="lazy" /></figure>
-                                    {% endfor %}
-                                {% else %}
+                                {% for s in slides %}
+                                    <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt }}" loading="lazy" /></figure>
+                                {% empty %}
                                     {% for i in "12345678" %}
                                         <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
                                     {% endfor %}
-                                {% endif %}
+                                {% endfor %}
                         </div>
                 </div>
     </section>
+        <script>
+            (function(){
+                const slider = document.querySelector('.h-slider');
+                if(!slider) return;
+                const track = slider.querySelector('.track');
+                if(!track) return;
+                // Clone the original set until content is >= 3x viewport width and >= 10 tiles
+                const targetMultiplier = 3;        // how wide relative to viewport
+                const minTilesTotal = 10;          // ensure enough tiles even on small screens
+                const baseNodes = Array.from(track.children);
+                const baseCount = baseNodes.length;
+                if (baseCount === 0) return;
+
+                const needByWidth = Math.ceil((slider.clientWidth * targetMultiplier) / track.scrollWidth);
+                const repeats = Math.max(needByWidth, Math.ceil(minTilesTotal / baseCount));
+
+                for (let r = 1; r < repeats; r++) {
+                    for (const node of baseNodes) {
+                        const clone = node.cloneNode(true);
+                        clone.setAttribute('aria-hidden','true');
+                        clone.classList.add('clone');
+                        track.appendChild(clone);
+                    }
+                }
+            })();
+        </script>
     <section class="contact-wrap" id="contact" aria-label="טופס יצירת קשר">
         <div class="contact-inner">
             <div class="contact-form-card">
