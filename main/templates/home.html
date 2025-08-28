@@ -7,9 +7,9 @@
     {% load static %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'main.css' %}" />
-    <link rel="stylesheet" href="{% static 'home.css' %}" />
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250828" />
+    <link rel="stylesheet" href="{% static 'home.css' %}?v=20250828" />
 </head>
 <body>
     {% include 'partials/header.html' %}
@@ -21,31 +21,31 @@
     </div>
     <section class="gallery" id="services" aria-label="גלריית שירותים">
         <div class="gallery-grid">
-            {# Explicit six slots pulling from gallery fields if exist, else placeholder #}
-            <div class="g-item">
+            {# Six slots: figure/figcaption so text overlays center of image #}
+            <figure class="g-item">
                 <img src="{% if gallery and gallery.image1 %}{{ gallery.image1.url }}{% else %}https://placehold.co/370x250?text=1{% endif %}" alt="{{ gallery.caption1|default:'' }}" loading="lazy" />
-                <p class="cap">{{ gallery.caption1|default:'ייעוץ וליווי' }}</p>
-            </div>
-            <div class="g-item">
+                <figcaption class="cap">{{ gallery.caption1|default:'ייעוץ וליווי' }}</figcaption>
+            </figure>
+            <figure class="g-item">
                 <img src="{% if gallery and gallery.image2 %}{{ gallery.image2.url }}{% else %}https://placehold.co/370x250?text=2{% endif %}" alt="{{ gallery.caption2|default:'' }}" loading="lazy" />
-                <p class="cap">{{ gallery.caption2|default:'מיתוג' }}</p>
-            </div>
-            <div class="g-item">
+                <figcaption class="cap">{{ gallery.caption2|default:'מיתוג' }}</figcaption>
+            </figure>
+            <figure class="g-item">
                 <img src="{% if gallery and gallery.image3 %}{{ gallery.image3.url }}{% else %}https://placehold.co/370x250?text=3{% endif %}" alt="{{ gallery.caption3|default:'' }}" loading="lazy" />
-                <p class="cap">{{ gallery.caption3|default:'תפירה לפי כמויות, סיטונאות' }}</p>
-            </div>
-            <div class="g-item">
+                <figcaption class="cap">{{ gallery.caption3|default:'תפירה לפי כמויות, סיטונאות' }}</figcaption>
+            </figure>
+            <figure class="g-item">
                 <img src="{% if gallery and gallery.image4 %}{{ gallery.image4.url }}{% else %}https://placehold.co/370x250?text=4{% endif %}" alt="{{ gallery.caption4|default:'' }}" loading="lazy" />
-                <p class="cap">{{ gallery.caption4|default:'ייצור' }}</p>
-            </div>
-            <div class="g-item">
+                <figcaption class="cap">{{ gallery.caption4|default:'ייצור' }}</figcaption>
+            </figure>
+            <figure class="g-item">
                 <img src="{% if gallery and gallery.image5 %}{{ gallery.image5.url }}{% else %}https://placehold.co/370x250?text=5{% endif %}" alt="{{ gallery.caption5|default:'' }}" loading="lazy" />
-                <p class="cap">{{ gallery.caption5|default:'תלייה' }}</p>
-            </div>
-            <div class="g-item">
+                <figcaption class="cap">{{ gallery.caption5|default:'תלייה' }}</figcaption>
+            </figure>
+            <figure class="g-item">
                 <img src="{% if gallery and gallery.image6 %}{{ gallery.image6.url }}{% else %}https://placehold.co/370x250?text=6{% endif %}" alt="{{ gallery.caption6|default:'' }}" loading="lazy" />
-                <p class="cap">{{ gallery.caption6|default:'הדפסה' }}</p>
-            </div>
+                <figcaption class="cap">{{ gallery.caption6|default:'הדפסה' }}</figcaption>
+            </figure>
         </div>
                 <div class="h-slider" aria-label="גלריה נעה אופקית">
                         <div class="track">

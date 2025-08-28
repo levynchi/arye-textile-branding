@@ -6,6 +6,20 @@ from .models import Gallery, Banner, ContactRequest, Slide
 class GalleryAdmin(admin.ModelAdmin):
 	list_display = ("id", "title", "updated")
 	readonly_fields = ("updated",)
+	fieldsets = (
+		(None, {"fields": ("title",)}),
+		("קטגוריות", {
+			"fields": (
+				("image1", "caption1"),
+				("image2", "caption2"),
+				("image3", "caption3"),
+				("image4", "caption4"),
+				("image5", "caption5"),
+				("image6", "caption6"),
+				"updated",
+			)
+		}),
+	)
 
 
 @admin.register(Banner)

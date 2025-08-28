@@ -50,19 +50,19 @@ class Banner(models.Model):
 
 class Gallery(models.Model):
 	"""Simple gallery of up to six images for home page blocks."""
-	title = models.CharField(max_length=120, blank=True, help_text="Optional overall gallery title")
-	image1 = models.ImageField(upload_to="gallery/", blank=True, null=True)
-	caption1 = models.CharField(max_length=120, blank=True)
-	image2 = models.ImageField(upload_to="gallery/", blank=True, null=True)
-	caption2 = models.CharField(max_length=120, blank=True)
-	image3 = models.ImageField(upload_to="gallery/", blank=True, null=True)
-	caption3 = models.CharField(max_length=120, blank=True)
-	image4 = models.ImageField(upload_to="gallery/", blank=True, null=True)
-	caption4 = models.CharField(max_length=120, blank=True)
-	image5 = models.ImageField(upload_to="gallery/", blank=True, null=True)
-	caption5 = models.CharField(max_length=120, blank=True)
-	image6 = models.ImageField(upload_to="gallery/", blank=True, null=True)
-	caption6 = models.CharField(max_length=120, blank=True)
+	title = models.CharField("כותרת (לא חובה)", max_length=120, blank=True, help_text="כותרת כללית לגלריה (אופציונלי)")
+	image1 = models.ImageField("תמונה 1", upload_to="gallery/", blank=True, null=True)
+	caption1 = models.CharField("שם קטגוריה 1", max_length=120, blank=True, help_text="הטקסט שמופיע על התמונה")
+	image2 = models.ImageField("תמונה 2", upload_to="gallery/", blank=True, null=True)
+	caption2 = models.CharField("שם קטגוריה 2", max_length=120, blank=True, help_text="הטקסט שמופיע על התמונה")
+	image3 = models.ImageField("תמונה 3", upload_to="gallery/", blank=True, null=True)
+	caption3 = models.CharField("שם קטגוריה 3", max_length=120, blank=True, help_text="הטקסט שמופיע על התמונה")
+	image4 = models.ImageField("תמונה 4", upload_to="gallery/", blank=True, null=True)
+	caption4 = models.CharField("שם קטגוריה 4", max_length=120, blank=True, help_text="הטקסט שמופיע על התמונה")
+	image5 = models.ImageField("תמונה 5", upload_to="gallery/", blank=True, null=True)
+	caption5 = models.CharField("שם קטגוריה 5", max_length=120, blank=True, help_text="הטקסט שמופיע על התמונה")
+	image6 = models.ImageField("תמונה 6", upload_to="gallery/", blank=True, null=True)
+	caption6 = models.CharField("שם קטגוריה 6", max_length=120, blank=True, help_text="הטקסט שמופיע על התמונה")
 	updated = models.DateTimeField(auto_now=True)
 
 	class Meta:
