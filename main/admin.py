@@ -28,7 +28,7 @@ class BannerAdmin(admin.ModelAdmin):
 	list_filter = ("page",)
 	search_fields = ("page",)
 	readonly_fields = ("updated",)
-	fields = ("page", "image", "updated")
+	fields = ("page", "image", "height_variant", "updated")
 
 # Register your models here.
 

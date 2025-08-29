@@ -45,6 +45,17 @@ class Banner(models.Model):
 		help_text="שם העמוד/slug (למשל: home, about, products). השאר ריק לבאנר כללי",
 	)
 	image = models.ImageField(upload_to="banner/", blank=True, null=True, help_text="תמונת באנר רקע (אופציונלי)")
+	height_variant = models.CharField(
+		"גובה",
+		max_length=12,
+		choices=(
+			("auto", "אוטומטי"),
+			("tall", "גבוה"),
+			("short", "נמוך"),
+		),
+		default="auto",
+		help_text="בחרו גובה הבאנר: אוטומטי לפי עמוד, או ציינו גבוה/נמוך ידנית",
+	)
 	updated = models.DateTimeField(auto_now=True)
 
 	class Meta:

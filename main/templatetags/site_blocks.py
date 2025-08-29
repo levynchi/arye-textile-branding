@@ -19,7 +19,14 @@ def hero(context, page: str | None = None):
             slug = match.url_name
     if not slug:
         slug = "home"
-    return {"banner": Banner.for_page(slug), "page": slug}
+    banner = Banner.for_page(slug)
+    # Determine variant: explicit takes precedence; otherwise home=tall, others=short
+    variant = None
+    if banner and getattr(banner, "height_variant", "auto") != "auto":
+        variant = banner.height_variant
+    else:
+        variant = "tall" if slug == "home" else "short"
+    return {"banner": banner, "page": slug, "hero_variant": variant}
 
 
 @register.filter(name="resolve_link")

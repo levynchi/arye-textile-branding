@@ -1,4 +1,4 @@
 {# Reusable hero/banner partial. Expects `banner` in context #}
-<section class="hero {% if page == 'home' %}hero--home{% else %}hero--sub{% endif %}" aria-label="תמונת באנר" {% if banner and banner.image %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
+<section class="hero {% if hero_variant == 'tall' %}hero--home{% else %}hero--sub{% endif %}" aria-label="תמונת באנר" {% if banner and banner.image %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
     <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
 </section>
