@@ -1,0 +1,34 @@
+/* Branding page styles */
+
+/* Branding intro section */
+.brand-intro{background:#fff;padding:50px 0;}
+
+/* Grid container: title above, then text left (RTL content) and image right */
+.bi-inner{max-width:1400px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:'title title' 'text image';gap:28px;align-items:center;direction:ltr;}
+
+/* Title centered across two columns */
+.bi-title{grid-area:title;margin:0 0 16px;text-align:center;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.8rem,3.6vw,2.6rem);} 
+
+/* Text block (RTL) */
+.bi-text{grid-area:text;text-align:right;direction:rtl;}
+.bi-text p{margin:0 0 10px;font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.9;color:#111;}
+/* Emphasize first paragraph slightly larger */
+.bi-text > p:first-of-type{font-size:clamp(1.15rem,2.2vw,1.45rem);} 
+
+/* List styling */
+.bi-list{margin:4px 0 10px;padding:0 1.2em 0 0;list-style:none;}
+.bi-list li{margin:0 0 6px;}
+.bi-outcome{font-weight:700;margin-top:10px;}
+
+/* Image on the right */
+.bi-image{grid-area:image;margin:0;justify-self:end;}
+.bi-image img{width:82%;max-width:480px;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
+
+/* CTA under branding grid (unique class) */
+.branding-cta{display:flex;justify-content:center;margin:200px 0;}
+
+/* Responsive */
+@media (max-width:960px){
+  .bi-inner{grid-template-columns:1fr;grid-template-areas:'title' 'text' 'image';}
+  .bi-image{margin-top:10px;}
+}

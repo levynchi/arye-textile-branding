@@ -9,16 +9,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829c" />
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829i" />
+    <link rel="stylesheet" href="{% static 'branding.css' %}?v=20250829a" />
 </head>
 <body>
     {% include 'partials/header.html' %}
     {% hero 'branding' %}
     <section class="brand-intro" aria-label="מיתוג טקסטיל בהתאמה אישית">
-        <div class="bi-head">
-            <h2 class="bi-title">מיתוג טקסטיל בהתאמה אישית</h2>
-        </div>
         <div class="bi-inner">
+            <h2 class="bi-title">מיתוג טקסטיל בהתאמה אישית</h2>
             <div class="bi-text">
                 <p>
                     ב־אריה טקסטיל אנחנו מאמינים שכל פריט טקסטיל יכול להפוך לשגריר של המותג שלכם. אנחנו מציעים שירותי מיתוג מקיפים – משלב הייצור ועד המיתוג הסופי – עם מחשבה על כל פרט קטן.
@@ -36,6 +35,9 @@
             <figure class="bi-image">
                 <img src="{% static 'ChatGPT Image Aug 28, 2025, 03_49_48 PM.png' %}" alt="דוגמה למיתוג טקסטיל - ARYE TEXTILE" loading="lazy" />
             </figure>
+        </div>
+    <div class="branding-cta">
+            <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
         </div>
     </section>
     {% include 'partials/contact_form.html' %}
