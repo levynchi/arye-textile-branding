@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <title>תדמיתנות וגזרנות</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    {% load static %}
+    {% load site_blocks %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829i" />
+    <link rel="stylesheet" href="{% static 'patternmaking.css' %}?v=20250829b" />
+</head>
+<body>
+    {% include 'partials/header.html' %}
+    {% hero 'patternmaking' %}
+
+    <section class="pm-intro" aria-label="תדמיתנות – מהרעיון אל הגזרה המושלמת">
+        <div class="pm-inner">
+            <h2 class="pm-title">תדמיתנות – מהרעיון אל הגזרה המושלמת</h2>
+            <div class="pm-text">
+                <p>
+                    ב־אריה טקסטיל אנחנו מתמחים בתדמיתנות מקצועית שמתרגמת כל רעיון לבגד מדויק ונוח ללבישה. עם ניסיון של יותר מ־70 שנה, אנחנו יודעים להפוך סקיצה או השראה לגזרה ברמה הגבוהה ביותר, שתבטיח ייצור איכותי ותוצאה מושלמת.
+                </p>
+                <ul class="pm-list">
+                    <li>✔ פיתוח גזרות חדשות – מותאמות אישית לפי דרישת הלקוח, בכל גיל ובכל סגנון.</li>
+                    <li>✔ מגוון גזרות מוכנות – בסיס רחב שמאפשר בחירה קלה ומהירה.</li>
+                    <li>✔ דיוק ונוחות – התאמה לפרטים הקטנים ביותר, כדי שכל פריט ישב בצורה מושלמת.</li>
+                    <li>✔ ליווי מקצועי – משלב הרעיון ועד הייצור בפועל, עם מענה אישי ומקצועי.</li>
+                </ul>
+                <p class="pm-outcome">התוצאה: גזרות איכותיות שמאפשרות ייצור חלק, מדויק ונוח – עם גמישות מלאה לצרכים שלכם.</p>
+            </div>
+            <figure class="pm-image">
+                <img src="{% static 'ChatGPT Image Aug 24, 2025, 12_23_05 PM.png' %}" alt="תדמיתנות וגזרנות - ARYE TEXTILE" loading="lazy" />
+            </figure>
+        </div>
+        <div class="branding-cta">
+            <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
+        </div>
+    </section>
+
+    {% if pattern_images %}
+    <section class="pattern-grid" aria-label="גלריית תדמיתנות וגזרנות">
+        <div class="pg2-inner">
+            {% for img in pattern_images %}
+                {% if img %}
+                <figure class="pg2-item"><img src="{{ img.url }}" alt="תדמיתנות וגזרנות - תמונה" loading="lazy" /></figure>
+                {% else %}
+                <div class="pg2-item pg2-empty" aria-hidden="true"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% include 'partials/contact_form.html' %}
+    {% include 'partials/footer.html' %}
+</body>
+</html>

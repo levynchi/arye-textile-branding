@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.shortcuts import redirect
 from django.urls import reverse
-from .models import Gallery, Banner, ContactRequest, Slide, BrandingGallery
+from .models import Gallery, Banner, ContactRequest, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery
 
 
 @admin.register(Gallery)
@@ -101,4 +101,64 @@ class BrandingGalleryAdmin(admin.ModelAdmin):
 
 	def has_delete_permission(self, request, obj=None):
 		"""Prevent deleting the singleton from the admin UI."""
+		return False
+
+
+@admin.register(PrintingGallery)
+class PrintingGalleryAdmin(admin.ModelAdmin):
+	list_display = ("id", "updated")
+	readonly_fields = ("updated",)
+	fieldsets = (
+		(None, {
+			"fields": (
+				("image1", "image2", "image3"),
+				("image4", "image5", "image6"),
+				("image7", "image8", "image9"),
+				("image10", "image11", "image12"),
+				"updated",
+			)
+		}),
+	)
+
+	def changelist_view(self, request, extra_context=None):
+		"""Redirect to the single instance change form (singleton)."""
+		obj = PrintingGallery.objects.order_by("id").first()
+		if obj is None:
+			obj = PrintingGallery.objects.create()
+		url = reverse("admin:main_printinggallery_change", args=[obj.pk])
+		return redirect(url)
+
+	def has_add_permission(self, request):
+		return PrintingGallery.objects.count() == 0
+
+	def has_delete_permission(self, request, obj=None):
+		return False
+
+
+@admin.register(PatternmakingGallery)
+class PatternmakingGalleryAdmin(admin.ModelAdmin):
+	list_display = ("id", "updated")
+	readonly_fields = ("updated",)
+	fieldsets = (
+		(None, {
+			"fields": (
+				("image1", "image2", "image3"),
+				("image4", "image5", "image6"),
+				("image7", "image8", "image9"),
+				"updated",
+			)
+		}),
+	)
+
+	def changelist_view(self, request, extra_context=None):
+		obj = PatternmakingGallery.objects.order_by("id").first()
+		if obj is None:
+			obj = PatternmakingGallery.objects.create()
+		url = reverse("admin:main_patternmakinggallery_change", args=[obj.pk])
+		return redirect(url)
+
+	def has_add_permission(self, request):
+		return PatternmakingGallery.objects.count() == 0
+
+	def has_delete_permission(self, request, obj=None):
 		return False

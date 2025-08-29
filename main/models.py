@@ -131,3 +131,48 @@ class BrandingGallery(models.Model):
 
 	def __str__(self):  # pragma: no cover
 		return f"Branding Gallery #{self.pk}" if self.pk else "Branding Gallery"
+
+
+class PrintingGallery(models.Model):
+	"""Gallery of 12 images for the printing page only (3x4 grid)."""
+	image1 = models.ImageField("תמונה 1", upload_to="printing_gallery/", blank=True, null=True)
+	image2 = models.ImageField("תמונה 2", upload_to="printing_gallery/", blank=True, null=True)
+	image3 = models.ImageField("תמונה 3", upload_to="printing_gallery/", blank=True, null=True)
+	image4 = models.ImageField("תמונה 4", upload_to="printing_gallery/", blank=True, null=True)
+	image5 = models.ImageField("תמונה 5", upload_to="printing_gallery/", blank=True, null=True)
+	image6 = models.ImageField("תמונה 6", upload_to="printing_gallery/", blank=True, null=True)
+	image7 = models.ImageField("תמונה 7", upload_to="printing_gallery/", blank=True, null=True)
+	image8 = models.ImageField("תמונה 8", upload_to="printing_gallery/", blank=True, null=True)
+	image9 = models.ImageField("תמונה 9", upload_to="printing_gallery/", blank=True, null=True)
+	image10 = models.ImageField("תמונה 10", upload_to="printing_gallery/", blank=True, null=True)
+	image11 = models.ImageField("תמונה 11", upload_to="printing_gallery/", blank=True, null=True)
+	image12 = models.ImageField("תמונה 12", upload_to="printing_gallery/", blank=True, null=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "גלריית הדפסות"
+		verbose_name_plural = "גלריות הדפסות"
+
+	def __str__(self):  # pragma: no cover
+		return f"Printing Gallery #{self.pk}" if self.pk else "Printing Gallery"
+
+
+class PatternmakingGallery(models.Model):
+	"""Gallery of 9 images for the patternmaking (תדמיתנות וגזרנות) page."""
+	image1 = models.ImageField("תמונה 1", upload_to="patternmaking_gallery/", blank=True, null=True)
+	image2 = models.ImageField("תמונה 2", upload_to="patternmaking_gallery/", blank=True, null=True)
+	image3 = models.ImageField("תמונה 3", upload_to="patternmaking_gallery/", blank=True, null=True)
+	image4 = models.ImageField("תמונה 4", upload_to="patternmaking_gallery/", blank=True, null=True)
+	image5 = models.ImageField("תמונה 5", upload_to="patternmaking_gallery/", blank=True, null=True)
+	image6 = models.ImageField("תמונה 6", upload_to="patternmaking_gallery/", blank=True, null=True)
+	image7 = models.ImageField("תמונה 7", upload_to="patternmaking_gallery/", blank=True, null=True)
+	image8 = models.ImageField("תמונה 8", upload_to="patternmaking_gallery/", blank=True, null=True)
+	image9 = models.ImageField("תמונה 9", upload_to="patternmaking_gallery/", blank=True, null=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "גלריית תדמיתנות וגזרנות"
+		verbose_name_plural = "גלריות תדמיתנות וגזרנות"
+
+	def __str__(self):  # pragma: no cover
+		return f"Patternmaking Gallery #{self.pk}" if self.pk else "Patternmaking Gallery"

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db.models import Q
-from .models import Gallery, Slide, BrandingGallery
+from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery
 from .forms import ContactRequestForm
 
 
@@ -76,5 +76,54 @@ def printing(request):
 	else:
 		form = ContactRequestForm()
 
-	ctx = {"contact_form": form}
+	# Printing gallery: latest configured
+	printing_gallery = PrintingGallery.objects.order_by("-updated", "-id").first()
+	printing_images = []
+	if printing_gallery:
+		printing_images = [
+			printing_gallery.image1,
+			printing_gallery.image2,
+			printing_gallery.image3,
+			printing_gallery.image4,
+			printing_gallery.image5,
+			printing_gallery.image6,
+			printing_gallery.image7,
+			printing_gallery.image8,
+			printing_gallery.image9,
+			printing_gallery.image10,
+			printing_gallery.image11,
+			printing_gallery.image12,
+		]
+
+	ctx = {"contact_form": form, "printing_gallery": printing_gallery, "printing_images": printing_images}
 	return render(request, "printing.html", ctx)
+
+
+def patternmaking(request):
+	"""Patternmaking page: header, hero, contact form, footer."""
+	if request.method == "POST":
+		form = ContactRequestForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
+			return redirect("patternmaking")
+	else:
+		form = ContactRequestForm()
+
+	pattern_gallery = PatternmakingGallery.objects.order_by("-updated", "-id").first()
+	pattern_images = []
+	if pattern_gallery:
+		pattern_images = [
+			pattern_gallery.image1,
+			pattern_gallery.image2,
+			pattern_gallery.image3,
+			pattern_gallery.image4,
+			pattern_gallery.image5,
+			pattern_gallery.image6,
+			pattern_gallery.image7,
+			pattern_gallery.image8,
+			pattern_gallery.image9,
+		]
+
+	ctx = {"contact_form": form, "pattern_gallery": pattern_gallery, "pattern_images": pattern_images}
+	return render(request, "patternmaking.html", ctx)
