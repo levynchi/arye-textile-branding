@@ -3,7 +3,7 @@
     --text: #111317;
     --accent: #0f5c9c;
     --accent-grad: linear-gradient(90deg, #0f5c9c, #357fc7);
-    --menu-height: 68px;
+    --menu-height: 92px;
     --font-sans: 'Arial','Heebo',sans-serif;
     --font-title: 'Suez One', serif;
 }
@@ -19,9 +19,9 @@ ul.menu a {text-decoration:none;color:var(--text);position:relative;padding:4px 
 ul.menu a::after {content:"";position:absolute;right:0;left:0;bottom:-4px;height:2px;background:var(--accent-grad);transform:scaleX(0);transform-origin:right;transition:.35s;border-radius:2px;}
 ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);} 
 /* WhatsApp link in header */
-.wa-link {display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:#25D36610;border:1px solid #25D36633;transition:.25s;box-shadow:0 1px 2px rgba(0,0,0,.06);} 
-.wa-link:hover, .wa-link:focus-visible {background:#25D36620;border-color:#25D36666;box-shadow:0 2px 6px rgba(37,211,102,.25);} 
-.wa-link img {width:22px;height:22px;display:block;}
+.wa-link {display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:0;background:transparent;border:none;transition:.25s;box-shadow:none;} 
+.wa-link:hover, .wa-link:focus-visible {background:transparent;border:none;box-shadow:none;} 
+.wa-link img {width:56px;height:56px;display:block;}
 
 /* Hero (global) */
 .hero{position:relative;width:100%;aspect-ratio:16/6;background:#666 center/cover no-repeat;display:flex;align-items:flex-end;justify-content:center;}
