@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250828" />
-    <link rel="stylesheet" href="{% static 'home.css' %}?v=20250828" />
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829" />
+    <link rel="stylesheet" href="{% static 'home.css' %}?v=20250829" />
 </head>
 <body>
     {% include 'partials/header.html' %}
@@ -92,24 +92,24 @@
                 </figure>
             </div>
         </section>
-                <div class="slider-band">
-                    <div class="slider-head">
-                        <h2 class="slider-title">מהמוצרים שלנו</h2>
-                        <a class="slider-all" href="#products" aria-label="לכל המוצרים">לכל המוצרים</a>
-                    </div>
-                    <div class="h-slider" id="products" aria-label="גלריה נעה אופקית">
-                        <div class="track">
-                                {% for s in slides %}
-                                    <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt }}" loading="lazy" /></figure>
-                                {% empty %}
-                                    {% for i in "12345678" %}
-                                        <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
-                                    {% endfor %}
-                                {% endfor %}
-                        </div>
-                    </div>
-                </div>
     </section>
+    <div class="slider-band">
+        <div class="slider-head">
+            <h2 class="slider-title">מהמוצרים שלנו</h2>
+            <a class="slider-all" href="#products" aria-label="לכל המוצרים">לכל המוצרים</a>
+        </div>
+        <div class="h-slider" id="products" aria-label="גלריה נעה אופקית">
+            <div class="track">
+                {% for s in slides %}
+                    <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt }}" loading="lazy" /></figure>
+                {% empty %}
+                    {% for i in "12345678" %}
+                        <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
         <script>
             (function(){
                 const slider = document.querySelector('.h-slider');
