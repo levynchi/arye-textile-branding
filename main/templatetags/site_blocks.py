@@ -19,7 +19,7 @@ def hero(context, page: str | None = None):
             slug = match.url_name
     if not slug:
         slug = "home"
-    return {"banner": Banner.for_page(slug)}
+    return {"banner": Banner.for_page(slug), "page": slug}
 
 
 @register.filter(name="resolve_link")
