@@ -10,10 +10,32 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829i" />
+    <link rel="stylesheet" href="{% static 'printing.css' %}?v=20250829a" />
 </head>
 <body>
     {% include 'partials/header.html' %}
     {% hero 'printing' %}
+
+    <section class="print-intro" aria-label="הדפסות שמבליטות כל מוצר">
+        <div class="pi-inner">
+            <h2 class="pi-title">הדפסות שמבליטות כל מוצר</h2>
+            <div class="pi-text">
+                <p>
+                    ב־אריה טקסטיל אנחנו מספקים שירותי הדפסה מתקדמים על מגוון רחב של מוצרי טקסטיל, תוך שימוש בטכנולוגיות החדשניות ביותר בשוק. אנחנו דואגים שכל עיצוב, לוגו או מסר יקבל ביטוי חד, צבעוני ואיכותי בצורה שמחזיקה מעמד לאורך זמן.
+                </p>
+                <ul class="pi-list">
+                    <li>✔ הדפסות All Over – על כל שטח הבד, ליצירת מראה ייחודי וחופשי.</li>
+                    <li>✔ DTF Printing – איכות גבוהה, צבעים חיים והדפסה עמידה במיוחד.</li>
+                    <li>✔ סובלימציה – פתרון אידיאלי למוצרים בצבעים בהירים והדפסים מדויקים.</li>
+                    <li>✔ פאצ'ים וריקמה – מיתוג קלאסי ויוקרתי שמוסיף אופי ומקצועיות לכל מוצר.</li>
+                </ul>
+                <p class="pi-outcome">התוצאה: טקסטיל ממותג ברמה הגבוהה ביותר – עם מראה ייחודי, איכותי ומקצועי שבלתי אפשרי להתעלם ממנו.</p>
+            </div>
+            <figure class="pi-image">
+                <img src="{% static 'IMG_7839.JPG' %}" alt="הדפסות טקסטיל - ARYE TEXTILE" loading="lazy" />
+            </figure>
+        </div>
+    </section>
 
     {% include 'partials/contact_form.html' %}
     {% include 'partials/footer.html' %}

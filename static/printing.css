@@ -1,0 +1,13 @@
+/* Printing page styles */
+
+.print-intro{background:#fff;padding:50px 0;}
+.pi-inner{max-width:1400px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:'title title' 'text image';gap:28px;align-items:center;direction:ltr;}
+.pi-title{grid-area:title;margin:0 0 16px;text-align:center;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.8rem,3.6vw,2.6rem);} 
+.pi-text{grid-area:text;text-align:right;direction:rtl;}
+.pi-text p{margin:0 0 10px;font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.9;color:#111;}
+.pi-list{margin:4px 0 10px;padding:0 1.2em 0 0;list-style:none;}
+.pi-list li{margin:0 0 6px;}
+.pi-outcome{font-weight:700;margin-top:10px;}
+.pi-image{grid-area:image;margin:0;justify-self:end;}
+.pi-image img{width:82%;max-width:520px;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
+@media (max-width:960px){.pi-inner{grid-template-columns:1fr;grid-template-areas:'title' 'text' 'image';} .pi-image{margin-top:10px;}}
