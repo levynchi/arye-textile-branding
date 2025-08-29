@@ -37,6 +37,13 @@ class Slide(models.Model):
 
 class Banner(models.Model):
 	"""Homepage hero banner image (single latest used)."""
+	page = models.SlugField(
+		"עמוד",
+		max_length=50,
+		blank=True,
+		null=True,
+		help_text="שם העמוד/slug (למשל: home, about, products). השאר ריק לבאנר כללי",
+	)
 	image = models.ImageField(upload_to="banner/", blank=True, null=True, help_text="תמונת באנר רקע (אופציונלי)")
 	updated = models.DateTimeField(auto_now=True)
 
@@ -45,7 +52,22 @@ class Banner(models.Model):
 		verbose_name_plural = "באנרים"  # though usually only one
 
 	def __str__(self):  # pragma: no cover
-		return f"Banner #{self.pk}" if self.pk else "Banner"
+		label = self.page or "general"
+		return f"Banner [{label}] #{self.pk}" if self.pk else f"Banner [{label}]"
+
+	@classmethod
+	def for_page(cls, page_slug: str | None):
+		"""Get the most appropriate banner for a page.
+
+		Priority: exact page match -> general (null/blank) -> any latest.
+		"""
+		qs = cls.objects
+		if page_slug:
+			obj = qs.filter(page__iexact=page_slug).order_by("-updated", "-id").first()
+			if obj:
+				return obj
+		obj = qs.filter(models.Q(page__isnull=True) | models.Q(page__exact="")).order_by("-updated", "-id").first()
+		return obj or qs.order_by("-updated", "-id").first()
 
 
 class Gallery(models.Model):

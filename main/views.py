@@ -1,12 +1,12 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import Banner, Gallery, Slide
+from django.db.models import Q
+from .models import Gallery, Slide
 from .forms import ContactRequestForm
 
 
 def home(request):
 	# Content blocks
-	banner = Banner.objects.order_by("-updated", "-id").first()
 	gallery = Gallery.objects.order_by("-updated", "-id").first()
 
 	# Slides: all with images, ordered; duplicate list for seamless CSS loop
@@ -25,7 +25,6 @@ def home(request):
 		form = ContactRequestForm()
 
 	ctx = {
-		"banner": banner,
 		"gallery": gallery,
 		"slides": slides_loop,
 		"contact_form": form,

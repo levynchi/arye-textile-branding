@@ -24,8 +24,11 @@ class GalleryAdmin(admin.ModelAdmin):
 
 @admin.register(Banner)
 class BannerAdmin(admin.ModelAdmin):
-	list_display = ("id", "updated")
+	list_display = ("id", "page", "updated")
+	list_filter = ("page",)
+	search_fields = ("page",)
 	readonly_fields = ("updated",)
+	fields = ("page", "image", "updated")
 
 # Register your models here.
 
