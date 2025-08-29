@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db.models import Q
-from .models import Gallery, Slide
+from .models import Gallery, Slide, BrandingGallery
 from .forms import ContactRequestForm
 
 
@@ -44,5 +44,21 @@ def branding(request):
 	else:
 		form = ContactRequestForm()
 
-	ctx = {"contact_form": form}
+	# Branding gallery: take the latest configured one
+	branding_gallery = BrandingGallery.objects.order_by("-updated", "-id").first()
+	branding_images = []
+	if branding_gallery:
+		branding_images = [
+			branding_gallery.image1,
+			branding_gallery.image2,
+			branding_gallery.image3,
+			branding_gallery.image4,
+			branding_gallery.image5,
+			branding_gallery.image6,
+			branding_gallery.image7,
+			branding_gallery.image8,
+			branding_gallery.image9,
+		]
+
+	ctx = {"contact_form": form, "branding_gallery": branding_gallery, "branding_images": branding_images}
 	return render(request, "branding.html", ctx)

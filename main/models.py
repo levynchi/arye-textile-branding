@@ -110,3 +110,24 @@ class Gallery(models.Model):
 
 	def __str__(self):  # pragma: no cover
 		return self.title or f"Gallery #{self.pk}" 
+
+
+class BrandingGallery(models.Model):
+	"""Gallery of 9 images for the branding page only."""
+	image1 = models.ImageField("תמונה 1", upload_to="branding_gallery/", blank=True, null=True)
+	image2 = models.ImageField("תמונה 2", upload_to="branding_gallery/", blank=True, null=True)
+	image3 = models.ImageField("תמונה 3", upload_to="branding_gallery/", blank=True, null=True)
+	image4 = models.ImageField("תמונה 4", upload_to="branding_gallery/", blank=True, null=True)
+	image5 = models.ImageField("תמונה 5", upload_to="branding_gallery/", blank=True, null=True)
+	image6 = models.ImageField("תמונה 6", upload_to="branding_gallery/", blank=True, null=True)
+	image7 = models.ImageField("תמונה 7", upload_to="branding_gallery/", blank=True, null=True)
+	image8 = models.ImageField("תמונה 8", upload_to="branding_gallery/", blank=True, null=True)
+	image9 = models.ImageField("תמונה 9", upload_to="branding_gallery/", blank=True, null=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "גלריית מיתוג"
+		verbose_name_plural = "גלריות מיתוג"
+
+	def __str__(self):  # pragma: no cover
+		return f"Branding Gallery #{self.pk}" if self.pk else "Branding Gallery"
