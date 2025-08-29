@@ -105,8 +105,8 @@ class Gallery(models.Model):
 	updated = models.DateTimeField(auto_now=True)
 
 	class Meta:
-		verbose_name = "גלריה"
-		verbose_name_plural = "גלריות"
+		verbose_name = "גלריית דף הבית"
+		verbose_name_plural = "גלריית דף הבית קרוסלה"
 
 	def __str__(self):  # pragma: no cover
 		return self.title or f"Gallery #{self.pk}" 

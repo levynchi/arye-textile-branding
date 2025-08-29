@@ -23,6 +23,26 @@ class GalleryAdmin(admin.ModelAdmin):
 		}),
 	)
 
+	def changelist_view(self, request, extra_context=None):
+		"""Redirect the gallery list to the single instance change form.
+
+		Ensures a singleton: creates one if not exists and sends the user
+		straight to its change page.
+		"""
+		obj = Gallery.objects.order_by("id").first()
+		if obj is None:
+			obj = Gallery.objects.create(title="גלריה לבית")
+		url = reverse("admin:main_gallery_change", args=[obj.pk])
+		return redirect(url)
+
+	def has_add_permission(self, request):
+		"""Allow adding only if no instance exists."""
+		return Gallery.objects.count() == 0
+
+	def has_delete_permission(self, request, obj=None):
+		"""Prevent deleting the singleton from the admin UI."""
+		return False
+
 
 @admin.register(Banner)
 class BannerAdmin(admin.ModelAdmin):
