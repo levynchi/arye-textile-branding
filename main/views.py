@@ -30,3 +30,19 @@ def home(request):
 		"contact_form": form,
 	}
 	return render(request, "home.html", ctx)
+
+
+def branding(request):
+	"""Branding page: header, hero, contact form, footer."""
+	# Contact form (same handling as home)
+	if request.method == "POST":
+		form = ContactRequestForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
+			return redirect("branding")
+	else:
+		form = ContactRequestForm()
+
+	ctx = {"contact_form": form}
+	return render(request, "branding.html", ctx)
