@@ -62,3 +62,19 @@ def branding(request):
 
 	ctx = {"contact_form": form, "branding_gallery": branding_gallery, "branding_images": branding_images}
 	return render(request, "branding.html", ctx)
+
+
+def printing(request):
+	"""Printing page: header, hero, contact form, footer."""
+	# Contact form handling
+	if request.method == "POST":
+		form = ContactRequestForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
+			return redirect("printing")
+	else:
+		form = ContactRequestForm()
+
+	ctx = {"contact_form": form}
+	return render(request, "printing.html", ctx)
