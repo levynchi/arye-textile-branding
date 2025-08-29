@@ -10,12 +10,12 @@ class GalleryAdmin(admin.ModelAdmin):
 		(None, {"fields": ("title",)}),
 		("קטגוריות", {
 			"fields": (
-				("image1", "caption1"),
-				("image2", "caption2"),
-				("image3", "caption3"),
-				("image4", "caption4"),
-				("image5", "caption5"),
-				("image6", "caption6"),
+				("image1", "caption1", "link1"),
+				("image2", "caption2", "link2"),
+				("image3", "caption3", "link3"),
+				("image4", "caption4", "link4"),
+				("image5", "caption5", "link5"),
+				("image6", "caption6", "link6"),
 				"updated",
 			)
 		}),

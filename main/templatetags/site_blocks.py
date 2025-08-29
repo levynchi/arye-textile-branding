@@ -1,5 +1,6 @@
 from django import template
 from ..models import Banner
+from django.urls import reverse, NoReverseMatch
 
 register = template.Library()
 
@@ -19,3 +20,24 @@ def hero(context, page: str | None = None):
     if not slug:
         slug = "home"
     return {"banner": Banner.for_page(slug)}
+
+
+@register.filter(name="resolve_link")
+def resolve_link(value: str | None):
+    """Resolve a string into a navigable URL.
+
+    Rules:
+    - If empty -> '#'
+    - If starts with 'http', 'https', '/', or '#' -> return as-is
+    - Otherwise treat as URL name for reverse(); if fails, return '/<value>/' style path
+    """
+    s = (value or "").strip()
+    if not s:
+        return "#"
+    lower = s.lower()
+    if lower.startswith("http://") or lower.startswith("https://") or s.startswith("/") or s.startswith("#"):
+        return s
+    try:
+        return reverse(s)
+    except NoReverseMatch:
+        return "/" + s.strip("/") + "/"
