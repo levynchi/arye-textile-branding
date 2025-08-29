@@ -1,9 +1,10 @@
 {% load static %}
+{% load static %}
 <header>
     <div class="nav-bar" role="navigation" aria-label="תפריט ראשי">
-        <div class="logo">
+        <a href="{% url 'home' %}" class="logo" aria-label="עמוד הבית">
             <img src="{% static 'icons_logo/logo-arye.svg' %}" alt="לוגו אריה" />
-        </div>
+        </a>
         <nav>
             <ul class="menu">
                 <li><a href="#services">מתפרה</a></li>
