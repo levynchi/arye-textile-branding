@@ -45,3 +45,20 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 @media (max-width:1100px){.f-cols{grid-template-columns:repeat(2,minmax(0,1fr));}.f-brand{order:-1;} ul.menu{gap:32px;font-size:1.05rem;}}
 @media (max-width:860px){.nav-bar{flex-wrap:wrap;gap:18px;height:auto;padding:12px 20px 18px;}nav{order:3;flex-basis:100%;}ul.menu{justify-content:center;flex-wrap:wrap;gap:24px;} .wa-link{order:2;}}
 @media (max-width:660px){.f-cols{grid-template-columns:1fr;}.f-col{font-size:.8rem;} .social{font-size:1.5rem;} .site-footer{padding:60px 0 28px;}}
+
+/* Contact form section (global) */
+.contact-wrap{background:linear-gradient(110deg,#53c6ff,#0d3852 55%);padding:0;display:flex;justify-content:center;}
+.contact-inner{max-width:1400px;width:100%;display:grid;grid-template-columns:1fr;align-items:stretch;}
+.contact-visual{display:none !important;background:none;min-height:0;}
+.contact-form-card{background:#fff;max-width:820px;width:100%;justify-self:center;margin:60px auto 80px;padding:38px 38px 46px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.18);display:flex;flex-direction:column;}
+.contact-form-card h2{margin:0 0 28px;text-align:center;font-weight:600;font-size:1.8rem;letter-spacing:.5px;}
+.contact-form-card form{display:flex;flex-direction:column;gap:22px;}
+.contact-form-card .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px;}
+.contact-form-card .grid .full{grid-column:1 / -1;}
+.contact-form-card input, .contact-form-card textarea{width:100%;font:inherit;border:1px solid #b9bcc0;border-radius:2px;padding:10px 14px;background:#fff;transition:.25s;}
+.contact-form-card textarea{resize:vertical;min-height:160px;}
+.contact-form-card input:focus, .contact-form-card textarea:focus{outline:none;border-color:#0f5c9c;box-shadow:0 0 0 2px rgba(15,92,156,.25);}
+.send-btn{margin-top:6px;width:100%;background:#000;color:#fff;font-size:2rem;font-weight:700;border:none;padding:10px 0;border-radius:0;cursor:pointer;transition:.3s;}
+.send-btn:hover{background:#111;}
+.form-messages{list-style:none;margin:14px 0 0;padding:0;color:#0a6c2f;font-weight:600;text-align:center;}
+@media (max-width:1050px){.contact-inner{grid-template-columns:1fr;} .contact-visual{display:none;} .contact-form-card{margin:70px 40px;}}
