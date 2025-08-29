@@ -78,6 +78,8 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 
 /* Branding page intro */
 .brand-intro{background:#fff;padding:50px 0;}
+.bi-head{max-width:1400px;margin:0 auto 10px;padding:0 40px;}
+.bi-head .bi-title{margin:0 0 14px;text-align:center;}
 .bi-inner{max-width:1400px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:'text image';gap:28px;align-items:center;direction:ltr;}
 .bi-text{grid-area:text;text-align:right;direction:rtl;}
 .bi-title{margin:0 0 16px;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.8rem,3.6vw,2.6rem);} 
