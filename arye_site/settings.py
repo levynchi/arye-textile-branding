@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -87,6 +88,20 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Optional: override DB via DATABASE_URL (e.g., Postgres on DigitalOcean Managed DB)
+DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DJANGO_DATABASE_URL')
+if DATABASE_URL:
+    try:
+        import dj_database_url  # type: ignore
+    except Exception:
+        print('Warning: dj-database-url not installed; DATABASE_URL ignored', file=sys.stderr)
+    else:
+        DATABASES['default'] = dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=int(os.environ.get('DB_CONN_MAX_AGE', '600')),
+            ssl_require=os.environ.get('DB_SSL_REQUIRE', 'true').lower() in ('1','true','yes','on')
+        )
 
 
 # Password validation
