@@ -106,7 +106,7 @@ class Gallery(models.Model):
 
 	class Meta:
 		verbose_name = "גלריית דף הבית"
-		verbose_name_plural = "גלריית דף הבית קרוסלה"
+		verbose_name_plural = "גלריית דף הבית"
 
 	def __str__(self):  # pragma: no cover
 		return self.title or f"Gallery #{self.pk}" 
