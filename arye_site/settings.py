@@ -25,13 +25,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-insecure-key-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() in ('1', 'true', 'yes', 'on')
+# Default to false; enable locally via DJANGO_DEBUG=true
+DEBUG = os.environ.get('DJANGO_DEBUG', 'false').lower() in ('1', 'true', 'yes', 'on')
 
-# Comma-separated list of hosts; defaults to localhost in dev
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+# Comma-separated list of hosts; include DO *.ondigitalocean.app by default
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,.ondigitalocean.app').split(',') if h.strip()]
 
-# CSRF trusted origins (comma-separated, e.g., https://example.com,https://*.ondigitalocean.app)
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+# CSRF trusted origins (comma-separated); include DO wildcard by default
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'https://*.ondigitalocean.app').split(',') if o.strip()]
 
 
 # Application definition
