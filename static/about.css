@@ -1,0 +1,24 @@
+/* About page styles inspired by provided mock */
+
+.about-page{background:#fff;}
+
+/* Section: מי אנחנו */
+.about-hero{padding:40px 0;}
+.ah-inner{max-width:1400px;margin:0 auto;padding:0 40px;}
+.ah-title{font-family:'Suez One',serif;font-size:clamp(2rem,4.2vw,3rem);font-weight:800;text-align:right;margin:0 0 10px;}
+.ah-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;}
+.ah-image{margin:0;justify-self:center;}
+.ah-image img{width:68%;max-width:560px;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
+.ah-text{font-family:'Assistant',var(--font-sans);font-weight:600;font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.75;color:#111;}
+
+/* Divider-like spacing to evoke the screenshot */
+.about-why{padding:40px 0;border-top:2px solid #d7dbdf;}
+.aw-inner{max-width:1000px;margin:0 auto;padding:0 40px;text-align:center;}
+.aw-title{font-family:'Suez One',serif;font-size:clamp(2rem,4.2vw,3rem);font-weight:800;margin:24px 0;}
+.aw-text{font-family:'Assistant',var(--font-sans);font-weight:600;font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.8;color:#111;}
+.aw-text p{margin:0 0 8px;}
+
+@media (max-width:960px){
+  .ah-grid{grid-template-columns:1fr;}
+  .ah-image img{width:82%;}
+}

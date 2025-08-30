@@ -187,3 +187,18 @@ def manufacturing(request):
 
 	ctx = {"contact_form": form, "manuf_gallery": manuf_gallery, "manuf_images": manuf_images}
 	return render(request, "manufacturing.html", ctx)
+
+
+def about(request):
+	"""About page with company intro and why-us section."""
+	if request.method == "POST":
+		form = ContactRequestForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
+			return redirect("about")
+	else:
+		form = ContactRequestForm()
+
+	ctx = {"contact_form": form}
+	return render(request, "about.html", ctx)

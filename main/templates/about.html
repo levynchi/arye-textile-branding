@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <title>אודות</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829i" />
+    <link rel="stylesheet" href="{% static 'about.css' %}?v=20250830a" />
+</head>
+<body>
+    {% include 'partials/header.html' %}
+
+    <main class="about-page">
+        <section class="about-hero" aria-label="מי אנחנו">
+            <div class="ah-inner">
+                <h1 class="ah-title">מי אנחנו</h1>
+                <div class="ah-grid">
+                    <figure class="ah-image">
+                        <img src="{% static 'ChatGPT Image Aug 28, 2025, 03_49_48 PM.png' %}" alt="ARYE TEXTILE - מי אנחנו" loading="lazy" />
+                    </figure>
+                    <div class="ah-text">
+                        <p>
+                            מפעל אריה טקסטיל פועל מתל־אביב מאז 1948 ומביא איתו
+                            עשרות שנים של מקצועיות, חדשנות ואהבה לטקסטיל.
+                        </p>
+                        <p>
+                            אנחנו מתמחים בייצור ובאיכות מגוון רחב של מוצרי טקסטיל – החל מבדים איכותיים
+                            ועד פתרון לבוש מוגמרים – לצד שירותי מיתוג, הדפסות מתקדמות, ריגמות ותדמיתנות.
+                        </p>
+                        <p>
+                            עם שנות ניסיון ויכולות עמוקות גם בשוק המקומי והבינלאומי
+                            אנחנו יודעים לדחוף צרכים משתנים ולהציע פתרונות מותאמים לעולם המודרני והדינמי.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="about-why" aria-label="למה אנחנו">
+            <div class="aw-inner">
+                <h2 class="aw-title">למה אנחנו</h2>
+                <div class="aw-text">
+                    <p>ניסיון ומקצועיות – יותר מ־75 שנות פעילות שהפכו אותנו לשם דבר בעולם הטקסטיל בישראל.</p>
+                    <p>מכונה כוללת לקצה – משרטוט ראשוני ועד מוצר מוגמר וממותג, הכל תחת קורת גג אחת.</p>
+                    <p>איכות ללא פשרות – שימוש בחומרים טובים ועבודת ייצור מדויקת ותהליכי בקרת איכות מוקפדים.</p>
+                    <p>שירות אישי ותזמונים גבוהים – אנחנו מלווים כל לקוח באופן אישי, עם תשומת־לב אמיתית לצרכים שלו.</p>
+                    <p>חדשנות מתמשכת – שילוב בין מורשת ארוכת שנים לבין פתרונות מתקדמים לעולם המשתנה.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>
