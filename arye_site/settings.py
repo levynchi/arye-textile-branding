@@ -123,7 +123,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# Use absolute URL so assets are referenced correctly in production
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
@@ -140,6 +141,39 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Media (uploaded images)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Media storage: switch to DigitalOcean Spaces via django-storages when configured
+USE_SPACES = os.environ.get('AWS_STORAGE_BUCKET_NAME') and (
+    os.environ.get('AWS_ACCESS_KEY_ID') and os.environ.get('AWS_SECRET_ACCESS_KEY')
+)
+
+if USE_SPACES:
+    # Ensure django-storages is available
+    try:
+        import storages  # noqa: F401
+    except Exception:
+        storages = None
+    else:
+        INSTALLED_APPS.append('storages')
+
+        # Required S3/Spaces settings
+        DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+        AWS_STORAGE_BUCKET_NAME = os.environ['AWS_STORAGE_BUCKET_NAME']
+        AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
+        AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
+        AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'nyc3')
+        AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', f'https://{AWS_S3_REGION_NAME}.digitaloceanspaces.com')
+
+        # Public-read by default; adjust if using private bucket + signed URLs
+        AWS_DEFAULT_ACL = 'public-read'
+        AWS_QUERYSTRING_AUTH = False
+
+        # Build media URL to Spaces bucket (can replace with CDN domain)
+        CDN_DOMAIN = os.environ.get('CDN_DOMAIN')  # e.g. media.example.com
+        if CDN_DOMAIN:
+            MEDIA_URL = f'https://{CDN_DOMAIN}/'
+        else:
+            MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/'
 
 # Secure settings toggled for production
 if not DEBUG:
