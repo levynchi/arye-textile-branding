@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db.models import Q
-from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery
+from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery
 from .forms import ContactRequestForm
 
 
@@ -127,3 +127,33 @@ def patternmaking(request):
 
 	ctx = {"contact_form": form, "pattern_gallery": pattern_gallery, "pattern_images": pattern_images}
 	return render(request, "patternmaking.html", ctx)
+
+
+def fabrics(request):
+	"""Fabrics page: header, hero, contact form, footer."""
+	if request.method == "POST":
+		form = ContactRequestForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
+			return redirect("fabrics")
+	else:
+		form = ContactRequestForm()
+
+	fabrics_gallery = FabricsGallery.objects.order_by("-updated", "-id").first()
+	fabrics_images = []
+	if fabrics_gallery:
+		fabrics_images = [
+			fabrics_gallery.image1,
+			fabrics_gallery.image2,
+			fabrics_gallery.image3,
+			fabrics_gallery.image4,
+			fabrics_gallery.image5,
+			fabrics_gallery.image6,
+			fabrics_gallery.image7,
+			fabrics_gallery.image8,
+			fabrics_gallery.image9,
+		]
+
+	ctx = {"contact_form": form, "fabrics_gallery": fabrics_gallery, "fabrics_images": fabrics_images}
+	return render(request, "fabrics.html", ctx)

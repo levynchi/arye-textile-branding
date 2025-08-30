@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <title>בדים</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    {% load static %}
+    {% load site_blocks %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829i" />
+    <link rel="stylesheet" href="{% static 'fabrics.css' %}?v=20250829a" />
+</head>
+<body>
+    {% include 'partials/header.html' %}
+    {% hero 'fabrics' %}
+
+    <section class="fb-intro" aria-label="בדים – הבסיס לכל יצירה">
+        <div class="fb-inner">
+            <h2 class="fb-title">בדים – הבסיס לכל יצירה</h2>
+            <div class="fb-text">
+                <p>
+                    ב־אריה טקסטיל אנחנו מציעים מגוון רחב של בדים איכותיים, במבחר צבעים חלקים או מודפסים כדי שתוכלו למצוא בדיוק את מה שמתאים לעיצוב ולייצור שלכם. הבדים שלנו נבחרים בקפידה, ברמת איכות גבוהה, ומתאימים במיוחד לייצור אופנה, בגדי תינוקות וילדים, מוצרי טקסטיל לבית ועוד.
+                </p>
+                <ul class="fb-list">
+                    <li>✔ בדים חלקים – קלאסיים, אלגנטיים וזמינים במגוון צבעים.</li>
+                    <li>✔ בדים מודפסים – עם הדפסים ייחודיים או בהתאמה אישית.</li>
+                    <li>✔ בדי וואפל – מרקם נעים ואיכותי, אידיאלי למגבות, שמיכות ומוצרי תינוקות.</li>
+                    <li>✔ בדי ריב – נמתחים ונוחים, מושלמים לפריטי לבוש צמודים ונעימים.</li>
+                    <li>✔ אינטרלוק – בד רך, עמיד וגמיש, נפוץ במיוחד בבגדי תינוקות וילדים.</li>
+                    <li>✔ סינגל ג'רזי – קליל ואוורירי, מתאים לבגדי קיץ ופריטי בייסיק.</li>
+                    <li>✔ בדי טטרה – בד נשימה רך ועדין, מושלם לחיתולי בד, שמיכות טטרה ומוצרי תינוקות איכותיים.</li>
+                </ul>
+                <p class="fb-outcome">התוצאה: בדים איכותיים, נוחים לעבודה ועמידים בשימוש – עם אפשרות לייצור בכמויות קטנות או גדולות, לפי הצורך שלכם.</p>
+            </div>
+            <figure class="fb-image">
+                <img src="{% static 'pile-folded-colorful-textile-heap-cloth-fabric.jpg' %}" alt="בדים - ARYE TEXTILE" loading="lazy" />
+            </figure>
+        </div>
+        <div class="branding-cta">
+            <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
+        </div>
+    </section>
+
+    {% if fabrics_images %}
+    <section class="fabrics-grid" aria-label="גלריית בדים">
+        <div class="fg-inner">
+            {% for img in fabrics_images %}
+                {% if img %}
+                <figure class="fg-item"><img src="{{ img.url }}" alt="בדים - תמונה" loading="lazy" /></figure>
+                {% else %}
+                <div class="fg-item fg-empty" aria-hidden="true"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% include 'partials/contact_form.html' %}
+    {% include 'partials/footer.html' %}
+</body>
+</html>
