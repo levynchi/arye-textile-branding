@@ -1,19 +1,21 @@
 {% load static %}
+{% load site_blocks %}
 <footer class="site-footer" aria-label="כותרת תחתונה">
   <div class="f-inner">
+  {% footer_settings as fs %}
     <div class="f-cols">
       <!-- Reordered: brand + last column moved to the start, first column moved to end -->
       <div class="f-brand">
         <div class="logo-stack">
           <div class="brand-line">בית חרושת</div>
           <div class="brand-name">"אריה"</div>
-          <div class="brand-phone">054-2367535</div>
+          <div class="brand-phone">{{ fs.phone_display|default:"054-2367535" }}</div>
         </div>
         <div class="social">
-          <a href="https://wa.me/972542367535" target="_blank" rel="noopener" aria-label="WhatsApp" class="ico wa"><img src="{% static 'icons_logo/whatsapp.svg' %}" alt="WhatsApp" /></a>
-          <a href="#" aria-label="Facebook" class="ico fb"><img src="{% static 'icons_logo/facebook.svg' %}" alt="Facebook" /></a>
-          <a href="#" aria-label="Instagram" class="ico ig"><img src="{% static 'icons_logo/instagram.svg' %}" alt="Instagram" /></a>
-          <a href="#" aria-label="Email" class="ico mail"><img src="{% static 'icons_logo/email.svg' %}" alt="Email" /></a>
+          <a href="{{ fs.whatsapp_link|default:'#' }}" target="_blank" rel="noopener" aria-label="WhatsApp" class="ico wa"><img src="{% static 'icons_logo/whatsapp.svg' %}" alt="WhatsApp" /></a>
+          <a href="{{ fs.facebook_url|default:'#' }}" target="_blank" rel="noopener" aria-label="Facebook" class="ico fb"><img src="{% static 'icons_logo/facebook.svg' %}" alt="Facebook" /></a>
+          <a href="{{ fs.instagram_url|default:'#' }}" target="_blank" rel="noopener" aria-label="Instagram" class="ico ig"><img src="{% static 'icons_logo/instagram.svg' %}" alt="Instagram" /></a>
+          <a href="mailto:{{ fs.email|default:'' }}" aria-label="Email" class="ico mail"><img src="{% static 'icons_logo/email.svg' %}" alt="Email" /></a>
         </div>
       </div>
       <ul class="f-col">

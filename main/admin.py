@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.shortcuts import redirect
 from django.urls import reverse
-from .models import Gallery, Banner, ContactRequest, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery
+from .models import Gallery, Banner, ContactRequest, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, FooterSettings
 
 
 @admin.register(Gallery)
@@ -217,6 +217,26 @@ class ManufacturingGalleryAdmin(admin.ModelAdmin):
 
 	def has_add_permission(self, request):
 		return ManufacturingGallery.objects.count() == 0
+
+	def has_delete_permission(self, request, obj=None):
+		return False
+
+
+@admin.register(FooterSettings)
+class FooterSettingsAdmin(admin.ModelAdmin):
+	list_display = ("id", "phone_display", "email", "updated")
+	readonly_fields = ("updated",)
+	fields = ("phone_display", "email", "whatsapp_link", "instagram_url", "facebook_url", "updated")
+
+	def changelist_view(self, request, extra_context=None):
+		obj = FooterSettings.objects.order_by("id").first()
+		if obj is None:
+			obj = FooterSettings.objects.create(phone_display="054-2367535")
+		url = reverse("admin:main_footersettings_change", args=[obj.pk])
+		return redirect(url)
+
+	def has_add_permission(self, request):
+		return FooterSettings.objects.count() == 0
 
 	def has_delete_permission(self, request, obj=None):
 		return False

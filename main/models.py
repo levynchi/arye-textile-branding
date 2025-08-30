@@ -218,3 +218,20 @@ class ManufacturingGallery(models.Model):
 
 	def __str__(self):  # pragma: no cover
 		return f"Manufacturing Gallery #{self.pk}" if self.pk else "Manufacturing Gallery"
+
+
+class FooterSettings(models.Model):
+	"""Site-wide footer contact and social links (singleton)."""
+	phone_display = models.CharField("טלפון להצגה", max_length=40, blank=True, help_text="לדוגמה: 054-2367535")
+	email = models.EmailField("אימייל", blank=True)
+	whatsapp_link = models.URLField("קישור וואטסאפ", blank=True, help_text="לדוגמה: https://wa.me/9725...")
+	instagram_url = models.URLField("קישור אינסטגרם", blank=True)
+	facebook_url = models.URLField("קישור פייסבוק", blank=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "הגדרות פוטר"
+		verbose_name_plural = "הגדרות פוטר"
+
+	def __str__(self):  # pragma: no cover
+		return f"Footer Settings #{self.pk}" if self.pk else "Footer Settings"

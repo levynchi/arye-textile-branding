@@ -1,5 +1,5 @@
 from django import template
-from ..models import Banner
+from ..models import Banner, FooterSettings
 from django.urls import reverse, NoReverseMatch
 
 register = template.Library()
@@ -48,3 +48,9 @@ def resolve_link(value: str | None):
         return reverse(s)
     except NoReverseMatch:
         return "/" + s.strip("/") + "/"
+
+
+@register.simple_tag
+def footer_settings():
+    """Return the singleton FooterSettings instance (or None)."""
+    return FooterSettings.objects.order_by("id").first()
