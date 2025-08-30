@@ -10,6 +10,7 @@
 .ah-image{margin:0;justify-self:center;}
 .ah-image img{width:68%;max-width:560px;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
 .ah-text{font-family:'Assistant',var(--font-sans);font-weight:600;font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.75;color:#111;}
+.ah-text .ah-title{margin:0 0 12px;}
 
 /* Divider-like spacing to evoke the screenshot */
 .about-why{padding:40px 0;border-top:2px solid #d7dbdf;}

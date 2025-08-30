@@ -40,6 +40,20 @@
         </div>
     </section>
 
+    {% if printing_images %}
+    <section class="printing-grid" aria-label="גלריית הדפסות">
+        <div class="pg-inner">
+            {% for img in printing_images %}
+                {% if img %}
+                <figure class="pg-item"><img src="{{ img.url }}" alt="הדפסות - תמונה" loading="lazy" /></figure>
+                {% else %}
+                <div class="pg-item pg-empty" aria-hidden="true"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     {% include 'partials/contact_form.html' %}
     {% include 'partials/footer.html' %}
 </body>
