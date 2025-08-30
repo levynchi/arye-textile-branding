@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db.models import Q
-from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery
+from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery
 from .forms import ContactRequestForm
 
 
@@ -157,3 +157,33 @@ def fabrics(request):
 
 	ctx = {"contact_form": form, "fabrics_gallery": fabrics_gallery, "fabrics_images": fabrics_images}
 	return render(request, "fabrics.html", ctx)
+
+
+def manufacturing(request):
+	"""Manufacturing page: header, hero, contact form, footer."""
+	if request.method == "POST":
+		form = ContactRequestForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
+			return redirect("manufacturing")
+	else:
+		form = ContactRequestForm()
+
+	manuf_gallery = ManufacturingGallery.objects.order_by("-updated", "-id").first()
+	manuf_images = []
+	if manuf_gallery:
+		manuf_images = [
+			manuf_gallery.image1,
+			manuf_gallery.image2,
+			manuf_gallery.image3,
+			manuf_gallery.image4,
+			manuf_gallery.image5,
+			manuf_gallery.image6,
+			manuf_gallery.image7,
+			manuf_gallery.image8,
+			manuf_gallery.image9,
+		]
+
+	ctx = {"contact_form": form, "manuf_gallery": manuf_gallery, "manuf_images": manuf_images}
+	return render(request, "manufacturing.html", ctx)

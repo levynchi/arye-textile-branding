@@ -197,3 +197,24 @@ class FabricsGallery(models.Model):
 
 	def __str__(self):  # pragma: no cover
 		return f"Fabrics Gallery #{self.pk}" if self.pk else "Fabrics Gallery"
+
+
+class ManufacturingGallery(models.Model):
+	"""Gallery of 9 images for the manufacturing (ייצור) page."""
+	image1 = models.ImageField("תמונה 1", upload_to="manufacturing_gallery/", blank=True, null=True)
+	image2 = models.ImageField("תמונה 2", upload_to="manufacturing_gallery/", blank=True, null=True)
+	image3 = models.ImageField("תמונה 3", upload_to="manufacturing_gallery/", blank=True, null=True)
+	image4 = models.ImageField("תמונה 4", upload_to="manufacturing_gallery/", blank=True, null=True)
+	image5 = models.ImageField("תמונה 5", upload_to="manufacturing_gallery/", blank=True, null=True)
+	image6 = models.ImageField("תמונה 6", upload_to="manufacturing_gallery/", blank=True, null=True)
+	image7 = models.ImageField("תמונה 7", upload_to="manufacturing_gallery/", blank=True, null=True)
+	image8 = models.ImageField("תמונה 8", upload_to="manufacturing_gallery/", blank=True, null=True)
+	image9 = models.ImageField("תמונה 9", upload_to="manufacturing_gallery/", blank=True, null=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "גלריית ייצור"
+		verbose_name_plural = "גלריות ייצור"
+
+	def __str__(self):  # pragma: no cover
+		return f"Manufacturing Gallery #{self.pk}" if self.pk else "Manufacturing Gallery"

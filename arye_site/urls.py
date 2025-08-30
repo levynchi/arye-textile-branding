@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from main.views import home, branding, printing, patternmaking, fabrics
+from main.views import home, branding, printing, patternmaking, fabrics, manufacturing
 
 urlpatterns = [
     path('', home, name='home'),
@@ -26,6 +26,7 @@ urlpatterns = [
     path('printing/', printing, name='printing'),
     path('patternmaking/', patternmaking, name='patternmaking'),
     path('fabrics/', fabrics, name='fabrics'),
+    path('manufacturing/', manufacturing, name='manufacturing'),
     path('admin/', admin.site.urls),
 ]
 

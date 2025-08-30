@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <title>ייצור</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    {% load static %}
+    {% load site_blocks %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829i" />
+    <link rel="stylesheet" href="{% static 'manufacturing.css' %}?v=20250830a" />
+</head>
+<body>
+    {% include 'partials/header.html' %}
+    {% hero 'manufacturing' %}
+
+    <section class="mf-intro" aria-label="ייצור טקסטיל – מהרעיון ועד המוצר המוגמר">
+        <div class="mf-inner">
+            <h2 class="mf-title">ייצור טקסטיל – מהרעיון ועד המוצר המוגמר</h2>
+            <div class="mf-text">
+                <p>
+                    ב־אריה טקסטיל אנחנו מלווים אתכם בכל שלבי הייצור – משלב הרעיון והתכנון, דרך בחירת החומרים והדגמים, ועד להשגת מוצר סופי איכותי ומדויק. הידע הרב והניסיון שצברנו מאפשרים לנו לספק פתרונות מותאמים ואמינים לכל צורך.
+                </p>
+                <ul class="mf-list">
+                    <li>✔ ליווי מלא בתהליך הייצור – משלב הרעיון ועד המוצר המוגמר.</li>
+                    <li>✔ בקרת איכות קפדנית – בכל שלב, עד לאספקה.</li>
+                    <li>✔ גמישות בכמויות – ייצור בסדרות קטנות או גדולות.</li>
+                    <li>✔ פתרונות מותאמים – לפי מיתוג, גיל, שימוש וחומר.</li>
+                </ul>
+                <p class="mf-outcome">התוצאה: ייצור מוקפד שמביא לתוצאה איכותית, עמידה ומדויקת – בדיוק לפי הדרישה שלכם.</p>
+            </div>
+            <figure class="mf-image">
+                <img src="{% static 'close-up-hands-using-sewing-machine.jpg' %}" alt="ייצור טקסטיל - ARYE TEXTILE" loading="lazy" />
+            </figure>
+        </div>
+        <div class="branding-cta">
+            <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
+        </div>
+    </section>
+
+    {% if manuf_images %}
+    <section class="manufacturing-grid" aria-label="גלריית ייצור">
+        <div class="mg-inner">
+            {% for img in manuf_images %}
+                {% if img %}
+                <figure class="mg-item"><img src="{{ img.url }}" alt="ייצור - תמונה" loading="lazy" /></figure>
+                {% else %}
+                <div class="mg-item mg-empty" aria-hidden="true"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% include 'partials/contact_form.html' %}
+    {% include 'partials/footer.html' %}
+</body>
+</html>
