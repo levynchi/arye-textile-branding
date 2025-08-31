@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from main.views import home, branding, printing, patternmaking, fabrics, manufacturing, about
+from main.views import home, branding, printing, patternmaking, fabrics, manufacturing, about, dev_debug
 
 urlpatterns = [
     path('', home, name='home'),
@@ -32,4 +32,5 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
+    urlpatterns += [ path('dev/debug/', dev_debug, name='dev_debug') ]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

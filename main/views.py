@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Q
 from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery
@@ -202,3 +203,22 @@ def about(request):
 
 	ctx = {"contact_form": form}
 	return render(request, "about.html", ctx)
+
+
+def dev_debug(request):
+	"""Return basic request/env info to help debug local HTTP/HTTPS issues (DEBUG only)."""
+	meta = request.META
+	info = {
+		"path": request.path,
+		"method": request.method,
+		"is_secure": request.is_secure(),
+		"scheme": request.scheme,
+		"server_protocol": meta.get("SERVER_PROTOCOL"),
+		"http_host": meta.get("HTTP_HOST"),
+		"host": request.get_host(),
+		"remote_addr": meta.get("REMOTE_ADDR"),
+		"x_forwarded_proto": meta.get("HTTP_X_FORWARDED_PROTO"),
+		"x_forwarded_for": meta.get("HTTP_X_FORWARDED_FOR"),
+		"user_agent": meta.get("HTTP_USER_AGENT"),
+	}
+	return JsonResponse(info)

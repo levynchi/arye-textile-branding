@@ -6,7 +6,9 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'arye_site.settings')
+    # Default to local settings for development. In production, set
+    # DJANGO_SETTINGS_MODULE=arye_site.settings.deploy in the environment.
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'arye_site.settings.local')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

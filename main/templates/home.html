@@ -5,111 +5,68 @@
     <title>אריה</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     {% load static %}
-    {% load site_blocks %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829" />
-    <link rel="stylesheet" href="{% static 'home.css' %}?v=20250829a" />
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250828" />
+    <link rel="stylesheet" href="{% static 'home.css' %}?v=20250828" />
 </head>
 <body>
     {% include 'partials/header.html' %}
-    {% hero 'home' %}
+    <section class="hero" aria-label="תמונת באנר" {% if banner and banner.image %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
+        <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
+    </section>
     <div class="divider divider-plain">כל רעיון הופך למציאות</div>
     <section class="gallery" id="services" aria-label="גלריית שירותים">
         <div class="gallery-grid">
             {# Six slots: figure/figcaption so text overlays center of image #}
-            <a class="g-link" href="{{ gallery.link1|default:'#'|resolve_link }}">
-                <figure class="g-item">
-                    <img src="{% if gallery and gallery.image1 %}{{ gallery.image1.url }}{% else %}https://placehold.co/370x250?text=1{% endif %}" alt="{{ gallery.caption1|default:'' }}" loading="lazy" />
-                    <figcaption class="cap">{{ gallery.caption1|default:'ייעוץ וליווי' }}</figcaption>
-                </figure>
-            </a>
-            <a class="g-link" href="{{ gallery.link2|default:'/branding/'|resolve_link }}">
-                <figure class="g-item">
-                    <img src="{% if gallery and gallery.image2 %}{{ gallery.image2.url }}{% else %}https://placehold.co/370x250?text=2{% endif %}" alt="{{ gallery.caption2|default:'' }}" loading="lazy" />
-                    <figcaption class="cap">{{ gallery.caption2|default:'מיתוג' }}</figcaption>
-                </figure>
-            </a>
-            <a class="g-link" href="{{ gallery.link3|default:'#'|resolve_link }}">
-                <figure class="g-item">
-                    <img src="{% if gallery and gallery.image3 %}{{ gallery.image3.url }}{% else %}https://placehold.co/370x250?text=3{% endif %}" alt="{{ gallery.caption3|default:'' }}" loading="lazy" />
-                    <figcaption class="cap">{{ gallery.caption3|default:'תפירה לפי כמויות, סיטונאות' }}</figcaption>
-                </figure>
-            </a>
-            <a class="g-link" href="{{ gallery.link4|default:'#'|resolve_link }}">
-                <figure class="g-item">
-                    <img src="{% if gallery and gallery.image4 %}{{ gallery.image4.url }}{% else %}https://placehold.co/370x250?text=4{% endif %}" alt="{{ gallery.caption4|default:'' }}" loading="lazy" />
-                    <figcaption class="cap">{{ gallery.caption4|default:'ייצור' }}</figcaption>
-                </figure>
-            </a>
-            <a class="g-link" href="{{ gallery.link5|default:'#'|resolve_link }}">
-                <figure class="g-item">
-                    <img src="{% if gallery and gallery.image5 %}{{ gallery.image5.url }}{% else %}https://placehold.co/370x250?text=5{% endif %}" alt="{{ gallery.caption5|default:'' }}" loading="lazy" />
-                    <figcaption class="cap">{{ gallery.caption5|default:'תלייה' }}</figcaption>
-                </figure>
-            </a>
-            <a class="g-link" href="{{ gallery.link6|default:'#'|resolve_link }}">
-                <figure class="g-item">
-                    <img src="{% if gallery and gallery.image6 %}{{ gallery.image6.url }}{% else %}https://placehold.co/370x250?text=6{% endif %}" alt="{{ gallery.caption6|default:'' }}" loading="lazy" />
-                    <figcaption class="cap">{{ gallery.caption6|default:'הדפסה' }}</figcaption>
-                </figure>
-            </a>
+            <figure class="g-item">
+                <img src="{% if gallery and gallery.image1 %}{{ gallery.image1.url }}{% else %}https://placehold.co/370x250?text=1{% endif %}" alt="{{ gallery.caption1|default:'' }}" loading="lazy" />
+                <figcaption class="cap">{{ gallery.caption1|default:'ייעוץ וליווי' }}</figcaption>
+            </figure>
+            <figure class="g-item">
+                <img src="{% if gallery and gallery.image2 %}{{ gallery.image2.url }}{% else %}https://placehold.co/370x250?text=2{% endif %}" alt="{{ gallery.caption2|default:'' }}" loading="lazy" />
+                <figcaption class="cap">{{ gallery.caption2|default:'מיתוג' }}</figcaption>
+            </figure>
+            <figure class="g-item">
+                <img src="{% if gallery and gallery.image3 %}{{ gallery.image3.url }}{% else %}https://placehold.co/370x250?text=3{% endif %}" alt="{{ gallery.caption3|default:'' }}" loading="lazy" />
+                <figcaption class="cap">{{ gallery.caption3|default:'תפירה לפי כמויות, סיטונאות' }}</figcaption>
+            </figure>
+            <figure class="g-item">
+                <img src="{% if gallery and gallery.image4 %}{{ gallery.image4.url }}{% else %}https://placehold.co/370x250?text=4{% endif %}" alt="{{ gallery.caption4|default:'' }}" loading="lazy" />
+                <figcaption class="cap">{{ gallery.caption4|default:'ייצור' }}</figcaption>
+            </figure>
+            <figure class="g-item">
+                <img src="{% if gallery and gallery.image5 %}{{ gallery.image5.url }}{% else %}https://placehold.co/370x250?text=5{% endif %}" alt="{{ gallery.caption5|default:'' }}" loading="lazy" />
+                <figcaption class="cap">{{ gallery.caption5|default:'תלייה' }}</figcaption>
+            </figure>
+            <figure class="g-item">
+                <img src="{% if gallery and gallery.image6 %}{{ gallery.image6.url }}{% else %}https://placehold.co/370x250?text=6{% endif %}" alt="{{ gallery.caption6|default:'' }}" loading="lazy" />
+                <figcaption class="cap">{{ gallery.caption6|default:'הדפסה' }}</figcaption>
+            </figure>
         </div>
         <div class="gallery-cta">
             <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
             <h2 class="about-teaser" aria-label="מי אנחנו">מי אנחנו</h2>
         </div>
-    <section class="info-band" id="about" aria-label="מידע על המותג">
-            <div class="info-inner">
-                <div class="info-text">
-                    <p>
-                        אריה טקסטיל פועל בתל-אביב מאז 1948 ומביא איתו מסורת ארוכה של יצירה וחדשנות. אנחנו מתמחים בייצור טקסטיל איכותי, הדפסות מתקדמות ומיתוג, לצד שירותי גזרנות ותדמיתנות. בין המוצרים שלנו תמצאו גם קולקציות ייחודיות לתינוקות – הכל בעיצוב אישי וברמת גימור גבוהה.
-                    </p>
+                <div class="slider-band">
+                    <div class="slider-head">
+                        <h2 class="slider-title">מהמוצרים שלנו</h2>
+                        <a class="slider-all" href="#products" aria-label="לכל המוצרים">לכל המוצרים</a>
+                    </div>
+                    <div class="h-slider" id="products" aria-label="גלריה נעה אופקית">
+                        <div class="track">
+                                {% for s in slides %}
+                                    <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt }}" loading="lazy" /></figure>
+                                {% empty %}
+                                    {% for i in "12345678" %}
+                                        <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
+                                    {% endfor %}
+                                {% endfor %}
+                        </div>
+                    </div>
                 </div>
-                <figure class="info-image">
-                    <img src="{% static 'ARYETEXTILE.jpg' %}" alt="דוגמה למיתוג טקסטיל" loading="lazy" />
-                </figure>
-            </div>
-        </section>
-    <section class="features" aria-label="יתרונות">
-            <div class="features-row">
-                <figure class="feature">
-                    <img src="{% static 'SVG ICONS/ICON-01.svg' %}" alt="" aria-hidden="true" />
-            <figcaption>מגוון רחב של מוצרים</figcaption>
-                </figure>
-                <figure class="feature">
-                    <img src="{% static 'SVG ICONS/ICON-02.svg' %}" alt="" aria-hidden="true" />
-            <figcaption>זמינות גבוהה</figcaption>
-                </figure>
-                <figure class="feature">
-                    <img src="{% static 'SVG ICONS/ICON-03.svg' %}" alt="" aria-hidden="true" />
-            <figcaption>מתמחים ביצור טקסטיל</figcaption>
-                </figure>
-                <figure class="feature">
-                    <img src="{% static 'SVG ICONS/ICON-04.svg' %}" alt="" aria-hidden="true" />
-            <figcaption>מתחייבים לשירות אישי</figcaption>
-                </figure>
-            </div>
-        </section>
     </section>
-    <div class="slider-band">
-        <div class="slider-head">
-            <h2 class="slider-title">מהמוצרים שלנו</h2>
-            <a class="slider-all" href="#products" aria-label="לכל המוצרים">לכל המוצרים</a>
-        </div>
-        <div class="h-slider" id="products" aria-label="גלריה נעה אופקית">
-            <div class="track">
-                {% for s in slides %}
-                    <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt }}" loading="lazy" /></figure>
-                {% empty %}
-                    {% for i in "12345678" %}
-                        <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
-                    {% endfor %}
-                {% endfor %}
-            </div>
-        </div>
-    </div>
         <script>
             (function(){
                 const slider = document.querySelector('.h-slider');
@@ -136,7 +93,28 @@
                 }
             })();
         </script>
-    {% include 'partials/contact_form.html' %}
+    <section class="contact-wrap" id="contact" aria-label="טופס יצירת קשר">
+        <div class="contact-inner">
+            <div class="contact-form-card">
+                <h2>השאירו פרטים ונחזור אליכם בהקדם</h2>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="grid">
+                        <div class="field">{{ contact_form.full_name }}</div>
+                        <div class="field">{{ contact_form.company }}</div>
+                        <div class="field">{{ contact_form.email }}</div>
+                        <div class="field">{{ contact_form.phone }}</div>
+                        <div class="field full">{{ contact_form.message }}</div>
+                    </div>
+                    <button type="submit" class="send-btn">שלח</button>
+                    {% if messages %}
+                      <ul class="form-messages">{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="contact-visual" aria-hidden="true"></div>
+        </div>
+    </section>
     {% include 'partials/footer.html' %}
 </body>
 </html>
