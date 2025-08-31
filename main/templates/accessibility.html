@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>הצהרת נגישות</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  {% load static %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'main.css' %}?v=20250831a" />
+  <style>
+    .acc-wrap{max-width:1000px;margin:40px auto;padding:0 24px 60px}
+    .acc-wrap h1{font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.8rem,3.6vw,2.4rem);margin:20px 0}
+    .acc-wrap h2{font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.3rem,2.6vw,1.6rem);margin:24px 0 10px}
+    .acc-wrap p, .acc-wrap li{line-height:1.9}
+  </style>
+</head>
+<body>
+  {% include 'partials/header.html' %}
+  <main id="main-content" class="acc-wrap">
+    <h1>הצהרת נגישות</h1>
+    <p>באתר זה נעשו מאמצים לעמוד בדרישות תקן ישראלי ת"י 5568 המתבסס על WCAG 2.0 רמה AA עבור אתר תדמיתי. אנחנו פועלים כדי שהאתר יהיה נגיש לכלל המשתמשים, כולל אנשים עם מוגבלויות.</p>
+
+    <h2>מה בוצע באתר</h2>
+    <ul>
+      <li>טקסט אלטרנטיבי לתמונות ולכפתורים משמעותיים.</li>
+      <li>סדר כותרות היררכי ושימוש תקין בסמנטיקה.</li>
+      <li>ניגודיות צבעים מספקת ויכולת הגדלת טקסט עד 200%.</li>
+      <li>ניווט מלא באמצעות מקלדת, כולל קישור דילוג לתוכן.</li>
+      <li>שליטה בהנפשות/קרוסלה – אפשרות עצירה והפעלה.</li>
+    </ul>
+
+    <h2>מסמכים וקבצים</h2>
+    <p>ככל שמופצים באתר מסמכים להורדה (כגון PDF), אנו שואפים לספק קבצים נגישים. אם נתקלתם בבעיה – נשמח לסייע.</p>
+
+    <h2>פנייה בנושא נגישות</h2>
+    <p>אם מצאתם ליקוי נגישות או שיש לכם שאלה/בקשה, ניתן ליצור קשר בדוא"ל: <a href="mailto:info@arye-textile.co.il">info@arye-textile.co.il</a> או בטלפון: 054-2367535.</p>
+
+    <h2>תאריך עדכון</h2>
+    <p>עודכן לאחרונה: 31.08.2025</p>
+  </main>
+  {% include 'partials/footer.html' %}
+  </body>
+  </html>

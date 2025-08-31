@@ -14,7 +14,9 @@
 </head>
 <body>
     {% include 'partials/header.html' %}
+    <main id="main-content" tabindex="-1">
     {% hero 'patternmaking' %}
+    <h1 class="sr-only">תדמיתנות וגזרנות</h1>
 
     <section class="pm-intro" aria-label="תדמיתנות – מהרעיון אל הגזרה המושלמת">
         <div class="pm-inner">
@@ -55,6 +57,7 @@
     {% endif %}
 
     {% include 'partials/contact_form.html' %}
+    </main>
     {% include 'partials/footer.html' %}
 </body>
 </html>

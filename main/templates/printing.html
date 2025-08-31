@@ -14,7 +14,9 @@
 </head>
 <body>
     {% include 'partials/header.html' %}
+    <main id="main-content" tabindex="-1">
     {% hero 'printing' %}
+    <h1 class="sr-only">הדפסות טקסטיל</h1>
 
     <section class="print-intro" aria-label="הדפסות שמבליטות כל מוצר">
         <div class="pi-inner">
@@ -55,6 +57,7 @@
     {% endif %}
 
     {% include 'partials/contact_form.html' %}
+    </main>
     {% include 'partials/footer.html' %}
 </body>
 </html>

@@ -14,7 +14,9 @@
 </head>
 <body>
     {% include 'partials/header.html' %}
+    <main id="main-content" tabindex="-1">
     {% hero 'manufacturing' %}
+    <h1 class="sr-only">ייצור</h1>
 
     <section class="mf-intro" aria-label="ייצור טקסטיל – מהרעיון ועד המוצר המוגמר">
         <div class="mf-inner">
@@ -55,6 +57,7 @@
     {% endif %}
 
     {% include 'partials/contact_form.html' %}
+    </main>
     {% include 'partials/footer.html' %}
 </body>
 </html>

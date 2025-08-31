@@ -12,9 +12,9 @@
           <div class="brand-phone">{{ fs.phone_display|default:"054-2367535" }}</div>
         </div>
         <div class="social">
-          <a href="{{ fs.whatsapp_link|default:'#' }}" target="_blank" rel="noopener" aria-label="WhatsApp" class="ico wa"><img src="{% static 'icons_logo/whatsapp.svg' %}" alt="WhatsApp" /></a>
-          <a href="{{ fs.facebook_url|default:'#' }}" target="_blank" rel="noopener" aria-label="Facebook" class="ico fb"><img src="{% static 'icons_logo/facebook.svg' %}" alt="Facebook" /></a>
-          <a href="{{ fs.instagram_url|default:'#' }}" target="_blank" rel="noopener" aria-label="Instagram" class="ico ig"><img src="{% static 'icons_logo/instagram.svg' %}" alt="Instagram" /></a>
+          <a href="{{ fs.whatsapp_link|default:'#' }}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" class="ico wa"><img src="{% static 'icons_logo/whatsapp.svg' %}" alt="WhatsApp" /></a>
+          <a href="{{ fs.facebook_url|default:'#' }}" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="ico fb"><img src="{% static 'icons_logo/facebook.svg' %}" alt="Facebook" /></a>
+          <a href="{{ fs.instagram_url|default:'#' }}" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="ico ig"><img src="{% static 'icons_logo/instagram.svg' %}" alt="Instagram" /></a>
           <a href="mailto:{{ fs.email|default:'' }}" aria-label="Email" class="ico mail"><img src="{% static 'icons_logo/email.svg' %}" alt="Email" /></a>
         </div>
       </div>
@@ -49,6 +49,7 @@
   <li>התמחות בייצור לתינוקות</li>
       </ul>
     </div>
-    <div class="f-bottom">© {{ now|date:'Y' }} אריה · כל הזכויות שמורות</div>
+  <div class="f-bottom">© {{ now|date:'Y' }} אריה · כל הזכויות שמורות · <a href="{% url 'accessibility' %}">הצהרת נגישות</a></div>
   </div>
 </footer>
+{% include 'partials/accessibility_widget.html' %}

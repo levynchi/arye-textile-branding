@@ -14,7 +14,9 @@
 </head>
 <body>
     {% include 'partials/header.html' %}
+    <main id="main-content" tabindex="-1">
     {% hero 'home' %}
+    <h1 class="sr-only">אריה טקסטיל – ייצור, מיתוג והדפסות</h1>
     <div class="divider divider-plain">כל רעיון הופך למציאות</div>
     <section class="gallery" id="services" aria-label="גלריית שירותים">
         <div class="gallery-grid">
@@ -53,10 +55,11 @@
                         <h2 class="slider-title">מהמוצרים שלנו</h2>
                         <a class="slider-all" href="#products" aria-label="לכל המוצרים">לכל המוצרים</a>
                     </div>
-                    <div class="h-slider" id="products" aria-label="גלריה נעה אופקית">
+                    <div class="h-slider" id="products" aria-label="גלריה נעה אופקית" aria-live="off">
+                        <button class="slider-toggle" aria-pressed="false" aria-label="הפסק גלילה" title="הפסק גלילה">הפסק גלילה</button>
                         <div class="track">
                                 {% for s in slides %}
-                                    <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt }}" loading="lazy" /></figure>
+                                    <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt|default:'תמונת מוצר' }}" loading="lazy" /></figure>
                                 {% empty %}
                                     {% for i in "12345678" %}
                                         <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
@@ -90,30 +93,25 @@
                         track.appendChild(clone);
                     }
                 }
+
+                // Pause/Resume control
+                const btn = slider.querySelector('.slider-toggle');
+                if (btn) {
+                    let paused = false;
+                    const setPaused = (p) => {
+                        paused = p;
+                        track.style.animationPlayState = p ? 'paused' : 'running';
+                        btn.setAttribute('aria-pressed', String(p));
+                        btn.textContent = p ? 'הפעל גלילה' : 'הפסק גלילה';
+                        slider.setAttribute('aria-live', p ? 'polite' : 'off');
+                    };
+                    btn.addEventListener('click', () => setPaused(!paused));
+                    // Keyboard users: space/enter handled by button by default
+                }
             })();
         </script>
-    <section class="contact-wrap" id="contact" aria-label="טופס יצירת קשר">
-        <div class="contact-inner">
-            <div class="contact-form-card">
-                <h2>השאירו פרטים ונחזור אליכם בהקדם</h2>
-                <form method="post" novalidate>
-                    {% csrf_token %}
-                    <div class="grid">
-                        <div class="field">{{ contact_form.full_name }}</div>
-                        <div class="field">{{ contact_form.company }}</div>
-                        <div class="field">{{ contact_form.email }}</div>
-                        <div class="field">{{ contact_form.phone }}</div>
-                        <div class="field full">{{ contact_form.message }}</div>
-                    </div>
-                    <button type="submit" class="send-btn">שלח</button>
-                    {% if messages %}
-                      <ul class="form-messages">{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>
-                    {% endif %}
-                </form>
-            </div>
-            <div class="contact-visual" aria-hidden="true"></div>
-        </div>
-    </section>
+    {% include 'partials/contact_form.html' %}
+    </main>
     {% include 'partials/footer.html' %}
 </body>
 </html>

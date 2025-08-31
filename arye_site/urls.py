@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from main.views import home, branding, printing, patternmaking, fabrics, manufacturing, about, dev_debug
+from main.views import home, branding, printing, patternmaking, fabrics, manufacturing, about, dev_debug, accessibility
 
 urlpatterns = [
     path('', home, name='home'),
@@ -28,6 +28,7 @@ urlpatterns = [
     path('fabrics/', fabrics, name='fabrics'),
     path('manufacturing/', manufacturing, name='manufacturing'),
     path('about/', about, name='about'),
+    path('accessibility/', accessibility, name='accessibility'),
     path('admin/', admin.site.urls),
 ]
 

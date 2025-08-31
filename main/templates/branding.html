@@ -14,7 +14,9 @@
 </head>
 <body>
     {% include 'partials/header.html' %}
+    <main id="main-content" tabindex="-1">
     {% hero 'branding' %}
+    <h1 class="sr-only">מיתוג טקסטיל</h1>
     <section class="brand-intro" aria-label="מיתוג טקסטיל בהתאמה אישית">
         <div class="bi-inner">
             <h2 class="bi-title">מיתוג טקסטיל בהתאמה אישית</h2>
@@ -42,9 +44,9 @@
     {% if branding_images %}
         <section class="branding-grid" aria-label="גלריית מיתוג">
             <div class="bg-inner">
-        {% for img in branding_images %}
-                    {% if img %}
-                    <figure class="bg-item"><img src="{{ img.url }}" alt="מיתוג - תמונה" loading="lazy"></figure>
+    {% for img in branding_images %}
+            {% if img %}
+            <figure class="bg-item"><img src="{{ img.url }}" alt="מיתוג - תמונה" loading="lazy"></figure>
                     {% else %}
                     <div class="bg-item bg-empty" aria-hidden="true"></div>
                     {% endif %}
@@ -54,6 +56,7 @@
     {% endif %}
     </section>
     {% include 'partials/contact_form.html' %}
+    </main>
     {% include 'partials/footer.html' %}
 </body>
 </html>

@@ -14,7 +14,9 @@
 </head>
 <body>
     {% include 'partials/header.html' %}
+    <main id="main-content" tabindex="-1">
     {% hero 'fabrics' %}
+    <h1 class="sr-only">בדים</h1>
 
     <section class="fb-intro" aria-label="בדים – הבסיס לכל יצירה">
         <div class="fb-inner">
@@ -58,6 +60,7 @@
     {% endif %}
 
     {% include 'partials/contact_form.html' %}
+    </main>
     {% include 'partials/footer.html' %}
 </body>
 </html>

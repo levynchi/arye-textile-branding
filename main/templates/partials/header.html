@@ -1,4 +1,5 @@
 {% load static %}
+<a href="#main-content" class="skip-link">דלג לתוכן</a>
 <header>
     <div class="nav-bar" role="navigation" aria-label="תפריט ראשי">
         <a href="{% url 'home' %}" class="logo" aria-label="עמוד הבית">
@@ -15,7 +16,7 @@
                 <li><a href="{% url 'about' %}">אודות</a></li>
             </ul>
         </nav>
-        <a class="wa-link" href="https://wa.me/972542367535" target="_blank" rel="noopener" aria-label="צ'אט וואטסאפ">
+    <a class="wa-link" href="https://wa.me/972542367535" target="_blank" rel="noopener noreferrer" aria-label="צ'אט וואטסאפ">
             <img src="{% static 'SVG ICONS/MEDIA-03.svg' %}" alt="WhatsApp" />
         </a>
 

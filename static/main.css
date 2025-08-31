@@ -8,6 +8,12 @@
     --font-title: 'Assistant', var(--font-sans);
 }
 
+/* Accessibility helpers */
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip-link{position:absolute;top:-100px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:10px 16px;z-index:1000;border-radius:4px;text-decoration:none}
+.skip-link:focus{top:10px;outline:2px solid #fff}
+:focus-visible{outline:3px solid #0f5c9c;outline-offset:2px}
+
 /* Header & Navigation */
 header {position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.06);padding-top:15px;} 
 .nav-bar {max-width:1400px;margin:0 auto;display:flex;align-items:flex-end;gap:40px;height:var(--menu-height);padding:0 32px 6px;}

@@ -1,0 +1,132 @@
+<div class="acc-widget" dir="rtl">
+  <button class="acc-toggle" aria-label="פתח כלי נגישות" aria-expanded="false" title="כלי נגישות" type="button">
+    <span aria-hidden="true">🧍</span>
+  </button>
+  <div class="acc-panel" role="dialog" aria-label="כלי נגישות" aria-modal="false" hidden>
+    <h2 class="acc-title">כלי נגישות</h2>
+    <div class="acc-group">
+      <button type="button" class="acc-btn acc-text-inc" aria-label="הגדל טקסט">הגדל טקסט</button>
+      <button type="button" class="acc-btn acc-text-dec" aria-label="הקטן טקסט">הקטן טקסט</button>
+    </div>
+    <div class="acc-group">
+      <button type="button" class="acc-btn acc-grayscale" aria-pressed="false" aria-label="גווני אפור">גווני אפור</button>
+      <button type="button" class="acc-btn acc-invert" aria-pressed="false" aria-label="ניגודיות הפוכה">ניגודיות הפוכה</button>
+      <button type="button" class="acc-btn acc-highlight-links" aria-pressed="false" aria-label="הדגשת קישורים">הדגשת קישורים</button>
+      <button type="button" class="acc-btn acc-readable-font" aria-pressed="false" aria-label="פונט קריא">פונט קריא</button>
+    </div>
+    <div class="acc-group">
+      <button type="button" class="acc-btn acc-reset" aria-label="איפוס">איפוס</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .acc-widget{position:fixed;bottom:16px;left:16px;z-index:9999;font-family:var(--font-sans, Arial, sans-serif)}
+  .acc-toggle{width:44px;height:44px;border-radius:8px;border:1px solid #d0d3d7;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);cursor:pointer}
+  .acc-panel{position:absolute;bottom:54px;left:0;width:min(280px,90vw);background:#fff;border:1px solid #cfd3d7;border-radius:6px;box-shadow:0 4px 18px rgba(0,0,0,.16);padding:12px}
+  .acc-title{margin:0 0 8px 0;font-size:1.05rem}
+  .acc-group{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .acc-btn{flex:1 1 auto;min-width:120px;padding:8px 10px;border:1px solid #cfd3d7;background:#f7f9fb;color:#111;border-radius:4px;cursor:pointer}
+  .acc-btn[aria-pressed="true"]{outline:2px solid #0f5c9c}
+  .acc-btn:hover{background:#eef3f8}
+
+  /* Effects via classes on html */
+  html.aw-grayscale{filter:grayscale(1)}
+  html.aw-invert{filter:invert(1) hue-rotate(180deg)}
+  html.aw-highlight-links a{background:yellow!important;box-shadow:0 0 0 2px #000 inset!important;text-decoration:underline!important;color:#000!important}
+  html.aw-readable-font{--aw-line:1.8}
+  html.aw-readable-font body{font-family:Arial, Helvetica, sans-serif!important;line-height:var(--aw-line,1.8)!important}
+
+  /* Panel accessibility */
+  .acc-panel:focus{outline:2px solid #0f5c9c}
+</style>
+
+<script>
+(function(){
+  const d = document;
+  const root = d.documentElement;
+  const qs = (sel, el=d) => el.querySelector(sel);
+  const toggleBtn = qs('.acc-widget .acc-toggle');
+  const panel = qs('.acc-widget .acc-panel');
+  if(!toggleBtn || !panel) return;
+
+  const state = {
+    scale: parseFloat(localStorage.getItem('aw-scale') || '1'),
+    grayscale: localStorage.getItem('aw-grayscale') === '1',
+    invert: localStorage.getItem('aw-invert') === '1',
+    highlight: localStorage.getItem('aw-highlight') === '1',
+    readable: localStorage.getItem('aw-readable') === '1',
+  };
+
+  const applyScale = () => {
+    const s = Math.min(2, Math.max(0.8, state.scale));
+    root.style.fontSize = (100 * s) + '%';
+    localStorage.setItem('aw-scale', String(s));
+  };
+  const applyToggle = (flag, cls, key) => {
+    root.classList.toggle(cls, flag);
+    localStorage.setItem(key, flag ? '1' : '0');
+  };
+
+  // Initialize from localStorage
+  applyScale();
+  applyToggle(state.grayscale, 'aw-grayscale', 'aw-grayscale');
+  applyToggle(state.invert, 'aw-invert', 'aw-invert');
+  applyToggle(state.highlight, 'aw-highlight-links', 'aw-highlight');
+  applyToggle(state.readable, 'aw-readable-font', 'aw-readable');
+
+  // Set initial aria-pressed
+  const btnGray = qs('.acc-grayscale');
+  const btnInvert = qs('.acc-invert');
+  const btnHL = qs('.acc-highlight-links');
+  const btnReadable = qs('.acc-readable-font');
+  if(btnGray) btnGray.setAttribute('aria-pressed', String(state.grayscale));
+  if(btnInvert) btnInvert.setAttribute('aria-pressed', String(state.invert));
+  if(btnHL) btnHL.setAttribute('aria-pressed', String(state.highlight));
+  if(btnReadable) btnReadable.setAttribute('aria-pressed', String(state.readable));
+
+  // Open/close
+  const openPanel = () => { panel.hidden = false; panel.setAttribute('aria-hidden','false'); toggleBtn.setAttribute('aria-expanded','true'); };
+  const closePanel = () => { panel.hidden = true; panel.setAttribute('aria-hidden','true'); toggleBtn.setAttribute('aria-expanded','false'); };
+  toggleBtn.addEventListener('click', ()=>{ panel.hidden ? openPanel() : closePanel(); });
+  d.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePanel(); });
+
+  // Actions
+  const btnInc = qs('.acc-text-inc');
+  const btnDec = qs('.acc-text-dec');
+  const btnReset = qs('.acc-reset');
+  btnInc && btnInc.addEventListener('click', ()=>{ state.scale = Math.min(2, (state.scale + 0.1)); applyScale(); });
+  btnDec && btnDec.addEventListener('click', ()=>{ state.scale = Math.max(0.8, (state.scale - 0.1)); applyScale(); });
+  btnReset && btnReset.addEventListener('click', ()=>{
+    state.scale = 1; state.grayscale = false; state.invert = false; state.highlight = false; state.readable = false;
+    applyScale();
+    applyToggle(state.grayscale, 'aw-grayscale', 'aw-grayscale');
+    applyToggle(state.invert, 'aw-invert', 'aw-invert');
+    applyToggle(state.highlight, 'aw-highlight-links', 'aw-highlight');
+    applyToggle(state.readable, 'aw-readable-font', 'aw-readable');
+    if(btnGray) btnGray.setAttribute('aria-pressed','false');
+    if(btnInvert) btnInvert.setAttribute('aria-pressed','false');
+    if(btnHL) btnHL.setAttribute('aria-pressed','false');
+    if(btnReadable) btnReadable.setAttribute('aria-pressed','false');
+  });
+
+  const togglePress = (btn, key, cls) => {
+    if(!btn) return;
+    btn.addEventListener('click', ()=>{
+      const v = btn.getAttribute('aria-pressed') === 'true';
+      btn.setAttribute('aria-pressed', String(!v));
+      const newVal = !v;
+      applyToggle(newVal, cls, key);
+      // Update state
+      if(key==='aw-grayscale') state.grayscale = newVal;
+      if(key==='aw-invert') state.invert = newVal;
+      if(key==='aw-highlight') state.highlight = newVal;
+      if(key==='aw-readable') state.readable = newVal;
+    });
+  };
+  togglePress(btnGray,'aw-grayscale','aw-grayscale');
+  togglePress(btnInvert,'aw-invert','aw-invert');
+  togglePress(btnHL,'aw-highlight','aw-highlight-links');
+  togglePress(btnReadable,'aw-readable','aw-readable-font');
+})();
+</script>

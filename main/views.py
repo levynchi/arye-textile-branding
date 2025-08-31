@@ -222,3 +222,8 @@ def dev_debug(request):
 		"user_agent": meta.get("HTTP_USER_AGENT"),
 	}
 	return JsonResponse(info)
+
+
+def accessibility(request):
+	"""Static Accessibility Statement page."""
+	return render(request, "accessibility.html")
