@@ -2,13 +2,13 @@
 <a href="#main-content" class="skip-link">דלג לתוכן</a>
 <header>
     <div class="nav-bar" role="navigation" aria-label="תפריט ראשי">
-        <button class="menu-toggle" type="button" aria-label="פתח תפריט" aria-controls="site-menu" aria-expanded="false">
-            <span class="hamburger" aria-hidden="true"></span>
-        </button>
-        <a href="{% url 'home' %}" class="logo" aria-label="עמוד הבית">
-            <img src="{% static 'icons_logo/logo-arye.svg' %}" alt="לוגו אריה" />
-        </a>
-        <nav id="site-menu">
+            <button class="menu-toggle" type="button" aria-label="פתח תפריט" aria-controls="site-menu" aria-expanded="false">
+                <span class="hamburger" aria-hidden="true"></span>
+            </button>
+            <a href="{% url 'home' %}" class="logo" aria-label="עמוד הבית">
+                <img src="{% static 'icons_logo/logo-arye.svg' %}" alt="לוגו אריה" />
+            </a>
+            <nav id="site-menu">
             <ul class="menu">
                 <li><a href="{% url 'manufacturing' %}">ייצור</a></li>
                 <li><a href="{% url 'branding' %}">מיתוג</a></li>
@@ -41,6 +41,10 @@
             if(!header.classList.contains('menu-open')) return;
             if(header.contains(e.target)) return;
             open(false);
+        });
+        // Close menu after selecting a link (mobile UX)
+        menu.addEventListener('click', (e)=>{
+            if(e.target.closest('a')) open(false);
         });
         const mq = window.matchMedia('(min-width: 769px)');
         mq.addEventListener('change', () => { if(mq.matches) open(false); });
