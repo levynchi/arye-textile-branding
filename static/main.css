@@ -24,6 +24,12 @@ ul.menu {list-style:none;margin:0;padding:0;display:flex;justify-content:center;
 ul.menu a {text-decoration:none;color:var(--text);position:relative;padding:4px 0;display:inline-block;}
 ul.menu a::after {content:"";position:absolute;right:0;left:0;bottom:-4px;height:2px;background:var(--accent-grad);transform:scaleX(0);transform-origin:right;transition:.35s;border-radius:2px;}
 ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);} 
+/* Hamburger toggle (hidden by default; shown on mobile below) */
+.menu-toggle{display:none;appearance:none;background:#fff;border:1px solid #cfd3d9;border-radius:6px;width:44px;height:44px;align-items:center;justify-content:center;cursor:pointer}
+.menu-toggle .hamburger{position:relative;width:24px;height:2px;background:#111;display:block;transition:transform .25s ease}
+.menu-toggle .hamburger:before,.menu-toggle .hamburger:after{content:"";position:absolute;left:0;right:0;height:2px;background:#111;transition:transform .25s ease,opacity .25s ease}
+.menu-toggle .hamburger:before{top:-7px}
+.menu-toggle .hamburger:after{top:7px}
 /* WhatsApp link in header */
 .wa-link {display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:0;background:transparent;border:none;transition:.25s;box-shadow:none;} 
 .wa-link:hover, .wa-link:focus-visible {background:transparent;border:none;box-shadow:none;} 
@@ -83,3 +89,30 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 @media (max-width:1050px){.contact-inner{grid-template-columns:1fr;} .contact-visual{display:none;} .contact-form-card{margin:70px 40px;}}
 
 /* Branding page styles moved to branding.css */
+
+/* Responsive header: Mobile first (320px–768px) */
+@media (max-width: 768px){
+    header{padding-top:0}
+    .nav-bar{direction:rtl;align-items:center;gap:12px;height:var(--menu-height);padding:10px 16px;position:relative}
+    .menu-toggle{display:inline-flex}
+    .logo img{height:48px}
+    .wa-link{width:44px;height:44px}
+    .wa-link img{width:28px;height:28px}
+    /* Collapse menu into overlay under header */
+    nav#site-menu{position:absolute;inset-inline:0;top:calc(var(--menu-height));background:#fff;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.12);border-top:1px solid #e5e7eb;display:none;z-index:40}
+    header.menu-open nav#site-menu{display:block}
+    ul.menu{flex-direction:column;align-items:stretch;gap:8px}
+    ul.menu li a{padding:12px 8px}
+    /* Animate hamburger into X when open */
+    header.menu-open .menu-toggle .hamburger{transform:rotate(45deg)}
+    header.menu-open .menu-toggle .hamburger:before{transform:translateY(7px) rotate(90deg)}
+    header.menu-open .menu-toggle .hamburger:after{transform:translateY(-7px) rotate(90deg);opacity:0}
+}
+
+/* Desktop (769px+) */
+@media (min-width: 769px){
+    .nav-bar{direction:rtl}
+    .menu-toggle{display:none}
+    nav#site-menu{position:static;display:block;box-shadow:none;border-top:0;padding:0}
+    ul.menu{flex-direction:row;gap:56px}
+}
