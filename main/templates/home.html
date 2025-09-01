@@ -11,6 +11,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}?v=20250828" />
     <link rel="stylesheet" href="{% static 'home.css' %}?v=20250828" />
+        {% if slides %}
+            {% for s in slides|slice:':4' %}
+                <link rel="preload" as="image" href="{{ s.image.url }}" imagesrcset="{{ s.image.url }}" />
+            {% endfor %}
+        {% endif %}
 </head>
 <body>
     {% include 'partials/header.html' %}
@@ -65,10 +70,10 @@
     <div class="h-slider" id="products" aria-label="גלריה נעה אופקית" aria-live="off">
             <div class="track">
                     {% for s in slides %}
-                        <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt|default:'תמונת מוצר' }}" loading="lazy" /></figure>
+                        <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt|default:'תמונת מוצר' }}" decoding="async" /></figure>
                     {% empty %}
                         {% for i in "12345678" %}
-                            <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
+                            <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" decoding="async" /></figure>
                         {% endfor %}
                     {% endfor %}
             </div>
