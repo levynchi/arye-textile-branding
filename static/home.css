@@ -68,9 +68,10 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 .h-slider:before{left:0;background:linear-gradient(90deg,rgba(242,243,244,.7) 0%,rgba(242,243,244,0) 60%);} 
 .h-slider:after{right:0;background:linear-gradient(270deg,rgba(242,243,244,.7) 0%,rgba(242,243,244,0) 60%);} 
 .h-slider .track{display:flex;gap:28px;animation:slideLoop 40s linear infinite;width:max-content;will-change:transform;justify-content:flex-start;direction:ltr;}
-.h-slider .slide{flex:0 0 auto;width:clamp(160px,18.5vw,300px);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;direction:ltr;}
+.h-slider .slide{flex:0 0 auto;width:clamp(160px,18.5vw,300px);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;direction:ltr;margin:0;}
 .h-slider .slide.clone{opacity:.9999;}
 .h-slider img{width:100%;height:100%;object-fit:cover;box-shadow:0 2px 4px rgba(0,0,0,.12);background:#fff;border:none;}
+.h-slider figure.slide{margin:0}
 @keyframes slideLoop{0%{transform:translateX(0);}100%{transform:translateX(-50%);} }
 @media (max-width:900px){.h-slider .track{animation-duration:50s;gap:28px;} .h-slider{padding:20px 0;}}
 @media (max-width:768px){.h-slider .track{animation-duration:70s;gap:10px}}
