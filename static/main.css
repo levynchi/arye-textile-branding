@@ -96,7 +96,6 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .nav-bar{direction:rtl;align-items:center;gap:12px;height:var(--menu-height);padding:10px 16px;position:relative;justify-content:space-between}
     .menu-toggle{display:inline-flex}
     .logo{position:absolute;left:50%;transform:translateX(-50%);z-index:1}
-    .logo img{height:48px}
     .wa-link{width:44px;height:44px}
     .wa-link img{width:auto;height:auto}
     /* Collapse menu into overlay under header */
