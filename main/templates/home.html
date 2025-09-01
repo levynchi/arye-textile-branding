@@ -56,25 +56,25 @@
             <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
             <h2 class="about-teaser" aria-label="מי אנחנו">מי אנחנו</h2>
         </div>
-                <div class="slider-band">
-                    <div class="slider-head">
-                        <h2 class="slider-title">מהמוצרים שלנו</h2>
-                        <a class="slider-all" href="#products" aria-label="לכל המוצרים">לכל המוצרים</a>
-                    </div>
-                    <div class="h-slider" id="products" aria-label="גלריה נעה אופקית" aria-live="off">
-                        <button class="slider-toggle" aria-pressed="false" aria-label="הפסק גלילה" title="הפסק גלילה">הפסק גלילה</button>
-                        <div class="track">
-                                {% for s in slides %}
-                                    <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt|default:'תמונת מוצר' }}" loading="lazy" /></figure>
-                                {% empty %}
-                                    {% for i in "12345678" %}
-                                        <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
-                                    {% endfor %}
-                                {% endfor %}
-                        </div>
-                    </div>
-                </div>
     </section>
+    <div class="slider-band">
+        <div class="slider-head">
+            <h2 class="slider-title">מהמוצרים שלנו</h2>
+            <a class="slider-all" href="#products" aria-label="לכל המוצרים">לכל המוצרים</a>
+        </div>
+        <div class="h-slider" id="products" aria-label="גלריה נעה אופקית" aria-live="off">
+            <button class="slider-toggle" aria-pressed="false" aria-label="הפסק גלילה" title="הפסק גלילה">הפסק גלילה</button>
+            <div class="track">
+                    {% for s in slides %}
+                        <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt|default:'תמונת מוצר' }}" loading="lazy" /></figure>
+                    {% empty %}
+                        {% for i in "12345678" %}
+                            <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" /></figure>
+                        {% endfor %}
+                    {% endfor %}
+            </div>
+        </div>
+    </div>
         <script>
             (function(){
                 const slider = document.querySelector('.h-slider');
