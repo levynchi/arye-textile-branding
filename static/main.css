@@ -92,6 +92,8 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 
 /* Responsive header: Mobile first (320px–768px) */
 @media (max-width: 768px){
+    /* Prevent horizontal scroll on mobile */
+    html, body{overflow-x:hidden;max-width:100%;position:relative}
     header{padding-top:0}
     .nav-bar{direction:rtl;align-items:center;gap:12px;height:var(--menu-height);padding:10px 16px;position:relative;justify-content:space-between}
     .menu-toggle{display:inline-flex}
