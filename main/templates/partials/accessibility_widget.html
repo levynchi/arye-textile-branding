@@ -15,6 +15,9 @@
       <button type="button" class="acc-btn acc-readable-font" aria-pressed="false" aria-label="פונט קריא">פונט קריא</button>
     </div>
     <div class="acc-group">
+      <button type="button" class="acc-btn acc-pause-slider" aria-pressed="false" aria-label="עצור גלילת סליידר">עצור גלילת סליידר</button>
+    </div>
+    <div class="acc-group">
       <button type="button" class="acc-btn acc-reset" aria-label="איפוס">איפוס</button>
     </div>
   </div>
@@ -56,6 +59,7 @@
     invert: localStorage.getItem('aw-invert') === '1',
     highlight: localStorage.getItem('aw-highlight') === '1',
     readable: localStorage.getItem('aw-readable') === '1',
+  pauseSlider: localStorage.getItem('aw-pause-slider') === '1',
   };
 
   const applyScale = () => {
@@ -74,16 +78,25 @@
   applyToggle(state.invert, 'aw-invert', 'aw-invert');
   applyToggle(state.highlight, 'aw-highlight-links', 'aw-highlight');
   applyToggle(state.readable, 'aw-readable-font', 'aw-readable');
+  // Apply slider pause state globally
+  const applySliderPause = (paused) => {
+    localStorage.setItem('aw-pause-slider', paused ? '1' : '0');
+    const sliders = d.querySelectorAll('.h-slider .track');
+    sliders.forEach(t => t.style.animationPlayState = paused ? 'paused' : 'running');
+  };
+  applySliderPause(state.pauseSlider);
 
   // Set initial aria-pressed
   const btnGray = qs('.acc-grayscale');
   const btnInvert = qs('.acc-invert');
   const btnHL = qs('.acc-highlight-links');
   const btnReadable = qs('.acc-readable-font');
+  const btnPauseSlider = qs('.acc-pause-slider');
   if(btnGray) btnGray.setAttribute('aria-pressed', String(state.grayscale));
   if(btnInvert) btnInvert.setAttribute('aria-pressed', String(state.invert));
   if(btnHL) btnHL.setAttribute('aria-pressed', String(state.highlight));
   if(btnReadable) btnReadable.setAttribute('aria-pressed', String(state.readable));
+  if(btnPauseSlider) btnPauseSlider.setAttribute('aria-pressed', String(state.pauseSlider));
 
   // Open/close
   const openPanel = () => { panel.hidden = false; panel.setAttribute('aria-hidden','false'); toggleBtn.setAttribute('aria-expanded','true'); };
@@ -99,15 +112,18 @@
   btnDec && btnDec.addEventListener('click', ()=>{ state.scale = Math.max(0.8, (state.scale - 0.1)); applyScale(); });
   btnReset && btnReset.addEventListener('click', ()=>{
     state.scale = 1; state.grayscale = false; state.invert = false; state.highlight = false; state.readable = false;
+  state.pauseSlider = false;
     applyScale();
     applyToggle(state.grayscale, 'aw-grayscale', 'aw-grayscale');
     applyToggle(state.invert, 'aw-invert', 'aw-invert');
     applyToggle(state.highlight, 'aw-highlight-links', 'aw-highlight');
     applyToggle(state.readable, 'aw-readable-font', 'aw-readable');
+  applySliderPause(state.pauseSlider);
     if(btnGray) btnGray.setAttribute('aria-pressed','false');
     if(btnInvert) btnInvert.setAttribute('aria-pressed','false');
     if(btnHL) btnHL.setAttribute('aria-pressed','false');
     if(btnReadable) btnReadable.setAttribute('aria-pressed','false');
+  if(btnPauseSlider) btnPauseSlider.setAttribute('aria-pressed','false');
   });
 
   const togglePress = (btn, key, cls) => {
@@ -128,5 +144,15 @@
   togglePress(btnInvert,'aw-invert','aw-invert');
   togglePress(btnHL,'aw-highlight','aw-highlight-links');
   togglePress(btnReadable,'aw-readable','aw-readable-font');
+  // Pause slider handler
+  if(btnPauseSlider){
+    btnPauseSlider.addEventListener('click', ()=>{
+      const v = btnPauseSlider.getAttribute('aria-pressed') === 'true';
+      const nv = !v;
+      btnPauseSlider.setAttribute('aria-pressed', String(nv));
+      state.pauseSlider = nv;
+      applySliderPause(nv);
+    });
+  }
 })();
 </script>

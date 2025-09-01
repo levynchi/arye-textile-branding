@@ -67,9 +67,6 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 @keyframes slideLoop{0%{transform:translateX(0);}100%{transform:translateX(-50%);} }
 @media (max-width:900px){.h-slider .track{animation-duration:50s;gap:28px;} .h-slider{padding:20px 0;}}
 
-/* Respect reduced motion preference */
-@media (prefers-reduced-motion: reduce){
-	.h-slider .track{animation-play-state:paused !important}
-}
+/* Slider always animates by default; pausing is controlled via Accessibility widget */
 
 /* Contact form section moved to main.css */
