@@ -98,7 +98,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .logo{position:absolute;left:50%;transform:translateX(-50%);z-index:1}
     .logo img{height:48px}
     .wa-link{width:44px;height:44px}
-    .wa-link img{width:28px;height:28px}
+    .wa-link img{width:auto;height:auto}
     /* Collapse menu into overlay under header */
     nav#site-menu{position:absolute;inset-inline:0;top:calc(var(--menu-height));background:#fff;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.12);border-top:1px solid #e5e7eb;display:none;z-index:40}
     header.menu-open nav#site-menu{display:block}
