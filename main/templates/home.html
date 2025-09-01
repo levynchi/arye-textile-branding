@@ -24,26 +24,32 @@
             <figure class="g-item">
                 <img src="{% if gallery and gallery.image1 %}{{ gallery.image1.url }}{% else %}https://placehold.co/370x250?text=1{% endif %}" alt="{{ gallery.caption1|default:'' }}" loading="lazy" />
                 <figcaption class="cap">{{ gallery.caption1|default:'ייעוץ וליווי' }}</figcaption>
+                <a class="g-link" href="{{ gallery.link1|resolve_link }}" aria-label="{{ gallery.caption1|default:'ייעוץ וליווי' }}"></a>
             </figure>
             <figure class="g-item">
                 <img src="{% if gallery and gallery.image2 %}{{ gallery.image2.url }}{% else %}https://placehold.co/370x250?text=2{% endif %}" alt="{{ gallery.caption2|default:'' }}" loading="lazy" />
                 <figcaption class="cap">{{ gallery.caption2|default:'מיתוג' }}</figcaption>
+                <a class="g-link" href="{{ gallery.link2|resolve_link }}" aria-label="{{ gallery.caption2|default:'מיתוג' }}"></a>
             </figure>
             <figure class="g-item">
                 <img src="{% if gallery and gallery.image3 %}{{ gallery.image3.url }}{% else %}https://placehold.co/370x250?text=3{% endif %}" alt="{{ gallery.caption3|default:'' }}" loading="lazy" />
                 <figcaption class="cap">{{ gallery.caption3|default:'תפירה לפי כמויות, סיטונאות' }}</figcaption>
+                <a class="g-link" href="{{ gallery.link3|resolve_link }}" aria-label="{{ gallery.caption3|default:'תפירה לפי כמויות, סיטונאות' }}"></a>
             </figure>
             <figure class="g-item">
                 <img src="{% if gallery and gallery.image4 %}{{ gallery.image4.url }}{% else %}https://placehold.co/370x250?text=4{% endif %}" alt="{{ gallery.caption4|default:'' }}" loading="lazy" />
                 <figcaption class="cap">{{ gallery.caption4|default:'ייצור' }}</figcaption>
+                <a class="g-link" href="{{ gallery.link4|resolve_link }}" aria-label="{{ gallery.caption4|default:'ייצור' }}"></a>
             </figure>
             <figure class="g-item">
                 <img src="{% if gallery and gallery.image5 %}{{ gallery.image5.url }}{% else %}https://placehold.co/370x250?text=5{% endif %}" alt="{{ gallery.caption5|default:'' }}" loading="lazy" />
                 <figcaption class="cap">{{ gallery.caption5|default:'תלייה' }}</figcaption>
+                <a class="g-link" href="{{ gallery.link5|resolve_link }}" aria-label="{{ gallery.caption5|default:'תלייה' }}"></a>
             </figure>
             <figure class="g-item">
                 <img src="{% if gallery and gallery.image6 %}{{ gallery.image6.url }}{% else %}https://placehold.co/370x250?text=6{% endif %}" alt="{{ gallery.caption6|default:'' }}" loading="lazy" />
                 <figcaption class="cap">{{ gallery.caption6|default:'הדפסה' }}</figcaption>
+                <a class="g-link" href="{{ gallery.link6|resolve_link }}" aria-label="{{ gallery.caption6|default:'הדפסה' }}"></a>
             </figure>
         </div>
         <div class="gallery-cta">
