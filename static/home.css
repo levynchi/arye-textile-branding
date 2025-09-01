@@ -74,10 +74,10 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 .h-slider figure.slide{margin:0}
 @keyframes slideLoop{0%{transform:translateX(0);}100%{transform:translateX(-50%);} }
 @media (max-width:900px){.h-slider .track{animation-duration:50s;gap:28px;} .h-slider{padding:20px 0;}}
-@media (max-width:768px){.h-slider .track{animation-duration:70s;gap:10px}}
+@media (max-width:768px){.h-slider .track{animation-duration:70s;gap:20px}}
 
 /* Extra-tight gaps on very small phones */
-@media (max-width:520px){.h-slider .track{gap:6px}}
+@media (max-width:520px){.h-slider .track{gap:20px}}
 
 /* Slider always animates by default; pausing is controlled via Accessibility widget */
 
