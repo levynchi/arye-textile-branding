@@ -108,8 +108,8 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .logo{position:absolute;left:50%;transform:translateX(-50%);z-index:1}
     .wa-link{width:44px;height:44px}
     .wa-link img{width:auto;height:auto}
-    /* Hide hero CTA button on mobile */
-    .hero-cta{display:none !important}
+    /* Hide ONLY the hero banner CTA on mobile (keep others like gallery-cta visible) */
+    .hero .hero-cta{display:none !important}
     /* Slightly reduced hero banners on mobile */
     .hero{aspect-ratio:auto;height:clamp(350px,50vh,580px)}
     .hero--home{aspect-ratio:auto;height:clamp(390px,55vh,620px)}
