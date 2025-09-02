@@ -59,7 +59,7 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 	.info-text p{grid-area:text; line-height:1.2; font-size:0.9rem; text-align:right}
 	.info-image{grid-area:image; justify-content:center; align-items:center;}
 	.info-image img{width:100%; height:clamp(260px, 50vw, 380px); object-fit:cover;}
-	.info-text .info-actions{grid-area:button; margin-top:10px; text-align:right}
+	.info-text .info-actions{grid-area:button; margin-top:10px; text-align:center}
 	/* Mobile: use fixed font-size for slider buttons (override clamp) */
 	.slider-all{font-size:0.95rem}
 	/* Smaller button padding for the About button on mobile */
