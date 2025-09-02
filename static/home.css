@@ -113,6 +113,15 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 
 /* Slider always animates by default; pausing is controlled via Accessibility widget */
 
+/* CTA under products slider */
+.slider-cta-below{max-width:1500px;margin:16px auto 30px;padding:0 40px;display:flex;justify-content:center}
+@media (max-width:960px){
+	.slider-cta-below .slider-all{padding:10px 10px; font-size:0.95rem}
+}
+@media (max-width:480px){
+	.slider-cta-below .slider-all{font-size:0.9rem}
+}
+
 /* Contact form section moved to main.css */
 
 /* Show all features on mobile (restore quartet) */
