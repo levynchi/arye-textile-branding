@@ -87,6 +87,8 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .site-footer{padding:60px 0 28px;}
     /* Allow wrapping to avoid overflow in narrow columns */
     .site-footer .f-col li{white-space:normal}
+    /* Hide footer columns on mobile */
+    .site-footer .f-col{display:none}
 }
 
 /* Contact form section (global) */
