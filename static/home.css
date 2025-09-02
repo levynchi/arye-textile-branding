@@ -1,5 +1,4 @@
 /* Page specific (hero, divider, gallery) */
-*{box-sizing:border-box;}
 body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);} 
 
 /* Hero moved to main.css (global) */
