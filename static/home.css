@@ -56,24 +56,32 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 	.info-inner{grid-template-columns:1fr 1fr; gap:16px; align-items:stretch;}
 	.info-text{order:1; text-align:right; height:100%; min-height:100%; display:flex; flex-direction:column;}
 	.info-text p{line-height:1.2; font-size:0.9rem}
+	/* Mobile: use fixed font-size for slider buttons (override clamp) */
+	.slider-all{font-size:0.95rem}
+	/* Smaller button padding for the About button on mobile */
+	.info-text .slider-all{padding:10px 10px}
+	/* Smaller button padding for the slider "לכל המוצרים" button on mobile */
+	.slider-head .slider-all{padding:10px 10px}
 	.info-text .info-actions{margin-top:auto}
 	.info-image{order:2; justify-content:center; align-items:center;}
 	.info-image img{width:100%; height:clamp(260px, 50vw, 380px); object-fit:cover;}
 }
 @media (max-width:480px){
-	.info-inner{grid-template-columns:1fr; gap:18px;}
+	.info-inner{grid-template-columns:1fr 1fr; gap:14px;}
 	.info-image{justify-content:center; align-items:center;}
 	.info-text p{line-height:1.15; font-size:0.82rem}
+	/* Very small phones: slightly smaller slider button text */
+	.slider-all{font-size:0.9rem}
 }
 
 /* Features icon row */
 .features{background:#fff;margin:0 0 10px;}
 .features-row{max-width:1500px;margin:0 auto;padding:70px 40px 100px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px;align-items:start;justify-items:center;direction:rtl;}
 .feature{margin:0;text-align:center;display:flex;flex-direction:column;align-items:center;}
-.feature img{width:140px;height:140px;display:block;margin-inline:auto;}
+.feature img{width:120px;height:120px;display:block;margin-inline:auto;}
 .feature figcaption{margin-top:10px;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.1rem,2.1vw,1.5rem);text-align:center;} 
-@media (max-width:900px){.features-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 30px;padding:56px 30px 86px;} .feature img{width:120px;height:120px;}}
-@media (max-width:520px){.features-row{grid-template-columns:1fr;padding:48px 20px 76px;} .feature img{width:110px;height:110px;}}
+@media (max-width:900px){.features-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 30px;padding:56px 30px 86px;} .feature img{width:100px;height:100px;}}
+@media (max-width:520px){.features-row{grid-template-columns:1fr;padding:48px 20px 76px;} .feature img{width:90px;height:90px;}}
 
 
 /* Horizontal slider under gallery */
