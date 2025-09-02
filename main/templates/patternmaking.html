@@ -18,7 +18,7 @@
     {% hero 'patternmaking' %}
     <h1 class="sr-only">תדמיתנות וגזרנות</h1>
 
-    <section class="pm-intro" aria-label="תדמיתנות – מהרעיון אל הגזרה המושלמת">
+    <section id="patternmaking" class="pm-intro" aria-label="תדמיתנות – מהרעיון אל הגזרה המושלמת">
         <div class="pm-inner">
             <h2 class="pm-title">תדמיתנות – מהרעיון אל הגזרה המושלמת</h2>
             <div class="pm-text">
@@ -43,7 +43,7 @@
     </section>
 
     {% if pattern_images %}
-    <section class="pattern-grid" aria-label="גלריית תדמיתנות וגזרנות">
+    <section id="cutting" class="pattern-grid" aria-label="גלריית תדמיתנות וגזרנות">
         <div class="pg2-inner">
             {% for img in pattern_images %}
                 {% if img %}
