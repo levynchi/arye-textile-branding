@@ -8,7 +8,7 @@
     {% load site_blocks %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}?v=20250828" />
     <link rel="stylesheet" href="{% static 'home.css' %}?v=20250828" />
         {% if slides %}
@@ -61,6 +61,20 @@
             <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>
             <h2 class="about-teaser" aria-label="מי אנחנו">מי אנחנו</h2>
         </div>
+        <!-- About/info band under gallery-cta (RTL: image on the right, text on the left) -->
+        <section class="info-band" aria-label="מי אנחנו">
+            <div class="info-inner">
+                <div class="info-text">
+                    <h2 class="info-title">מי אנחנו</h2>
+                    <p>
+                        אריה טקסטיל פועל בתל-אביב מאז 1948 ומביא איתו מסורת ארוכה של יצירה וחדשנות. אנחנו מתמחים בייצור טקסטיל איכותי, הדפסות מתקדמות ומיתוג, לצד שירותי גזרנות ותדמיתנות. בין המוצרים שלנו תמצאו גם קולקציות ייחודיות לתינוקות – הכל בעיצוב אישי וברמת גימור גבוהה.
+                    </p>
+                </div>
+                <figure class="info-image">
+                    <img src="{% static 'ARYETEXTILE.jpg' %}" alt="דוגמאות מיתוג טקסטיל" />
+                </figure>
+            </div>
+        </section>
     </section>
     <div class="slider-band">
         <div class="slider-head">

@@ -40,10 +40,11 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 /* RTL: טקסט מימין ותמונה משמאל */
 .info-text{order:1;text-align:right;max-width:42ch;}
 .info-title{margin:0 0 10px;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem,3.2vw,2.2rem);} 
-.info-text p{margin:0;color:#222;line-height:1.8;font-size:clamp(1rem,1.5vw,1.15rem);} 
-.info-image{order:2;margin:0;}
-.info-image img{width:100%;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
-@media (max-width:960px){.info-inner{grid-template-columns:1fr;gap:18px;} .info-image{order:2;} .info-text{order:1;}}
+.info-text p{margin:0;color:#222;line-height:1.8;font-size:clamp(1rem,1.5vw,1.15rem);font-family:'Assistant',var(--font-sans);} 
+.info-image{order:2;margin:0;display:flex;justify-content:flex-end;}
+/* Make the image smaller on wide screens while keeping aspect */
+.info-image img{width:min(420px,100%);height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
+@media (max-width:960px){.info-inner{grid-template-columns:1fr;gap:18px;} .info-image{order:2;justify-content:center;} .info-text{order:1;} .info-image img{width:100%;}}
 
 /* Features icon row */
 .features{background:#fff;margin:0 0 10px;}
