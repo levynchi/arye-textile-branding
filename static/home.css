@@ -82,3 +82,8 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 /* Slider always animates by default; pausing is controlled via Accessibility widget */
 
 /* Contact form section moved to main.css */
+
+/* Hide selected features on mobile */
+@media (max-width:768px){
+	.feature--mobile-hide{display:none}
+}
