@@ -46,6 +46,7 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 .info-text p{margin:0;color:#222;line-height:1.8;font-size:clamp(1rem,1.5vw,1.15rem);font-family:'Assistant',var(--font-sans);} 
 /* When reusing .about-teaser inside info-text, make it flow in the document (not absolute) */
 .info-text .about-teaser{position:static;transform:none;right:auto;top:auto;margin:0 0 10px;text-align:right}
+.info-text .info-actions{margin-top:18px}
 .info-image{order:2;margin:0;display:flex;justify-content:flex-end;}
 /* Make the image smaller on wide screens while keeping aspect */
 .info-image img{width:min(420px,100%);height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
