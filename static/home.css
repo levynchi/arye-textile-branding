@@ -86,7 +86,7 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 
 /* Horizontal slider under gallery */
 .slider-band{background:#f2f3f4;border-top:none;border-bottom:1px solid #e1e3e6;margin:50px 0 0;}
-.slider-head{max-width:1500px;margin:0 auto;padding:72px 40px 44px;display:flex;align-items:center;justify-content:space-between;}
+.slider-head{max-width:1500px;margin:0 auto;padding:30px 40px 30px;display:flex;align-items:center;justify-content:space-between;}
 .slider-title{margin:0;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.3px;}
 .slider-all{display:inline-flex;align-items:center;justify-content:center;padding:18px 32px;border-radius:999px;border:1px solid #2e2f30;color:#2e2f30;text-decoration:none;font-weight:700;background:#fff;}
 .slider-all:hover{background:#f6f7f8;}
