@@ -8,23 +8,23 @@
 				<h3 id="contact-form-title" class="sr-only">טופס יצירת קשר</h3>
 				<div class="grid">
 					<div class="field">
-						<label for="{{ contact_form.full_name.id_for_label }}">שם מלא</label>
+						<label class="sr-only" for="{{ contact_form.full_name.id_for_label }}">שם מלא</label>
 						{{ contact_form.full_name }}
 					</div>
 					<div class="field">
-						<label for="{{ contact_form.company.id_for_label }}">חברה</label>
+						<label class="sr-only" for="{{ contact_form.company.id_for_label }}">חברה</label>
 						{{ contact_form.company }}
 					</div>
 					<div class="field">
-						<label for="{{ contact_form.email.id_for_label }}">אימייל</label>
+						<label class="sr-only" for="{{ contact_form.email.id_for_label }}">אימייל</label>
 						{{ contact_form.email }}
 					</div>
 					<div class="field">
-						<label for="{{ contact_form.phone.id_for_label }}">טלפון</label>
+						<label class="sr-only" for="{{ contact_form.phone.id_for_label }}">טלפון</label>
 						{{ contact_form.phone }}
 					</div>
 					<div class="field full">
-						<label for="{{ contact_form.message.id_for_label }}">תיאור הבקשה</label>
+						<label class="sr-only" for="{{ contact_form.message.id_for_label }}">תיאור הבקשה</label>
 						{{ contact_form.message }}
 					</div>
 				</div>
