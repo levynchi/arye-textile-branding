@@ -4,7 +4,7 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 /* Hero moved to main.css (global) */
 
 /* Divider */
-.divider-plain{background:#fff;color:#111;text-align:center;padding:28px 16px;margin:32px 0;border:none;box-shadow:none;font-family:'Assistant',var(--font-sans);font-weight:800;line-height:1.2;font-size:clamp(2rem, 4.2vw, 3rem);letter-spacing:.2px;}
+.divider-plain{background:#fff;color:#111;text-align:center;padding:28px 16px;margin:32px 0;border:none;box-shadow:none;font-family:'Assistant',var(--font-sans);font-weight:800;line-height:1.2;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.2px;}
 @media (max-width:768px){
 	.divider-plain{margin-bottom:16px}
 }
@@ -87,7 +87,7 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 /* Horizontal slider under gallery */
 .slider-band{background:#f2f3f4;border-top:none;border-bottom:1px solid #e1e3e6;margin:50px 0 0;}
 .slider-head{max-width:1500px;margin:0 auto;padding:72px 40px 44px;display:flex;align-items:center;justify-content:space-between;}
-.slider-title{margin:0;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.8rem, 4.2vw, 2.6rem);letter-spacing:.3px;}
+.slider-title{margin:0;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.3px;}
 .slider-all{display:inline-flex;align-items:center;justify-content:center;padding:18px 32px;border-radius:999px;border:1px solid #2e2f30;color:#2e2f30;text-decoration:none;font-weight:700;background:#fff;}
 .slider-all:hover{background:#f6f7f8;}
 @media (min-width:961px){
