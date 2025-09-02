@@ -33,6 +33,10 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 	.about-teaser{position:static;transform:none;margin-top:6px;text-align:center;}
 }
 
+/* Standalone about heading under gallery-cta */
+.about-heading{max-width:1500px;margin:0 auto;padding:0 40px 6px;border-bottom:1px solid #e1e3e6;}
+.about-heading .about-teaser{position:static;transform:none;text-align:right;margin:0 0 6px}
+
 /* Info band under gallery-cta */
 .info-band{border-top:none;background:#fff;margin:20px 0 0;}
 .info-inner{max-width:1500px;margin:0 auto;padding:40px;display:grid;grid-template-columns:1fr 1.2fr;gap:30px;align-items:center;}
