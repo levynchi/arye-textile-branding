@@ -47,8 +47,10 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 /* Hero CTA */
 .hero-cta{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;gap:10px;background:#475A7C;color:#fff;text-decoration:none;border-radius:48px;width:360px;height:96px;margin:0 0 46px;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.3rem,2.3vw,1.9rem);letter-spacing:.5px;box-shadow:0 6px 18px rgba(0,0,0,.18);} 
 .hero-cta:hover{background:#506386;}
+/* Narrower hero banner CTA without affecting other CTAs using the same class */
+.hero .hero-cta{width:240px}
 @media (max-width:560px){
-    .hero-cta{width:min(92vw,360px);height:74px;font-size:clamp(1.1rem,4.3vw,1.7rem);} 
+    .hero-cta{width:min(84vw,240px);height:74px;font-size:clamp(1.1rem,4.3vw,1.7rem);} 
 }
 
 /* Footer */
