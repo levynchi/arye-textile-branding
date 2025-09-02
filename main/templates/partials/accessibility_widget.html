@@ -1,6 +1,7 @@
 <div class="acc-widget" dir="rtl">
+  {% load static %}
   <button class="acc-toggle" aria-label="פתח כלי נגישות" aria-expanded="false" title="כלי נגישות" type="button">
-    <span aria-hidden="true">🧍</span>
+    <img src="{% static 'icons_logo/DISABLE.svg' %}" alt="" aria-hidden="true" />
   </button>
   <div class="acc-panel" role="dialog" aria-label="כלי נגישות" aria-modal="false" hidden>
     <h2 class="acc-title">כלי נגישות</h2>
@@ -26,6 +27,7 @@
 <style>
   .acc-widget{position:fixed;bottom:16px;left:16px;z-index:9999;font-family:var(--font-sans, Arial, sans-serif)}
   .acc-toggle{width:44px;height:44px;border-radius:8px;border:1px solid #d0d3d7;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);cursor:pointer}
+  .acc-toggle img{display:block;width:24px;height:24px;margin:10px auto}
   .acc-panel{position:absolute;bottom:54px;left:0;width:min(280px,90vw);background:#fff;border:1px solid #cfd3d7;border-radius:6px;box-shadow:0 4px 18px rgba(0,0,0,.16);padding:12px}
   .acc-title{margin:0 0 8px 0;font-size:1.05rem}
   .acc-group{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
