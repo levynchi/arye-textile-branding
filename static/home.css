@@ -53,12 +53,12 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 
 /* Mobile layout: stack in rows (text → image → button) */
 @media (max-width:960px){
-	.info-inner{grid-template-columns:1fr; gap:16px; align-items:start; grid-template-areas:"text" "image" "button";}
+	.info-inner{grid-template-columns:1fr; gap:16px; align-items:start; grid-template-areas:"image" "text" "button";}
 	/* Flatten .info-text so its children can be positioned as grid items */
 	.info-text{display:contents}
 	.info-text p{grid-area:text; line-height:1.2; font-size:0.9rem; text-align:right}
 	.info-image{grid-area:image; justify-content:center; align-items:center;}
-	.info-image img{width:100%; height:clamp(260px, 50vw, 380px); object-fit:cover;}
+	.info-image img{width:100%; height:clamp(220px, 44vw, 320px); object-fit:cover;}
 	.info-text .info-actions{grid-area:button; margin-top:10px; text-align:center}
 	/* Mobile: use fixed font-size for slider buttons (override clamp) */
 	.slider-all{font-size:0.95rem}
@@ -68,7 +68,7 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 	.slider-head .slider-all{padding:10px 10px}
 }
 @media (max-width:480px){
-	.info-inner{grid-template-columns:1fr; gap:14px; grid-template-areas:"text" "image" "button"}
+	.info-inner{grid-template-columns:1fr; gap:14px; grid-template-areas:"image" "text" "button"}
 	.info-text p{line-height:1.15; font-size:0.82rem}
 	/* Very small phones: slightly smaller slider button text */
 	.slider-all{font-size:0.9rem}
