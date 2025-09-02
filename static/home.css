@@ -34,12 +34,14 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 }
 
 /* Info band under gallery-cta */
-.info-band{border-top:1px solid #e1e3e6;background:#fff;margin:20px 0 0;}
+.info-band{border-top:none;background:#fff;margin:20px 0 0;}
 .info-inner{max-width:1500px;margin:0 auto;padding:40px;display:grid;grid-template-columns:1fr 1.2fr;gap:30px;align-items:center;}
 /* RTL: טקסט מימין ותמונה משמאל */
 .info-text{order:1;text-align:right;max-width:42ch;}
 .info-title{margin:0 0 10px;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem,3.2vw,2.2rem);} 
 .info-text p{margin:0;color:#222;line-height:1.8;font-size:clamp(1rem,1.5vw,1.15rem);font-family:'Assistant',var(--font-sans);} 
+/* When reusing .about-teaser inside info-text, make it flow in the document (not absolute) */
+.info-text .about-teaser{position:static;transform:none;right:auto;top:auto;margin:0 0 10px;text-align:right}
 .info-image{order:2;margin:0;display:flex;justify-content:flex-end;}
 /* Make the image smaller on wide screens while keeping aspect */
 .info-image img{width:min(420px,100%);height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
