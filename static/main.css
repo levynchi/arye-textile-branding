@@ -58,7 +58,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 .site-footer:before {content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,#7d3cff,#ff33cc,#7d3cff);opacity:.4;top:0;}
 .f-inner {max-width:1400px;margin:0 auto;padding:0 40px;}
 .f-cols {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:40px;align-items:flex-start;}
-.f-col {list-style:none;margin:0;padding:0;font-size:.95rem;line-height:1.9;font-weight:600;}
+.f-col {list-style:none;margin:0;padding:0;font-size:.95rem;font-weight:600;}
 .f-col li {white-space:nowrap;}
 .f-brand {display:flex;flex-direction:column;gap:26px;align-items:flex-start;}
 .logo-stack .brand-line {font-weight:700;font-size:1.2rem;}
@@ -78,7 +78,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .f-cols{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 16px;}
     .f-brand{grid-column:1 / -1;align-items:center;text-align:center;}
     .site-footer .social{justify-content:center;}
-    .f-col{font-size:.95rem;}
+    .f-col{font-size:.85rem;}
     .site-footer{padding:60px 0 28px;}
     /* Allow wrapping to avoid overflow in narrow columns */
     .site-footer .f-col li{white-space:normal}
