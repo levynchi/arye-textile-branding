@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from django.shortcuts import redirect
 from django.urls import reverse
 from .models import Gallery, Banner, ContactRequest, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, FooterSettings
@@ -63,9 +64,24 @@ class ContactRequestAdmin(admin.ModelAdmin):
 
 @admin.register(Slide)
 class SlideAdmin(admin.ModelAdmin):
-	list_display = ("id", "order", "alt", "created")
+	list_display = ("id", "thumb", "order", "alt", "created")
 	list_editable = ("order",)
 	ordering = ("order", "id")
+
+	@admin.display(description="תמונה")
+	def thumb(self, obj: Slide):  # type: ignore[name-defined]
+		if getattr(obj, "image", None) and obj.image:
+			try:
+				url = obj.image.url
+			except Exception:
+				return "—"
+			alt = obj.alt or ""
+			return format_html(
+				'<img src="{}" alt="{}" style="height:60px;width:auto;border-radius:2px;box-shadow:0 0 2px rgba(0,0,0,.2);"/>',
+				url,
+				alt,
+			)
+		return "—"
 
 
 @admin.register(BrandingGallery)
