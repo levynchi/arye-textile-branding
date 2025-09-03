@@ -41,7 +41,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 /* Hero (global) */
 .hero{position:relative;width:100%;aspect-ratio:16/4.5;background:#666 center/cover no-repeat;display:flex;align-items:flex-end;justify-content:center;}
 .hero--home{aspect-ratio:16/6;}
-.hero--sub{aspect-ratio:16/4.5;}
+.hero--sub{aspect-ratio:16/6;}
 .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.55));}
 .hero h1{position:relative;margin:0 0 42px;font-size:clamp(1.6rem,3.6vw,3rem);background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:2px;font-weight:800;text-shadow:0 0 2px rgba(0,0,0,.25);} 
 /* Hero CTA */
@@ -122,11 +122,12 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .wa-link img{width:auto;height:auto}
     /* Hide ONLY the hero banner CTA on mobile (keep others like gallery-cta visible) */
     .hero .hero-cta{display:none !important}
-    /* Reduced hero banners on mobile */
-    .hero{aspect-ratio:auto;height:clamp(340px,48vh,560px)}
+    /* Reduced hero banners on mobile: use same compact height as home hero so all main banners match */
+    .hero{aspect-ratio:auto;height:clamp(260px,40vh,480px)}
     /* Home page hero (make it smaller on mobile) */
     .hero--home{aspect-ratio:auto;height:clamp(260px,40vh,480px)}
-    .hero--sub{aspect-ratio:auto;height:clamp(360px,50vh,580px)}
+    /* Make sub-page heroes match home hero height on mobile */
+    .hero--sub{aspect-ratio:auto;height:clamp(260px,40vh,480px)}
     /* Collapse menu into overlay under header */
     nav#site-menu{position:absolute;inset-inline:0;top:calc(var(--menu-height));background:#fff;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.12);border-top:1px solid #e5e7eb;display:none;z-index:40}
     header.menu-open nav#site-menu{display:block}
