@@ -15,7 +15,7 @@
 .H2-title{grid-area:title;background:#fff;color:#111;text-align:center;padding:28px 16px;margin:32px 0;border:none;box-shadow:none;font-family:'Assistant',var(--font-sans);font-weight:800;line-height:1.2;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.2px}
 
 /* Generic intro section used across category pages */
-.intro{background:#fff;padding:50px 0}
+.intro{background:#fff}
 
 /* Global box-sizing reset */
 *, *::before, *::after{box-sizing:border-box}
