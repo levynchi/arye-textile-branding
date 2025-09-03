@@ -116,6 +116,14 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 
 /* Branding page styles moved to branding.css */
 
+/* Unified page inner grid for category pages: desktop and mobile layouts */
+.page-inner{max-width:1400px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:'title title' 'text image';gap:28px;align-items:center;direction:ltr;}
+@media (max-width:960px){
+    .page-inner{grid-template-columns:1fr;grid-template-areas:'title' 'text' 'image';}
+    /* small vertical spacing for the image on mobile */
+    .page-inner figure{margin-top:10px}
+}
+
 /* Responsive header: Mobile first (320px–768px) */
 @media (max-width: 768px){
     /* Prevent horizontal scroll on mobile */
