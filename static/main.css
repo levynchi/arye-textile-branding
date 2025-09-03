@@ -8,6 +8,12 @@
     --font-title: 'Assistant', var(--font-sans);
 }
 
+/* Utility: plain divider/title style used across pages */
+.divider-plain{background:#fff;color:#111;text-align:center;padding:28px 16px;margin:32px 0;border:none;box-shadow:none;font-family:'Assistant',var(--font-sans);font-weight:800;line-height:1.2;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.2px;}
+
+/* Ensure any H2 using H2-title is centered and uses divider styles */
+.H2-title{grid-area:title;background:#fff;color:#111;text-align:center;padding:28px 16px;margin:32px 0;border:none;box-shadow:none;font-family:'Assistant',var(--font-sans);font-weight:800;line-height:1.2;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.2px}
+
 /* Global box-sizing reset */
 *, *::before, *::after{box-sizing:border-box}
 
@@ -128,6 +134,26 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .hero--home{aspect-ratio:auto;height:clamp(260px,40vh,480px)}
     /* Make sub-page heroes match home hero height on mobile */
     .hero--sub{aspect-ratio:auto;height:clamp(260px,40vh,480px)}
+    /* Apply unified H2 styling on mobile to all page subtitle classes (under the hero) */
+    .about-teaser,
+    .bi-title,
+    .fb-title,
+    .pi-title,
+    .pm-title,
+    .mf-title,
+    .aw-title,
+    .acc-title,
+    .slider-title{
+        margin:0;
+        font-family:'Assistant',var(--font-sans);
+        font-weight:800;
+        font-size:clamp(1.6rem, 3.5vw, 2.4rem);
+        color:#000;
+        text-align:right;
+        position:static;
+        transform:none;
+        margin-top:6px;
+    }
     /* Collapse menu into overlay under header */
     nav#site-menu{position:absolute;inset-inline:0;top:calc(var(--menu-height));background:#fff;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.12);border-top:1px solid #e5e7eb;display:none;z-index:40}
     header.menu-open nav#site-menu{display:block}
