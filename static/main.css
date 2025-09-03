@@ -50,7 +50,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 /* Hero (global) */
 .hero{position:relative;width:100%;aspect-ratio:16/4.5;background:#666 center/cover no-repeat;display:flex;align-items:flex-end;justify-content:center;}
 .hero--home{aspect-ratio:16/6;}
-.hero--sub{aspect-ratio:16/6;}
+.hero--sub{aspect-ratio:16/4.5;}
 .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.55));}
 .hero h1{position:relative;margin:0 0 42px;font-size:clamp(1.6rem,3.6vw,3rem);background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:2px;font-weight:800;text-shadow:0 0 2px rgba(0,0,0,.25);} 
 /* Hero CTA */
