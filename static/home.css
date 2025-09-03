@@ -51,6 +51,16 @@ body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);}
 .info-image img{width:min(420px,100%);height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
 @media (max-width:960px){.info-inner{grid-template-columns:1fr;gap:18px;} .info-image{order:2;justify-content:center;} .info-text{order:1;} .info-image img{width:100%;}}
 
+/* Desktop: align the CTA button with the bottom edge of the image */
+@media (min-width:961px){
+	/* Make both grid columns equal height */
+	.info-inner{align-items:stretch}
+	/* Use flex in the text column so the button can sit at the bottom */
+	.info-text{display:flex;flex-direction:column}
+	/* Push the actions block (button) to the bottom */
+	.info-text .info-actions{margin-top:auto}
+}
+
 /* Mobile layout: stack in rows (text → image → button) */
 @media (max-width:960px){
 	.info-inner{grid-template-columns:1fr; gap:16px; align-items:start; grid-template-areas:"image" "text" "button";}
