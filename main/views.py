@@ -263,6 +263,16 @@ def cutting(request):
 
 def photos(request):
 	"""Standalone photos gallery page managed from admin."""
+	# Contact form handling (same pattern as other pages)
+	if request.method == "POST":
+		form = ContactRequestForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
+			return redirect("photos")
+	else:
+		form = ContactRequestForm()
+
 	gallery = PhotosGallery.objects.order_by("-updated", "-id").first()
 	images = []
 	if gallery:
@@ -272,5 +282,5 @@ def photos(request):
 			gallery.image7, gallery.image8, gallery.image9,
 			gallery.image10, gallery.image11, gallery.image12,
 		]
-	ctx = {"gallery": gallery, "images": images}
+	ctx = {"gallery": gallery, "images": images, "contact_form": form}
 	return render(request, "photos.html", ctx)
