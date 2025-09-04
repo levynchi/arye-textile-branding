@@ -44,6 +44,23 @@
         </div>
     </section>
 
+    {% if cut_images %}
+    <section class="cutting-grid" aria-label="גלריית גזירה">
+        <div class="cg-inner">
+            {% for img in cut_images %}
+                {% if img %}
+                <figure class="cg-item"><img src="{{ img.url }}" alt="גזירה - תמונה" loading="lazy" /></figure>
+                {% else %}
+                <div class="cg-item cg-empty" aria-hidden="true"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <div class="grid-cta-below">
+            <a class="slider-all" href="{% url 'photos' %}" aria-label="לעוד מוצרים">לעוד מוצרים</a>
+        </div>
+    </section>
+    {% endif %}
+
     {% include 'partials/contact_form.html' %}
     </main>
     {% include 'partials/footer.html' %}

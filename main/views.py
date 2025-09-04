@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Q
-from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, PhotosGallery
+from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, CuttingGallery, PhotosGallery
 from .forms import ContactRequestForm
 
 
@@ -241,7 +241,23 @@ def cutting(request):
 	else:
 		form = ContactRequestForm()
 
-	ctx = {"contact_form": form}
+	# Cutting gallery (optional): latest configured
+	cut_gallery = CuttingGallery.objects.order_by("-updated", "-id").first()
+	cut_images = []
+	if cut_gallery:
+		cut_images = [
+			cut_gallery.image1,
+			cut_gallery.image2,
+			cut_gallery.image3,
+			cut_gallery.image4,
+			cut_gallery.image5,
+			cut_gallery.image6,
+			cut_gallery.image7,
+			cut_gallery.image8,
+			cut_gallery.image9,
+		]
+
+	ctx = {"contact_form": form, "cut_gallery": cut_gallery, "cut_images": cut_images}
 	return render(request, "cutting.html", ctx)
 
 

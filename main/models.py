@@ -171,8 +171,8 @@ class PatternmakingGallery(models.Model):
 	updated = models.DateTimeField(auto_now=True)
 
 	class Meta:
-		verbose_name = "גלריית תדמיתנות וגזרנות"
-		verbose_name_plural = "גלריות תדמיתנות וגזרנות"
+		verbose_name = "גלריית תדמיתנות"
+		verbose_name_plural = "גלריות תדמיתנות"
 
 	def __str__(self):  # pragma: no cover
 		return f"Patternmaking Gallery #{self.pk}" if self.pk else "Patternmaking Gallery"
@@ -218,6 +218,27 @@ class ManufacturingGallery(models.Model):
 
 	def __str__(self):  # pragma: no cover
 		return f"Manufacturing Gallery #{self.pk}" if self.pk else "Manufacturing Gallery"
+
+
+class CuttingGallery(models.Model):
+	"""Gallery of 9 images for the cutting (גזירה) page."""
+	image1 = models.ImageField("תמונה 1", upload_to="cutting_gallery/", blank=True, null=True)
+	image2 = models.ImageField("תמונה 2", upload_to="cutting_gallery/", blank=True, null=True)
+	image3 = models.ImageField("תמונה 3", upload_to="cutting_gallery/", blank=True, null=True)
+	image4 = models.ImageField("תמונה 4", upload_to="cutting_gallery/", blank=True, null=True)
+	image5 = models.ImageField("תמונה 5", upload_to="cutting_gallery/", blank=True, null=True)
+	image6 = models.ImageField("תמונה 6", upload_to="cutting_gallery/", blank=True, null=True)
+	image7 = models.ImageField("תמונה 7", upload_to="cutting_gallery/", blank=True, null=True)
+	image8 = models.ImageField("תמונה 8", upload_to="cutting_gallery/", blank=True, null=True)
+	image9 = models.ImageField("תמונה 9", upload_to="cutting_gallery/", blank=True, null=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "גלריית גזירה"
+		verbose_name_plural = "גלריות גזירה"
+
+	def __str__(self):  # pragma: no cover
+		return f"Cutting Gallery #{self.pk}" if self.pk else "Cutting Gallery"
 
 
 class PhotosGallery(models.Model):
