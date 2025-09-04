@@ -34,7 +34,7 @@
 .bi-image img{width:82%;max-width:480px;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
 
 /* CTA under branding grid (unique class) */
-.branding-cta{display:flex;justify-content:center;margin:200px 0;}
+.branding-cta{display:flex;justify-content:center;margin:80px 0;}
 
 /* Responsive */
 @media (max-width:960px){
