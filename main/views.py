@@ -227,3 +227,19 @@ def dev_debug(request):
 def accessibility(request):
 	"""Static Accessibility Statement page."""
 	return render(request, "accessibility.html")
+
+
+def cutting(request):
+	"""Cutting page: new standalone page with its own hero and simple content."""
+	# Reuse the contact form pattern
+	if request.method == "POST":
+		form = ContactRequestForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
+			return redirect("cutting")
+	else:
+		form = ContactRequestForm()
+
+	ctx = {"contact_form": form}
+	return render(request, "cutting.html", ctx)
