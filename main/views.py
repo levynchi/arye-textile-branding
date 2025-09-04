@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Q
-from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery
+from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, PhotosGallery
 from .forms import ContactRequestForm
 
 
@@ -243,3 +243,18 @@ def cutting(request):
 
 	ctx = {"contact_form": form}
 	return render(request, "cutting.html", ctx)
+
+
+def photos(request):
+	"""Standalone photos gallery page managed from admin."""
+	gallery = PhotosGallery.objects.order_by("-updated", "-id").first()
+	images = []
+	if gallery:
+		images = [
+			gallery.image1, gallery.image2, gallery.image3,
+			gallery.image4, gallery.image5, gallery.image6,
+			gallery.image7, gallery.image8, gallery.image9,
+			gallery.image10, gallery.image11, gallery.image12,
+		]
+	ctx = {"gallery": gallery, "images": images}
+	return render(request, "photos.html", ctx)

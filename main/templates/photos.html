@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <title>גלריית תמונות</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    {% load static %}
+    {% load site_blocks %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250904a" />
+    <link rel="stylesheet" href="{% static 'photos.css' %}?v=20250904a" />
+</head>
+<body>
+    {% include 'partials/header.html' %}
+    <main id="main-content" tabindex="-1">
+    {% hero 'photos' %}
+    <h1 class="sr-only">גלריית תמונות</h1>
+
+    <section class="intro" aria-label="גלריית תמונות">
+        <div class="category-heading">
+            <h2 class="about-teaser">גלריית תמונות</h2>
+        </div>
+        {% if images %}
+        <section class="photos-grid" aria-label="תמונות מהעבודות שלנו">
+            <div class="ph-inner">
+                {% for img in images %}
+                    {% if img %}
+                    <figure class="ph-item"><img src="{{ img.url }}" alt="תמונה מהעבודות" loading="lazy" /></figure>
+                    {% else %}
+                    <div class="ph-item ph-empty" aria-hidden="true"></div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% else %}
+            <p class="no-photos">עדיין לא הועלו תמונות לגלריה.</p>
+        {% endif %}
+    </section>
+
+    {% include 'partials/contact_form.html' %}
+    </main>
+    {% include 'partials/footer.html' %}
+</body>
+</html>

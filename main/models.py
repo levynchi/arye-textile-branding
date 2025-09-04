@@ -220,6 +220,30 @@ class ManufacturingGallery(models.Model):
 		return f"Manufacturing Gallery #{self.pk}" if self.pk else "Manufacturing Gallery"
 
 
+class PhotosGallery(models.Model):
+	"""Standalone gallery page: up to 12 images."""
+	image1 = models.ImageField("תמונה 1", upload_to="photos_gallery/", blank=True, null=True)
+	image2 = models.ImageField("תמונה 2", upload_to="photos_gallery/", blank=True, null=True)
+	image3 = models.ImageField("תמונה 3", upload_to="photos_gallery/", blank=True, null=True)
+	image4 = models.ImageField("תמונה 4", upload_to="photos_gallery/", blank=True, null=True)
+	image5 = models.ImageField("תמונה 5", upload_to="photos_gallery/", blank=True, null=True)
+	image6 = models.ImageField("תמונה 6", upload_to="photos_gallery/", blank=True, null=True)
+	image7 = models.ImageField("תמונה 7", upload_to="photos_gallery/", blank=True, null=True)
+	image8 = models.ImageField("תמונה 8", upload_to="photos_gallery/", blank=True, null=True)
+	image9 = models.ImageField("תמונה 9", upload_to="photos_gallery/", blank=True, null=True)
+	image10 = models.ImageField("תמונה 10", upload_to="photos_gallery/", blank=True, null=True)
+	image11 = models.ImageField("תמונה 11", upload_to="photos_gallery/", blank=True, null=True)
+	image12 = models.ImageField("תמונה 12", upload_to="photos_gallery/", blank=True, null=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		verbose_name = "גלריית תמונות"
+		verbose_name_plural = "גלריות תמונות"
+
+	def __str__(self):  # pragma: no cover
+		return f"Photos Gallery #{self.pk}" if self.pk else "Photos Gallery"
+
+
 class FooterSettings(models.Model):
 	"""Site-wide footer contact and social links (singleton)."""
 	phone_display = models.CharField("טלפון להצגה", max_length=40, blank=True, help_text="לדוגמה: 054-2367535")

@@ -153,6 +153,10 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 .slider-all{display:inline-flex;align-items:center;justify-content:center;padding:18px 32px;border-radius:999px;border:1px solid #2e2f30;color:#2e2f30;text-decoration:none;font-weight:700;background:#fff;font-size:clamp(1rem, 2vw, 1.25rem)}
 .slider-all:hover{background:#f6f7f8}
 
+/* Unified category image wrapper across all pages */
+.category-image{grid-area:image;margin:0;justify-self:end}
+.category-image img{width:480px;height:360px;max-width:100%;display:block;object-fit:cover;object-position:center;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+
 /* Responsive header: Mobile first (320px–768px) */
 @media (max-width: 768px){
     /* Prevent horizontal scroll on mobile */

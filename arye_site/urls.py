@@ -16,18 +16,23 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
-from main.views import home, branding, printing, patternmaking, fabrics, manufacturing, about, dev_debug, accessibility, cutting
+from main.views import home, branding, printing, patternmaking, fabrics, manufacturing, about, dev_debug, accessibility, cutting, photos
 
 urlpatterns = [
     path('', home, name='home'),
+    # Legacy/typo redirects for gallery
+    path('gallery/', RedirectView.as_view(pattern_name='photos', permanent=True)),
+    path('galerry/', RedirectView.as_view(pattern_name='photos', permanent=True)),
     path('branding/', branding, name='branding'),
     path('printing/', printing, name='printing'),
     path('patternmaking/', patternmaking, name='patternmaking'),
     path('fabrics/', fabrics, name='fabrics'),
     path('manufacturing/', manufacturing, name='manufacturing'),
     path('cutting/', cutting, name='cutting'),
+    path('photos/', photos, name='photos'),
     path('about/', about, name='about'),
     path('accessibility/', accessibility, name='accessibility'),
     path('admin/', admin.site.urls),

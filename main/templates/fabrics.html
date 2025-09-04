@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250829i" />
+    <link rel="stylesheet" href="{% static 'main.css' %}?v=20250904e" />
     <link rel="stylesheet" href="{% static 'fabrics.css' %}?v=20250829a" />
 </head>
 <body>
@@ -38,7 +38,7 @@
                 </ul>
                     <p class="category-outcome">התוצאה: בדים איכותיים, נוחים לעבודה ועמידים בשימוש – עם אפשרות לייצור בכמויות קטנות או גדולות, לפי הצורך שלכם.</p>
             </div>
-            <figure class="fb-image">
+            <figure class="category-image">
                 <img src="{% static 'pile-folded-colorful-textile-heap-cloth-fabric.jpg' %}" alt="בדים - ARYE TEXTILE" loading="lazy" />
             </figure>
         </div>
@@ -59,7 +59,7 @@
             {% endfor %}
         </div>
         <div class="grid-cta-below">
-            <a class="slider-all" href="{% url 'home' %}#products" aria-label="לעוד מוצרים">לעוד מוצרים</a>
+            <a class="slider-all" href="{% url 'photos' %}" aria-label="לעוד מוצרים">לעוד מוצרים</a>
         </div>
     </section>
     {% endif %}
