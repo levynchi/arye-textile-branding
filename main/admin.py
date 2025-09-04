@@ -1,12 +1,54 @@
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.safestring import mark_safe
+from django.db import models as dj_models
+from django.db.utils import ProgrammingError, OperationalError
 from .models import Gallery, Banner, ContactRequest, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, CuttingGallery, FooterSettings, PhotosGallery
+
+
+class GalleryPreviewForm(forms.ModelForm):
+	"""Admin form that shows an inline preview under each ImageField input."""
+	preview_max_width = 220
+	preview_max_height = 160
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		instance = getattr(self, "instance", None)
+		if not instance:
+			return
+		# Iterate over bound fields and attach preview in help_text for ImageFields
+		for name, field in self.fields.items():
+			try:
+				model_field = self._meta.model._meta.get_field(name)
+			except Exception:
+				continue
+			if isinstance(model_field, dj_models.ImageField):
+				file = getattr(instance, name, None)
+				if file:
+					try:
+						url = file.url
+					except Exception:
+						continue
+					preview_html = (
+						f'<div style="margin-top:6px">'
+						f'<img src="{url}" alt="preview" '
+						f'style="display:block;max-width:{self.preview_max_width}px;max-height:{self.preview_max_height}px;'
+						f'border-radius:4px;box-shadow:0 0 2px rgba(0,0,0,.2)"/>'
+						f"</div>"
+					)
+					# Preserve existing help_text if any
+					if field.help_text:
+						field.help_text = mark_safe(str(field.help_text) + preview_html)
+					else:
+						field.help_text = mark_safe(preview_html)
 
 
 @admin.register(Gallery)
 class GalleryAdmin(admin.ModelAdmin):
+	form = GalleryPreviewForm
 	list_display = ("id", "title", "updated")
 	readonly_fields = ("updated",)
 	fieldsets = (
@@ -86,6 +128,7 @@ class SlideAdmin(admin.ModelAdmin):
 
 @admin.register(BrandingGallery)
 class BrandingGalleryAdmin(admin.ModelAdmin):
+	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
 	fieldsets = (
@@ -122,6 +165,7 @@ class BrandingGalleryAdmin(admin.ModelAdmin):
 
 @admin.register(PrintingGallery)
 class PrintingGalleryAdmin(admin.ModelAdmin):
+	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
 	fieldsets = (
@@ -153,6 +197,7 @@ class PrintingGalleryAdmin(admin.ModelAdmin):
 
 @admin.register(PatternmakingGallery)
 class PatternmakingGalleryAdmin(admin.ModelAdmin):
+	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
 	fieldsets = (
@@ -182,6 +227,7 @@ class PatternmakingGalleryAdmin(admin.ModelAdmin):
 
 @admin.register(FabricsGallery)
 class FabricsGalleryAdmin(admin.ModelAdmin):
+	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
 	fieldsets = (
@@ -211,6 +257,7 @@ class FabricsGalleryAdmin(admin.ModelAdmin):
 
 @admin.register(ManufacturingGallery)
 class ManufacturingGalleryAdmin(admin.ModelAdmin):
+	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
 	fieldsets = (
@@ -261,6 +308,7 @@ class FooterSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(CuttingGallery)
 class CuttingGalleryAdmin(admin.ModelAdmin):
+	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
 	fieldsets = (
@@ -290,29 +338,34 @@ class CuttingGalleryAdmin(admin.ModelAdmin):
 
 @admin.register(PhotosGallery)
 class PhotosGalleryAdmin(admin.ModelAdmin):
-		list_display = ("id", "updated")
-		readonly_fields = ("updated",)
-		fieldsets = (
-			(None, {
-				"fields": (
-					("image1", "image2", "image3"),
-					("image4", "image5", "image6"),
-					("image7", "image8", "image9"),
-					("image10", "image11", "image12"),
-					"updated",
-				)
-			}),
-		)
+	form = GalleryPreviewForm
+	list_display = ("id", "updated")
+	readonly_fields = ("updated",)
+	fieldsets = (
+		(None, {
+			"fields": (
+				("image1", "image2", "image3"),
+				("image4", "image5", "image6"),
+				("image7", "image8", "image9"),
+				("image10", "image11", "image12"),
+				"updated",
+			)
+		}),
+	)
 
-		def changelist_view(self, request, extra_context=None):
-			obj = PhotosGallery.objects.order_by("id").first()
-			if obj is None:
-				obj = PhotosGallery.objects.create()
-			url = reverse("admin:main_photosgallery_change", args=[obj.pk])
-			return redirect(url)
+	def changelist_view(self, request, extra_context=None):
+		obj = PhotosGallery.objects.order_by("id").first()
+		if obj is None:
+			obj = PhotosGallery.objects.create()
+		url = reverse("admin:main_photosgallery_change", args=[obj.pk])
+		return redirect(url)
 
-		def has_add_permission(self, request):
+	def has_add_permission(self, request):
+		try:
 			return PhotosGallery.objects.count() == 0
+		except (ProgrammingError, OperationalError):
+			# Table not created yet in this environment; allow add to avoid crash
+			return True
 
-		def has_delete_permission(self, request, obj=None):
-			return False
+	def has_delete_permission(self, request, obj=None):
+		return False
