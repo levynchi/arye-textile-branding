@@ -88,6 +88,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 /* icon images (kept white) */
 .social img {width:22px;height:22px;display:block;}
 .f-bottom {text-align:center;margin-top:60px;font-size:.9rem;opacity:.55;}
+.f-bottom a{color:#fff}
 
 /* Responsive adjustments */
 @media (max-width:1100px){.f-cols{grid-template-columns:repeat(2,minmax(0,1fr));}.f-brand{order:-1;} ul.menu{gap:32px;font-size:1.05rem;}}
@@ -144,6 +145,13 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 /* Match list typography to category-text paragraphs */
 .category-list,
 .category-list li{font-size:clamp(1rem,1.5vw,1.15rem);font-family:'Assistant',var(--font-sans)}
+
+/* Shared CTA below galleries (centered) */
+.grid-cta-below{max-width:1500px;margin:16px auto 30px;padding:0 40px;display:flex;justify-content:center}
+
+/* Shared pill button used on home and category pages */
+.slider-all{display:inline-flex;align-items:center;justify-content:center;padding:18px 32px;border-radius:999px;border:1px solid #2e2f30;color:#2e2f30;text-decoration:none;font-weight:700;background:#fff;font-size:clamp(1rem, 2vw, 1.25rem)}
+.slider-all:hover{background:#f6f7f8}
 
 /* Responsive header: Mobile first (320px–768px) */
 @media (max-width: 768px){
