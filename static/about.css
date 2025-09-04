@@ -7,10 +7,10 @@
 .ah-inner{max-width:1400px;margin:0 auto;padding:0 40px;}
 .ah-title{font-family:'Assistant',var(--font-sans);font-size:clamp(2rem,4.2vw,3rem);font-weight:800;text-align:right;display:inline-block;position:relative;margin:0 0 12px;padding-bottom:10px;}
 .ah-title::after{content:"";position:absolute;inset-inline-start:0;bottom:0;height:2px;width:130%;background:#d7dbdf;border-radius:2px;}
-.ah-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;padding-top:72px;}
-.ah-image{margin:0;justify-self:center;}
+.ah-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;padding-top:72px;grid-template-areas:"image text";direction:ltr}
+.ah-image{margin:0;justify-self:center;grid-area:image}
 .ah-image img{width:68%;max-width:560px;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
-.ah-text{font-family:'Assistant',var(--font-sans);font-weight:600;font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.75;color:#111;}
+.ah-text{font-family:'Assistant',var(--font-sans);font-weight:600;font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.75;color:#111;grid-area:text;direction:rtl;text-align:right}
 .ah-text .ah-title{margin:0 0 12px;}
 
 /* Divider-like spacing to evoke the screenshot */
@@ -21,6 +21,23 @@
 .aw-text p{margin:0 0 8px;}
 
 @media (max-width:960px){
-  .ah-grid{grid-template-columns:1fr;}
+  .ah-grid{grid-template-columns:1fr;grid-template-areas:"text" "image"}
   .ah-image img{width:82%;}
+}
+
+/* Section: מה אנחנו מציעים */
+.about-offers{padding:48px 0;}
+.ao-inner{max-width:1400px;margin:0 auto;padding:0 40px;}
+.category-heading.center{text-align:center}
+.category-heading.center .about-teaser{text-align:center}
+.ao-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;margin-top:28px;grid-template-areas:"text image";direction:ltr}
+.ao-text{font-family:'Assistant',var(--font-sans);font-weight:800;color:#111;font-size:clamp(1rem,1.8vw,1.2rem);line-height:1.7;grid-area:text;direction:rtl;text-align:right}
+.ao-text p{margin:0 0 10px}
+.ao-image{margin:0;justify-self:start;grid-area:image}
+.ao-image img{width:72%;max-width:560px;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);border:1px solid #cfd6dc}
+
+@media (max-width:960px){
+  .ao-grid{grid-template-columns:1fr;grid-template-areas:"text" "image"}
+  .ao-image{justify-self:center}
+  .ao-image img{width:82%}
 }

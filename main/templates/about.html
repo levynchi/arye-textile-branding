@@ -9,7 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}?v=20250904g" />
-    <link rel="stylesheet" href="{% static 'about.css' %}?v=20250904d" />
+    <link rel="stylesheet" href="{% static 'about.css' %}?v=20250904k" />
+    <link rel="stylesheet" href="{% static 'branding.css' %}?v=20250829c" />
 </head>
 <body>
     {% include 'partials/header.html' %}
@@ -27,22 +28,69 @@
                         </p>
                     </div>
                     <figure class="ah-image">
-                        <img src="{% static 'ChatGPT Image Aug 28, 2025, 03_49_48 PM.png' %}" alt="ARYE TEXTILE - מי אנחנו" loading="lazy" />
+                        <img src="{% static 'ChatGPT Image Aug 23, 2025, 02_31_37 PM.png' %}" alt="ARYE TEXTILE - מי אנחנו" loading="lazy" />
                     </figure>
                 </div>
             </div>
         </section>
 
-        <section class="about-why" aria-label="למה אנחנו">
-            <div class="aw-inner">
-                <h2 class="aw-title">למה אנחנו</h2>
-                <div class="aw-text">
-                    <p>ניסיון ומקצועיות – יותר מ־75 שנות פעילות שהפכו אותנו לשם דבר בעולם הטקסטיל בישראל.</p>
-                    <p>מכונה כוללת לקצה – משרטוט ראשוני ועד מוצר מוגמר וממותג, הכל תחת קורת גג אחת.</p>
-                    <p>איכות ללא פשרות – שימוש בחומרים טובים ועבודת ייצור מדויקת ותהליכי בקרת איכות מוקפדים.</p>
-                    <p>שירות אישי ותזמונים גבוהים – אנחנו מלווים כל לקוח באופן אישי, עם תשומת־לב אמיתית לצרכים שלו.</p>
-                    <p>חדשנות מתמשכת – שילוב בין מורשת ארוכת שנים לבין פתרונות מתקדמים לעולם המשתנה.</p>
+        
+
+        <section class="about-offers" aria-label="מה אנחנו מציעים">
+            <div class="ao-inner">
+                <div class="category-heading center">
+                    <h2 class="about-teaser">מה אנחנו מציעים</h2>
                 </div>
+                <section class="intro" aria-label="מיתוג טקסטיל בהתאמה אישית">
+                    <div class="page-inner">
+                        <div class="category-text">
+                            <p>
+                                ייצור מלא – משלב התדמיתנות והגזירה ועד לתפירה והשלמת המוצר המוגמר. מיתוג והדפסות – הדפסות מתקדמות בכל טכניקה, מיתוג לביגוד ולעסקים, ושירותי גרפיקה מלאים לעיצוב ההדפסות. בדים איכותיים – מגוון רחב של בדי כותנה, אינטרלוק, ריב, וואפל ועוד, שנבחרים בקפידה. עיצוב מותאם אישית – צוות הגרפיקאים שלנו מפתח עיצובים ופתרונות ויזואליים לכל צורך, החל מלוגו ועד הדפסים מורכבים.
+                            </p>
+                        </div>
+                        <figure class="category-image">
+                            <img src="{% static 'there-is-baby-bodysuit-with-picture-animals-it.jpg' %}" alt="דוגמה למיתוג טקסטיל - ARYE TEXTILE" loading="lazy" />
+                        </figure>
+                    </div>
+
+                    <!-- Extra section like about-hero placed above the photos grid -->
+                    <section class="about-hero" aria-label="מי אנחנו">
+                        <div class="ah-inner">
+                            <div class="category-heading">
+                                <h2 class="about-teaser">מי אנחנו</h2>
+                            </div>
+                            <div class="ah-grid">
+                                <div class="ah-text">
+                                    <p>ניסיון של מעל 75 שנה בתחום.</p>
+                                    <p>שירות מהיר וגמיש – מייצור בכמויות קטנות ועד הפקות גדולות.</p>
+                                    <p>איכות גבוהה ושמירה על סטנדרט מקצועי לכל אורך הדרך.</p>
+                                    <p>פתרון כולל “All in One” – מהרעיון ועד למוצר המוכן.</p>
+                                </div>
+                                <figure class="ah-image">
+                                    <img src="{% static 'ChatGPT Image Aug 24, 2025, 12_48_11 PM.png' %}" alt="ARYE TEXTILE - מי אנחנו" loading="lazy" />
+                                </figure>
+                            </div>
+                        </div>
+                    </section>
+                    
+                
+                    <section class="branding-grid" aria-label="גלריית מיתוג">
+                        <div class="bg-inner">
+                            <figure class="bg-item"><img src="/media/branding_gallery/TINIAS2.jpg" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                            <figure class="bg-item"><img src="/media/branding_gallery/ChatGPT_Image_Aug_23_2025_02_07_13_PM.png" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                            <figure class="bg-item"><img src="/media/branding_gallery/1.jpg" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                            <figure class="bg-item"><img src="/media/branding_gallery/ChatGPT_Image_Aug_24_2025_11_29_39_AM.png" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                            <figure class="bg-item"><img src="/media/branding_gallery/TINIAS_3.jpg" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                            <figure class="bg-item"><img src="/media/branding_gallery/ChatGPT_Image_Aug_28_2025_09_49_41_AM.png" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                            <figure class="bg-item"><img src="/media/branding_gallery/ChatGPT_Image_Aug_24_2025_01_31_46_PM.png" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                            <figure class="bg-item"><img src="/media/branding_gallery/ChatGPT_Image_Aug_28_2025_10_04_44_AM.png" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                            <figure class="bg-item"><img src="/media/branding_gallery/ChatGPT_Image_Aug_24_2025_01_05_22_PM.png" alt="מיתוג - תמונה" loading="lazy" /></figure>
+                        </div>
+                        <div class="grid-cta-below">
+                            <a class="slider-all" href="/photos/" aria-label="לעוד מוצרים">לעוד מוצרים</a>
+                        </div>
+                    </section>
+                </section>
             </div>
         </section>
     </main>
