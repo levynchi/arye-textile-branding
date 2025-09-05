@@ -18,7 +18,7 @@
 .intro{background:#fff}
 
 /* Shared heading block used below banners on category pages */
-.category-heading{max-width:1500px;margin:0 auto;padding:75px 40px 6px;border-bottom:1px solid #e1e3e6;grid-area:title;width:100%}
+.category-heading{max-width:1500px;margin:0 auto;padding:75px 0px 6px;border-bottom:1px solid #e1e3e6;grid-area:title;width:100%}
 .about-teaser{margin:0;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem, 3.5vw, 2.4rem);color:#000;text-align:right}
 
 /* Global box-sizing reset */
@@ -188,7 +188,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
         margin:0;
         font-family:'Assistant',var(--font-sans);
         font-weight:800;
-        font-size:clamp(1.6rem, 3.5vw, 2.4rem);
+        font-size:clamp(1.2rem, 3.5vw, 2.4rem);
         color:#000;
     text-align:center;
         position:static;
