@@ -190,7 +190,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
         font-weight:800;
         font-size:clamp(1.6rem, 3.5vw, 2.4rem);
         color:#000;
-        text-align:right;
+    text-align:center;
         position:static;
         transform:none;
         margin-top:6px;
