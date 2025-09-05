@@ -27,7 +27,7 @@
 
 /* Section: מה אנחנו מציעים */
 .about-offers{padding:48px 0;}
-.ao-inner{max-width:1400px;margin:0 auto;padding:0 40px;}
+.ao-inner{max-width:1400px;margin:0 auto;padding:0 0px;}
 .category-heading.center{text-align:center}
 .category-heading.center .about-teaser{text-align:center}
 .ao-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;margin-top:28px;grid-template-areas:"text image";direction:ltr}
@@ -62,6 +62,7 @@
 
 @media (max-width:960px){
   .page-inner-about{grid-template-columns:1fr; grid-template-areas:"text" "image"; padding:48px 24px}
+  .page-inner-about .category-text{padding-bottom:36px}
   .page-inner-about .category-image{justify-self:center}
   .page-inner-about .category-image img{width:82%; margin:0 auto}
 }

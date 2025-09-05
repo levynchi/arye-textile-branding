@@ -49,17 +49,22 @@ def branding(request):
 	branding_gallery = BrandingGallery.objects.order_by("-updated", "-id").first()
 	branding_images = []
 	if branding_gallery:
-		branding_images = [
-			branding_gallery.image1,
-			branding_gallery.image2,
-			branding_gallery.image3,
-			branding_gallery.image4,
-			branding_gallery.image5,
-			branding_gallery.image6,
-			branding_gallery.image7,
-			branding_gallery.image8,
-			branding_gallery.image9,
-		]
+		# Prefer related unlimited images if exist
+		related = list(getattr(branding_gallery, "images", []).all()) if hasattr(branding_gallery, "images") else []
+		if related:
+			branding_images = [img.image for img in related if getattr(img, "image", None)]
+		else:
+			branding_images = [
+				branding_gallery.image1,
+				branding_gallery.image2,
+				branding_gallery.image3,
+				branding_gallery.image4,
+				branding_gallery.image5,
+				branding_gallery.image6,
+				branding_gallery.image7,
+				branding_gallery.image8,
+				branding_gallery.image9,
+			]
 
 	ctx = {"contact_form": form, "branding_gallery": branding_gallery, "branding_images": branding_images}
 	return render(request, "branding.html", ctx)
@@ -81,20 +86,24 @@ def printing(request):
 	printing_gallery = PrintingGallery.objects.order_by("-updated", "-id").first()
 	printing_images = []
 	if printing_gallery:
-		printing_images = [
-			printing_gallery.image1,
-			printing_gallery.image2,
-			printing_gallery.image3,
-			printing_gallery.image4,
-			printing_gallery.image5,
-			printing_gallery.image6,
-			printing_gallery.image7,
-			printing_gallery.image8,
-			printing_gallery.image9,
-			printing_gallery.image10,
-			printing_gallery.image11,
-			printing_gallery.image12,
-		]
+		related = list(getattr(printing_gallery, "images", []).all()) if hasattr(printing_gallery, "images") else []
+		if related:
+			printing_images = [img.image for img in related if getattr(img, "image", None)]
+		else:
+			printing_images = [
+				printing_gallery.image1,
+				printing_gallery.image2,
+				printing_gallery.image3,
+				printing_gallery.image4,
+				printing_gallery.image5,
+				printing_gallery.image6,
+				printing_gallery.image7,
+				printing_gallery.image8,
+				printing_gallery.image9,
+				printing_gallery.image10,
+				printing_gallery.image11,
+				printing_gallery.image12,
+			]
 
 	ctx = {"contact_form": form, "printing_gallery": printing_gallery, "printing_images": printing_images}
 	return render(request, "printing.html", ctx)
@@ -114,17 +123,21 @@ def patternmaking(request):
 	pattern_gallery = PatternmakingGallery.objects.order_by("-updated", "-id").first()
 	pattern_images = []
 	if pattern_gallery:
-		pattern_images = [
-			pattern_gallery.image1,
-			pattern_gallery.image2,
-			pattern_gallery.image3,
-			pattern_gallery.image4,
-			pattern_gallery.image5,
-			pattern_gallery.image6,
-			pattern_gallery.image7,
-			pattern_gallery.image8,
-			pattern_gallery.image9,
-		]
+		related = list(getattr(pattern_gallery, "images", []).all()) if hasattr(pattern_gallery, "images") else []
+		if related:
+			pattern_images = [img.image for img in related if getattr(img, "image", None)]
+		else:
+			pattern_images = [
+				pattern_gallery.image1,
+				pattern_gallery.image2,
+				pattern_gallery.image3,
+				pattern_gallery.image4,
+				pattern_gallery.image5,
+				pattern_gallery.image6,
+				pattern_gallery.image7,
+				pattern_gallery.image8,
+				pattern_gallery.image9,
+			]
 
 	ctx = {"contact_form": form, "pattern_gallery": pattern_gallery, "pattern_images": pattern_images}
 	return render(request, "patternmaking.html", ctx)
@@ -144,17 +157,21 @@ def fabrics(request):
 	fabrics_gallery = FabricsGallery.objects.order_by("-updated", "-id").first()
 	fabrics_images = []
 	if fabrics_gallery:
-		fabrics_images = [
-			fabrics_gallery.image1,
-			fabrics_gallery.image2,
-			fabrics_gallery.image3,
-			fabrics_gallery.image4,
-			fabrics_gallery.image5,
-			fabrics_gallery.image6,
-			fabrics_gallery.image7,
-			fabrics_gallery.image8,
-			fabrics_gallery.image9,
-		]
+		related = list(getattr(fabrics_gallery, "images", []).all()) if hasattr(fabrics_gallery, "images") else []
+		if related:
+			fabrics_images = [img.image for img in related if getattr(img, "image", None)]
+		else:
+			fabrics_images = [
+				fabrics_gallery.image1,
+				fabrics_gallery.image2,
+				fabrics_gallery.image3,
+				fabrics_gallery.image4,
+				fabrics_gallery.image5,
+				fabrics_gallery.image6,
+				fabrics_gallery.image7,
+				fabrics_gallery.image8,
+				fabrics_gallery.image9,
+			]
 
 	ctx = {"contact_form": form, "fabrics_gallery": fabrics_gallery, "fabrics_images": fabrics_images}
 	return render(request, "fabrics.html", ctx)
@@ -174,17 +191,21 @@ def manufacturing(request):
 	manuf_gallery = ManufacturingGallery.objects.order_by("-updated", "-id").first()
 	manuf_images = []
 	if manuf_gallery:
-		manuf_images = [
-			manuf_gallery.image1,
-			manuf_gallery.image2,
-			manuf_gallery.image3,
-			manuf_gallery.image4,
-			manuf_gallery.image5,
-			manuf_gallery.image6,
-			manuf_gallery.image7,
-			manuf_gallery.image8,
-			manuf_gallery.image9,
-		]
+		related = list(getattr(manuf_gallery, "images", []).all()) if hasattr(manuf_gallery, "images") else []
+		if related:
+			manuf_images = [img.image for img in related if getattr(img, "image", None)]
+		else:
+			manuf_images = [
+				manuf_gallery.image1,
+				manuf_gallery.image2,
+				manuf_gallery.image3,
+				manuf_gallery.image4,
+				manuf_gallery.image5,
+				manuf_gallery.image6,
+				manuf_gallery.image7,
+				manuf_gallery.image8,
+				manuf_gallery.image9,
+			]
 
 	ctx = {"contact_form": form, "manuf_gallery": manuf_gallery, "manuf_images": manuf_images}
 	return render(request, "manufacturing.html", ctx)
@@ -245,17 +266,21 @@ def cutting(request):
 	cut_gallery = CuttingGallery.objects.order_by("-updated", "-id").first()
 	cut_images = []
 	if cut_gallery:
-		cut_images = [
-			cut_gallery.image1,
-			cut_gallery.image2,
-			cut_gallery.image3,
-			cut_gallery.image4,
-			cut_gallery.image5,
-			cut_gallery.image6,
-			cut_gallery.image7,
-			cut_gallery.image8,
-			cut_gallery.image9,
-		]
+		related = list(getattr(cut_gallery, "images", []).all()) if hasattr(cut_gallery, "images") else []
+		if related:
+			cut_images = [img.image for img in related if getattr(img, "image", None)]
+		else:
+			cut_images = [
+				cut_gallery.image1,
+				cut_gallery.image2,
+				cut_gallery.image3,
+				cut_gallery.image4,
+				cut_gallery.image5,
+				cut_gallery.image6,
+				cut_gallery.image7,
+				cut_gallery.image8,
+				cut_gallery.image9,
+			]
 
 	ctx = {"contact_form": form, "cut_gallery": cut_gallery, "cut_images": cut_images}
 	return render(request, "cutting.html", ctx)
@@ -276,11 +301,15 @@ def photos(request):
 	gallery = PhotosGallery.objects.order_by("-updated", "-id").first()
 	images = []
 	if gallery:
-		images = [
-			gallery.image1, gallery.image2, gallery.image3,
-			gallery.image4, gallery.image5, gallery.image6,
-			gallery.image7, gallery.image8, gallery.image9,
-			gallery.image10, gallery.image11, gallery.image12,
-		]
+		related = list(getattr(gallery, "images", []).all()) if hasattr(gallery, "images") else []
+		if related:
+			images = [img.image for img in related if getattr(img, "image", None)]
+		else:
+			images = [
+				gallery.image1, gallery.image2, gallery.image3,
+				gallery.image4, gallery.image5, gallery.image6,
+				gallery.image7, gallery.image8, gallery.image9,
+				gallery.image10, gallery.image11, gallery.image12,
+			]
 	ctx = {"gallery": gallery, "images": images, "contact_form": form}
 	return render(request, "photos.html", ctx)

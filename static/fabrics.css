@@ -24,4 +24,4 @@
 .fabrics-grid .fg-empty{opacity:.35;}
 @media (max-width:900px){.fabrics-grid .fg-inner{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:720px){.fabrics-grid .fg-inner{grid-template-columns:repeat(2,minmax(0,1fr));}}
-@media (max-width:460px){.fabrics-grid .fg-inner{grid-template-columns:1fr;}}
+@media (max-width:460px){.fabrics-grid .fg-inner{grid-template-columns:repeat(2,minmax(0,1fr));}}

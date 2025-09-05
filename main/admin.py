@@ -6,7 +6,27 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.db import models as dj_models
 from django.db.utils import ProgrammingError, OperationalError
-from .models import Gallery, Banner, ContactRequest, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, CuttingGallery, FooterSettings, PhotosGallery
+from .models import (
+	Gallery,
+	Banner,
+	ContactRequest,
+	Slide,
+	BrandingGallery,
+	PrintingGallery,
+	PatternmakingGallery,
+	FabricsGallery,
+	ManufacturingGallery,
+	CuttingGallery,
+	FooterSettings,
+	PhotosGallery,
+	BrandingImage,
+	PrintingImage,
+	PatternmakingImage,
+	FabricsImage,
+	ManufacturingImage,
+	CuttingImage,
+	PhotosImage,
+)
 
 
 class GalleryPreviewForm(forms.ModelForm):
@@ -131,6 +151,22 @@ class BrandingGalleryAdmin(admin.ModelAdmin):
 	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
+	class ImageInline(admin.TabularInline):
+		model = BrandingImage
+		extra = 1
+		fields = ("preview", "image", "alt", "order",)
+		readonly_fields = ("preview",)
+
+		def preview(self, obj):
+			if getattr(obj, "image", None):
+				try:
+					url = obj.image.url
+				except Exception:
+					return "—"
+				return format_html('<img src="{}" style="height:60px;width:auto;border-radius:2px;box-shadow:0 0 2px rgba(0,0,0,.2);"/>', url)
+			return "—"
+
+	inlines = [ImageInline]
 	fieldsets = (
 		(None, {
 			"fields": (
@@ -168,6 +204,22 @@ class PrintingGalleryAdmin(admin.ModelAdmin):
 	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
+	class ImageInline(admin.TabularInline):
+		model = PrintingImage
+		extra = 1
+		fields = ("preview", "image", "alt", "order",)
+		readonly_fields = ("preview",)
+
+		def preview(self, obj):
+			if getattr(obj, "image", None):
+				try:
+					url = obj.image.url
+				except Exception:
+					return "—"
+				return format_html('<img src="{}" style="height:60px;width:auto;border-radius:2px;box-shadow:0 0 2px rgba(0,0,0,.2);"/>', url)
+			return "—"
+
+	inlines = [ImageInline]
 	fieldsets = (
 		(None, {
 			"fields": (
@@ -200,6 +252,22 @@ class PatternmakingGalleryAdmin(admin.ModelAdmin):
 	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
+	class ImageInline(admin.TabularInline):
+		model = PatternmakingImage
+		extra = 1
+		fields = ("preview", "image", "alt", "order",)
+		readonly_fields = ("preview",)
+
+		def preview(self, obj):
+			if getattr(obj, "image", None):
+				try:
+					url = obj.image.url
+				except Exception:
+					return "—"
+				return format_html('<img src="{}" style="height:60px;width:auto;border-radius:2px;box-shadow:0 0 2px rgba(0,0,0,.2);"/>', url)
+			return "—"
+
+	inlines = [ImageInline]
 	fieldsets = (
 		(None, {
 			"fields": (
@@ -230,6 +298,22 @@ class FabricsGalleryAdmin(admin.ModelAdmin):
 	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
+	class ImageInline(admin.TabularInline):
+		model = FabricsImage
+		extra = 1
+		fields = ("preview", "image", "alt", "order",)
+		readonly_fields = ("preview",)
+
+		def preview(self, obj):
+			if getattr(obj, "image", None):
+				try:
+					url = obj.image.url
+				except Exception:
+					return "—"
+				return format_html('<img src="{}" style="height:60px;width:auto;border-radius:2px;box-shadow:0 0 2px rgba(0,0,0,.2);"/>', url)
+			return "—"
+
+	inlines = [ImageInline]
 	fieldsets = (
 		(None, {
 			"fields": (
@@ -260,6 +344,22 @@ class ManufacturingGalleryAdmin(admin.ModelAdmin):
 	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
+	class ImageInline(admin.TabularInline):
+		model = ManufacturingImage
+		extra = 1
+		fields = ("preview", "image", "alt", "order",)
+		readonly_fields = ("preview",)
+
+		def preview(self, obj):
+			if getattr(obj, "image", None):
+				try:
+					url = obj.image.url
+				except Exception:
+					return "—"
+				return format_html('<img src="{}" style="height:60px;width:auto;border-radius:2px;box-shadow:0 0 2px rgba(0,0,0,.2);"/>', url)
+			return "—"
+
+	inlines = [ImageInline]
 	fieldsets = (
 		(None, {
 			"fields": (
@@ -311,6 +411,22 @@ class CuttingGalleryAdmin(admin.ModelAdmin):
 	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
+	class ImageInline(admin.TabularInline):
+		model = CuttingImage
+		extra = 1
+		fields = ("preview", "image", "alt", "order",)
+		readonly_fields = ("preview",)
+
+		def preview(self, obj):
+			if getattr(obj, "image", None):
+				try:
+					url = obj.image.url
+				except Exception:
+					return "—"
+				return format_html('<img src="{}" style="height:60px;width:auto;border-radius:2px;box-shadow:0 0 2px rgba(0,0,0,.2);"/>', url)
+			return "—"
+
+	inlines = [ImageInline]
 	fieldsets = (
 		(None, {
 			"fields": (
@@ -341,6 +457,22 @@ class PhotosGalleryAdmin(admin.ModelAdmin):
 	form = GalleryPreviewForm
 	list_display = ("id", "updated")
 	readonly_fields = ("updated",)
+	class ImageInline(admin.TabularInline):
+		model = PhotosImage
+		extra = 1
+		fields = ("preview", "image", "alt", "order",)
+		readonly_fields = ("preview",)
+
+		def preview(self, obj):
+			if getattr(obj, "image", None):
+				try:
+					url = obj.image.url
+				except Exception:
+					return "—"
+				return format_html('<img src="{}" style="height:60px;width:auto;border-radius:2px;box-shadow:0 0 2px rgba(0,0,0,.2);"/>', url)
+			return "—"
+
+	inlines = [ImageInline]
 	fieldsets = (
 		(None, {
 			"fields": (

@@ -265,6 +265,89 @@ class PhotosGallery(models.Model):
 		return f"Photos Gallery #{self.pk}" if self.pk else "Photos Gallery"
 
 
+# ===== Unlimited images support (related models) =====
+class BaseGalleryImage(models.Model):
+	"""Abstract base for images attached to a specific gallery instance.
+
+	Provides a common schema: image, optional alt, order and created timestamp.
+	"""
+	image = models.ImageField("תמונה", upload_to="gallery/", blank=True, null=True)
+	alt = models.CharField("ALT", max_length=150, blank=True)
+	order = models.PositiveIntegerField("סדר", default=0, help_text="מספר קטן = קודם")
+	created = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		abstract = True
+		ordering = ("order", "id")
+
+	def __str__(self):  # pragma: no cover
+		return f"Image #{self.pk} (order {self.order})"
+
+
+class BrandingImage(BaseGalleryImage):
+	gallery = models.ForeignKey(BrandingGallery, related_name="images", on_delete=models.CASCADE)
+	# Override upload_to for clarity in file storage
+	image = models.ImageField("תמונה", upload_to="branding_gallery/", blank=True, null=True)
+
+	class Meta(BaseGalleryImage.Meta):
+		verbose_name = "תמונה למיתוג"
+		verbose_name_plural = "תמונות מיתוג"
+
+
+class PrintingImage(BaseGalleryImage):
+	gallery = models.ForeignKey(PrintingGallery, related_name="images", on_delete=models.CASCADE)
+	image = models.ImageField("תמונה", upload_to="printing_gallery/", blank=True, null=True)
+
+	class Meta(BaseGalleryImage.Meta):
+		verbose_name = "תמונה להדפסות"
+		verbose_name_plural = "תמונות הדפסות"
+
+
+class PatternmakingImage(BaseGalleryImage):
+	gallery = models.ForeignKey(PatternmakingGallery, related_name="images", on_delete=models.CASCADE)
+	image = models.ImageField("תמונה", upload_to="patternmaking_gallery/", blank=True, null=True)
+
+	class Meta(BaseGalleryImage.Meta):
+		verbose_name = "תמונה לתדמיתנות"
+		verbose_name_plural = "תמונות תדמיתנות"
+
+
+class FabricsImage(BaseGalleryImage):
+	gallery = models.ForeignKey(FabricsGallery, related_name="images", on_delete=models.CASCADE)
+	image = models.ImageField("תמונה", upload_to="fabrics_gallery/", blank=True, null=True)
+
+	class Meta(BaseGalleryImage.Meta):
+		verbose_name = "תמונה לבדים"
+		verbose_name_plural = "תמונות בדים"
+
+
+class ManufacturingImage(BaseGalleryImage):
+	gallery = models.ForeignKey(ManufacturingGallery, related_name="images", on_delete=models.CASCADE)
+	image = models.ImageField("תמונה", upload_to="manufacturing_gallery/", blank=True, null=True)
+
+	class Meta(BaseGalleryImage.Meta):
+		verbose_name = "תמונה לייצור"
+		verbose_name_plural = "תמונות ייצור"
+
+
+class CuttingImage(BaseGalleryImage):
+	gallery = models.ForeignKey(CuttingGallery, related_name="images", on_delete=models.CASCADE)
+	image = models.ImageField("תמונה", upload_to="cutting_gallery/", blank=True, null=True)
+
+	class Meta(BaseGalleryImage.Meta):
+		verbose_name = "תמונה לגזירה"
+		verbose_name_plural = "תמונות גזירה"
+
+
+class PhotosImage(BaseGalleryImage):
+	gallery = models.ForeignKey(PhotosGallery, related_name="images", on_delete=models.CASCADE)
+	image = models.ImageField("תמונה", upload_to="photos_gallery/", blank=True, null=True)
+
+	class Meta(BaseGalleryImage.Meta):
+		verbose_name = "תמונה לגלריית תמונות"
+		verbose_name_plural = "תמונות לגלריית תמונות"
+
+
 class FooterSettings(models.Model):
 	"""Site-wide footer contact and social links (singleton)."""
 	phone_display = models.CharField("טלפון להצגה", max_length=40, blank=True, help_text="לדוגמה: 054-2367535")

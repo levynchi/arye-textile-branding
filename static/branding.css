@@ -50,4 +50,8 @@
 .branding-grid .bg-empty{opacity:.35;}
 @media (max-width:900px){.branding-grid .bg-inner{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:720px){.branding-grid .bg-inner{grid-template-columns:repeat(2,minmax(0,1fr));}}
-@media (max-width:460px){.branding-grid .bg-inner{grid-template-columns:1fr;}}
+@media (max-width:460px){.branding-grid .bg-inner{grid-template-columns:repeat(2,minmax(0,1fr));}}
+/* Mobile: remove default figure margins so items align to grid edges */
+@media (max-width:720px){
+  .branding-grid .bg-item{margin:0}
+}
