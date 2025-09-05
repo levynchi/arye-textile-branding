@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}?v=20250904g" />
-    <link rel="stylesheet" href="{% static 'photos.css' %}?v=20250904a" />
+    <link rel="stylesheet" href="{% static 'photos.css' %}?v=20250905a" />
 </head>
 <body>
     {% include 'partials/header.html' %}
@@ -32,6 +32,9 @@
                     <div class="ph-item ph-empty" aria-hidden="true"></div>
                     {% endif %}
                 {% endfor %}
+            </div>
+            <div class="grid-cta-below">
+                <a class="slider-all" href="{% url 'branding' %}" aria-label="לעוד מוצרים">לעוד מוצרים</a>
             </div>
         </section>
         {% else %}
