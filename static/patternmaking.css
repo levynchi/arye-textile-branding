@@ -23,5 +23,8 @@
 .pattern-grid .pg2-item img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
 .pattern-grid .pg2-empty{opacity:.35;}
 @media (max-width:900px){.pattern-grid .pg2-inner{grid-template-columns:repeat(3,minmax(0,1fr));}}
-@media (max-width:720px){.pattern-grid .pg2-inner{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (max-width:720px){
+	.pattern-grid .pg2-inner{grid-template-columns:repeat(2,minmax(0,1fr));padding:0}
+	.pattern-grid .pg2-item{margin:0}
+}
 @media (max-width:460px){.pattern-grid .pg2-inner{grid-template-columns:repeat(2,minmax(0,1fr));}}
