@@ -4,13 +4,13 @@
 
 /* Section: מי אנחנו */
 .about-hero{padding:40px 0;}
-.ah-inner{max-width:1400px;margin:0 auto;padding:0 40px;}
+.ah-inner{max-width:1400px;margin:0 auto;padding:0 0px;}
 .ah-title{font-family:'Assistant',var(--font-sans);font-size:clamp(2rem,4.2vw,3rem);font-weight:800;text-align:right;display:inline-block;position:relative;margin:0 0 12px;padding-bottom:10px;}
 .ah-title::after{content:"";position:absolute;inset-inline-start:0;bottom:0;height:2px;width:130%;background:#d7dbdf;border-radius:2px;}
 .ah-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;padding-top:72px;grid-template-areas:"image text";direction:ltr}
 .ah-image{margin:0;justify-self:center;grid-area:image}
-.ah-image img{width:68%;max-width:560px;height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
-.ah-text{font-family:'Assistant',var(--font-sans);font-weight:600;font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.75;color:#111;grid-area:text;direction:rtl;text-align:right}
+.ah-image img{width:68%;max-width:560px;height:380px;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);object-fit:cover}
+.ah-text{font-family:'Assistant',var(--font-sans);font-size:clamp(1rem,1.6vw,1.15rem);line-height:1.75;color:#111;grid-area:text;direction:rtl;text-align:right}
 .ah-text .ah-title{margin:0 0 12px;}
 
 /* Divider-like spacing to evoke the screenshot */
@@ -22,7 +22,7 @@
 
 @media (max-width:960px){
   .ah-grid{grid-template-columns:1fr;grid-template-areas:"text" "image"}
-  .ah-image img{width:82%;}
+  .ah-image img{width:82%; margin:0 auto; height:auto}
 }
 
 /* Section: מה אנחנו מציעים */
@@ -40,4 +40,39 @@
   .ao-grid{grid-template-columns:1fr;grid-template-areas:"text" "image"}
   .ao-image{justify-self:center}
   .ao-image img{width:82%}
+}
+
+/* Intro section grid container customized for About */
+.page-inner-about{
+  max-width:1400px;
+  margin:0 auto;
+  padding:78px 40px 40px; /* top padding 78px as requested */
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-areas:
+    "title title"
+    "text image";
+  align-items:center;
+  direction:ltr;
+}
+
+.page-inner-about .category-text{grid-area:text; direction:rtl; text-align:right}
+.page-inner-about .category-image{grid-area:image; margin:0; justify-self:end; text-align:right}
+.page-inner-about .category-image img{width:68%; max-width:560px; height:auto; display:block; box-shadow:0 2px 6px rgba(0,0,0,.12); border:1px solid #cfd6dc; margin-inline-start:auto}
+
+@media (max-width:960px){
+  .page-inner-about{grid-template-columns:1fr; grid-template-areas:"text" "image"; padding:48px 24px}
+  .page-inner-about .category-image{justify-self:center}
+  .page-inner-about .category-image img{width:82%; margin:0 auto}
+}
+
+/* Mobile: unify heading underline width and reduce top padding on About page */
+@media (max-width:960px){
+  .about-page .category-heading{
+    max-width:100%;
+    width:100%;
+    margin:0 auto;
+    padding:10px 24px 6px;
+    border-bottom:1px solid #e1e3e6;
+  }
 }
