@@ -1,5 +1,18 @@
 {# Reusable hero/banner partial. Expects `banner` in context #}
-<section class="hero {% if hero_variant == 'tall' %}hero--home{% else %}hero--sub{% endif %}" aria-label="תמונת באנר" {% if banner and banner.image %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
+<section class="hero {% if hero_variant == 'tall' %}hero--home{% else %}hero--sub{% endif %}" aria-label="תמונת באנר" {% if banner and banner.image and not banner.video %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
+    {# Video banner - takes priority over image #}
+    {% if banner and banner.video %}
+        <video class="hero-video" autoplay muted loop playsinline>
+            <source src="{{ banner.video.url }}" type="video/mp4">
+            <source src="{{ banner.video.url }}" type="video/webm">
+            <source src="{{ banner.video.url }}" type="video/ogg">
+            {# Fallback to image if video fails to load #}
+            {% if banner.image %}
+                <img src="{{ banner.image.url }}" alt="באנר" style="width: 100%; height: 100%; object-fit: cover;">
+            {% endif %}
+        </video>
+    {% endif %}
+    
     {# Show CTA only on home page #}
     {% if page == 'home' %}
         <a href="#contact" class="hero-cta" role="button" aria-label="להצעת מחיר">להצעת מחיר</a>

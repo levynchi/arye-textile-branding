@@ -25,7 +25,8 @@ def hero(context, page: str | None = None):
     if banner and getattr(banner, "height_variant", "auto") != "auto":
         variant = banner.height_variant
     else:
-        variant = "tall" if slug == "home" else "short"
+        # Use tall for home and cutting pages, short for others
+        variant = "tall" if slug in ["home", "cutting"] else "short"
     return {"banner": banner, "page": slug, "hero_variant": variant}
 
 

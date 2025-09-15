@@ -45,6 +45,7 @@ class Banner(models.Model):
 		help_text="שם העמוד/slug (למשל: home, about, products). השאר ריק לבאנר כללי",
 	)
 	image = models.ImageField(upload_to="banner/", blank=True, null=True, help_text="תמונת באנר רקע (אופציונלי)")
+	video = models.FileField(upload_to="banner/videos/", blank=True, null=True, help_text="וידיאו באנר (אופציונלי) - יתעדף על פני תמונה")
 	height_variant = models.CharField(
 		"גובה",
 		max_length=12,
