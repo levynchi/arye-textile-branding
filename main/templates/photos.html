@@ -28,17 +28,15 @@
                 {% for img in images %}
                     {% if img %}
                     <figure class="ph-item"><img src="{{ img.url }}" alt="תמונה מהעבודות" loading="lazy" /></figure>
-                    {% else %}
-                    <div class="ph-item ph-empty" aria-hidden="true"></div>
                     {% endif %}
                 {% endfor %}
             </div>
             <div class="grid-cta-below">
-                <a class="slider-all" href="{% url 'branding' %}" aria-label="לעוד מוצרים">לעוד מוצרים</a>
+                <a class="slider-all" href="{% url 'home' %}#contact" aria-label="ליצירת קשר">ליצירת קשר</a>
             </div>
         </section>
         {% else %}
-            <p class="no-photos">עדיין לא הועלו תמונות לגלריה.</p>
+            <p class="no-photos">עדיין לא הועלו תמונות לגלריות.</p>
         {% endif %}
     </section>
 

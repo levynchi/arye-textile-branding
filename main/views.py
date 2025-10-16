@@ -287,7 +287,7 @@ def cutting(request):
 
 
 def photos(request):
-	"""Standalone photos gallery page managed from admin."""
+	"""Standalone photos gallery page - collects all images from all galleries."""
 	# Contact form handling (same pattern as other pages)
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
@@ -298,18 +298,58 @@ def photos(request):
 	else:
 		form = ContactRequestForm()
 
-	gallery = PhotosGallery.objects.order_by("-updated", "-id").first()
-	images = []
-	if gallery:
-		related = list(getattr(gallery, "images", []).all()) if hasattr(gallery, "images") else []
-		if related:
-			images = [img.image for img in related if getattr(img, "image", None)]
-		else:
-			images = [
-				gallery.image1, gallery.image2, gallery.image3,
-				gallery.image4, gallery.image5, gallery.image6,
-				gallery.image7, gallery.image8, gallery.image9,
-				gallery.image10, gallery.image11, gallery.image12,
-			]
-	ctx = {"gallery": gallery, "images": images, "contact_form": form}
+	# Collect all images from all galleries
+	all_images = []
+	
+	# Helper function to extract images from a gallery
+	def get_gallery_images(gallery_obj, field_prefix="image"):
+		imgs = []
+		if not gallery_obj:
+			return imgs
+		
+		# Try to get related images first (unlimited images)
+		if hasattr(gallery_obj, "images"):
+			related = list(gallery_obj.images.all())
+			if related:
+				imgs.extend([img.image for img in related if getattr(img, "image", None)])
+				return imgs
+		
+		# Fall back to fixed fields (image1, image2, etc.)
+		for i in range(1, 13):  # Support up to 12 images
+			field_name = f"{field_prefix}{i}"
+			if hasattr(gallery_obj, field_name):
+				img = getattr(gallery_obj, field_name)
+				if img:
+					imgs.append(img)
+		return imgs
+	
+	# Collect from Branding Gallery
+	branding_gallery = BrandingGallery.objects.order_by("-updated", "-id").first()
+	all_images.extend(get_gallery_images(branding_gallery))
+	
+	# Collect from Printing Gallery
+	printing_gallery = PrintingGallery.objects.order_by("-updated", "-id").first()
+	all_images.extend(get_gallery_images(printing_gallery))
+	
+	# Collect from Patternmaking Gallery
+	pattern_gallery = PatternmakingGallery.objects.order_by("-updated", "-id").first()
+	all_images.extend(get_gallery_images(pattern_gallery))
+	
+	# Collect from Fabrics Gallery
+	fabrics_gallery = FabricsGallery.objects.order_by("-updated", "-id").first()
+	all_images.extend(get_gallery_images(fabrics_gallery))
+	
+	# Collect from Manufacturing Gallery
+	manuf_gallery = ManufacturingGallery.objects.order_by("-updated", "-id").first()
+	all_images.extend(get_gallery_images(manuf_gallery))
+	
+	# Collect from Cutting Gallery
+	cutting_gallery = CuttingGallery.objects.order_by("-updated", "-id").first()
+	all_images.extend(get_gallery_images(cutting_gallery))
+	
+	# Collect from Photos Gallery (if it has its own images)
+	photos_gallery = PhotosGallery.objects.order_by("-updated", "-id").first()
+	all_images.extend(get_gallery_images(photos_gallery))
+	
+	ctx = {"images": all_images, "contact_form": form, "total_images": len(all_images)}
 	return render(request, "photos.html", ctx)
