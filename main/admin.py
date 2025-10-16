@@ -109,11 +109,19 @@ class GalleryAdmin(admin.ModelAdmin):
 
 @admin.register(Banner)
 class BannerAdmin(admin.ModelAdmin):
-	list_display = ("id", "page", "updated")
+	list_display = ("id", "page", "has_video", "has_image", "updated")
 	list_filter = ("page",)
 	search_fields = ("page",)
 	readonly_fields = ("updated",)
-	fields = ("page", "image", "height_variant", "updated")
+	fields = ("page", "video", "image", "height_variant", "updated")
+	
+	@admin.display(description="וידיאו", boolean=True)
+	def has_video(self, obj):
+		return bool(obj.video)
+	
+	@admin.display(description="תמונה", boolean=True)
+	def has_image(self, obj):
+		return bool(obj.image)
 
 # Register your models here.
 
