@@ -66,7 +66,7 @@ if DATABASE_URL:
     else:
         DATABASES['default'] = dj_database_url.parse(
             DATABASE_URL,
-            conn_max_age=int(os.environ.get('DB_CONN_MAX_AGE', '600')),
+            conn_max_age=int(os.environ.get('DB_CONN_MAX_AGE', '1800')),
             ssl_require=os.environ.get('DB_SSL_REQUIRE', 'true').lower() in ('1','true','yes','on')
         )
 
@@ -117,14 +117,21 @@ if USE_SPACES:
         AWS_STORAGE_BUCKET_NAME = os.environ['AWS_STORAGE_BUCKET_NAME']
         AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
         AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-        AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'nyc3')
+        AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'fra1')
         AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', f'https://{AWS_S3_REGION_NAME}.digitaloceanspaces.com')
 
         AWS_DEFAULT_ACL = 'public-read'
         AWS_QUERYSTRING_AUTH = False
+        
+        # Cache control for images - 24 hours
+        AWS_S3_OBJECT_PARAMETERS = {
+            'CacheControl': 'max-age=86400',
+        }
 
+        # Use CDN for serving media files (much faster!)
         CDN_DOMAIN = os.environ.get('CDN_DOMAIN')
         if CDN_DOMAIN:
+            AWS_S3_CUSTOM_DOMAIN = CDN_DOMAIN
             MEDIA_URL = f'https://{CDN_DOMAIN}/'
         else:
             MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/'
