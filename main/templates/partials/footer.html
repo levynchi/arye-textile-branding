@@ -8,14 +8,15 @@
       <div class="f-brand">
         <div class="logo-stack">
           <div class="brand-name"><img src="{% static 'icons_logo/white logo.svg' %}" alt="אריה" /></div>
-          <div class="brand-phone">{{ fs.phone_display|default:"0533694264" }}</div>
         </div>
-        <div class="social">
-          <a href="{{ fs.whatsapp_link|default:'#' }}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" class="ico wa"><img src="{% static 'icons_logo/whatsapp.svg' %}" alt="WhatsApp" /></a>
-          <a href="{{ fs.facebook_url|default:'#' }}" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="ico fb"><img src="{% static 'icons_logo/facebook.svg' %}" alt="Facebook" /></a>
-          <a href="{{ fs.instagram_url|default:'#' }}" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="ico ig"><img src="{% static 'icons_logo/instagram.svg' %}" alt="Instagram" /></a>
-          <a href="mailto:{{ fs.email|default:'' }}" aria-label="Email" class="ico mail"><img src="{% static 'icons_logo/email.svg' %}" alt="Email" /></a>
+        <div class="f-contact" aria-label="פרטי יצירת קשר">
+          <p class="fc-line">הקישון 6 תל אביב</p>
+          <p class="fc-line">טלפון : <span class="fc-strong">053-3694264</span></p>
+          <p class="fc-line">זמני פעילות שירות הלקוחות:<br />ימים א׳-ה׳ בין השעות 9:00 עד 15:00.</p>
+          <p class="fc-line">מוזמנים לפנות אלינו למייל</p>
+          <p class="fc-line"><a href="mailto:Arye.Textile@gmail.com" class="fc-strong fc-mail">Arye.Textile@gmail.com</a></p>
         </div>
+        
       </div>
       <ul class="f-col">
   <li>תדמיתנות וייצור גזרות</li>
@@ -48,7 +49,18 @@
   <li>התמחות בייצור לתינוקות</li>
       </ul>
     </div>
-  <div class="f-bottom"><a href="https://www.instagram.com/hadarlevy_design/" target="_blank" rel="noopener noreferrer">© Hadar Levy DESIGN</a>  <a href="{% url 'accessibility' %}" style="margin-right: 60px;">הצהרת נגישות</a></div>
+  <div class="f-bottom">
+    <div class="social social--bottom" aria-label="קישורים חברתיים">
+      <a href="https://wa.me/972533694264" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" class="ico wa"><img src="{% static 'icons_logo/whatsapp.svg' %}" alt="WhatsApp" /></a>
+      <a href="{{ fs.facebook_url|default:'https://www.facebook.com/people/%D7%90%D7%A8%D7%99%D7%94-%D7%98%D7%A7%D7%A1%D7%98%D7%99%D7%9C-%D7%99%D7%99%D7%A6%D7%95%D7%A8-%D7%9E%D7%99%D7%AA%D7%95%D7%92-%D7%95%D7%94%D7%93%D7%A4%D7%A1%D7%94/61578984857533/?locale=he_IL' }}" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="ico fb"><img src="{% static 'icons_logo/facebook.svg' %}" alt="Facebook" /></a>
+      <a href="{{ fs.instagram_url|default:'https://www.instagram.com/aryetextile/' }}" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="ico ig"><img src="{% static 'icons_logo/instagram.svg' %}" alt="Instagram" /></a>
+      <a href="mailto:{{ fs.email|default:'' }}" aria-label="Email" class="ico mail"><img src="{% static 'icons_logo/email.svg' %}" alt="Email" /></a>
+    </div>
+    <div class="f-center">
+      <a href="https://www.instagram.com/hadarlevy_design/" target="_blank" rel="noopener noreferrer">© Hadar Levy DESIGN</a>
+      <a href="{% url 'accessibility' %}" class="f-access">הצהרת נגישות</a>
+    </div>
+  </div>
   </div>
 </footer>
 {% include 'partials/accessibility_widget.html' %}

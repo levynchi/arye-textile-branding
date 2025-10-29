@@ -47,6 +47,9 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 .menu-toggle .hamburger:before{top:-7px}
 .menu-toggle .hamburger:after{top:7px}
 /* WhatsApp link in header */
+/* Header social icons */
+.header-social{display:none;gap:24px;align-items:center}
+.header-social .hs img{width:44px;height:44px;display:block}
 .wa-link {display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:0;background:transparent;border:none;transition:.25s;box-shadow:none;} 
 .wa-link:hover, .wa-link:focus-visible {background:transparent;border:none;box-shadow:none;} 
 .wa-link img {width:56px;height:56px;display:block;}
@@ -75,7 +78,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 .f-inner {max-width:1400px;margin:0 auto;padding:0 40px;}
 .f-cols {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:40px;align-items:flex-start;}
 .f-col {list-style:none;margin:0;padding:0;font-size:.95rem;font-weight:600;}
-.f-col li {white-space:nowrap;}
+.f-col li {white-space:nowrap; margin:7px 0; line-height:1.7}
 .f-brand {display:flex;flex-direction:column;gap:26px;align-items:flex-start;}
 .logo-stack .brand-line {font-weight:700;font-size:1.2rem;}
 .logo-stack .brand-name {font-family:'Suez One',serif;font-size:2.1rem;line-height:1;text-align:center;}
@@ -92,6 +95,17 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 .social img {width:22px;height:22px;display:block;}
 .f-bottom {text-align:center;margin-top:60px;font-size:.9rem;opacity:.55;}
 .f-bottom a{color:#fff}
+/* Bottom row layout (RTL): icons on the right, then © link, then accessibility */
+.f-bottom{position:relative;display:flex;align-items:center;justify-content:center;gap:28px;direction:rtl;flex-wrap:nowrap;padding-inline-start:140px}
+.f-bottom .social{position:absolute;inset-inline-start:0;top:50%;transform:translateY(-50%);display:flex;gap:16px}
+.f-bottom .f-center{display:flex;align-items:center;gap:28px}
+.f-bottom a{white-space:nowrap}
+/* Footer contact block (under logo) */
+.f-contact{direction:rtl;color:#fff;text-align:right;margin-top:18px;font-family:'Assistant',var(--font-sans)}
+.f-contact .fc-line{margin:4px 0;line-height:1.6}
+.f-contact .fc-strong{font-family:'Suez One',serif}
+.f-contact .fc-mail{color:#fff;text-decoration:none}
+.f-contact .fc-mail:hover{opacity:.9;text-decoration:underline}
 
 /* Responsive adjustments */
 @media (max-width:1100px){.f-cols{grid-template-columns:repeat(2,minmax(0,1fr));}.f-brand{order:-1;} ul.menu{gap:32px;font-size:1.05rem;}}
@@ -101,11 +115,17 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .f-brand{grid-column:1 / -1;align-items:center;text-align:center;}
     .site-footer .social{justify-content:center;}
     .f-col{font-size:.85rem;}
+    .f-col li{margin:4px 0}
     .site-footer{padding:60px 0 28px;}
     /* Allow wrapping to avoid overflow in narrow columns */
     .site-footer .f-col li{white-space:normal}
     /* Hide footer columns on mobile */
     .site-footer .f-col{display:none}
+    .f-contact{text-align:center}
+    /* Footer bottom: stack icons above centered links on mobile */
+    .f-bottom{position:static;padding-inline-start:0;flex-wrap:wrap;gap:12px;justify-content:center}
+    .f-bottom .social{position:static;transform:none;width:100%;justify-content:center;order:0}
+    .f-bottom .f-center{width:100%;justify-content:center;order:1;gap:16px}
 }
 
 /* Contact form section (global) */
@@ -170,6 +190,8 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .logo{position:absolute;left:50%;transform:translateX(-50%);z-index:1}
     .wa-link{width:44px;height:44px}
     .wa-link img{width:auto;height:auto}
+    .header-social{display:none}
+    .wa-link--mobile{display:inline-flex}
     /* Hide ONLY the hero banner CTA on mobile (keep others like gallery-cta visible) */
     .hero .hero-cta{display:none !important}
     /* Reduced hero banners on mobile: use same compact height as home hero so all main banners match */
@@ -215,4 +237,6 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     .menu-toggle{display:none}
     nav#site-menu{position:static;display:block;box-shadow:none;border-top:0;padding:0}
     ul.menu{flex-direction:row;gap:56px}
+    .header-social{display:flex}
+    .wa-link--mobile{display:none}
 }
