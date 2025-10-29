@@ -38,6 +38,9 @@ header {position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 4px rg
 nav {flex:1;}
 ul.menu {list-style:none;margin:0;padding:0;display:flex;justify-content:center;gap:56px;font-weight:400;font-family:var(--font-title);font-size:1.2rem;}
 ul.menu a {text-decoration:none;color:var(--text);position:relative;padding:4px 0;display:inline-block;}
+/* Mobile-only social row inside collapsed menu */
+.menu-social{display:none;gap:18px;align-items:center;justify-content:center;padding:12px 0}
+.menu-social .hs img{width:44px;height:44px;display:block}
 ul.menu a::after {content:"";position:absolute;right:0;left:0;bottom:-4px;height:2px;background:var(--accent-grad);transform:scaleX(0);transform-origin:right;transition:.35s;border-radius:2px;}
 ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);} 
 /* Hamburger toggle (hidden by default; shown on mobile below) */
@@ -225,6 +228,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
     header.menu-open nav#site-menu{display:block}
     ul.menu{flex-direction:column;align-items:stretch;gap:8px}
     ul.menu li a{padding:12px 8px}
+    .menu-social{display:flex}
     /* Animate hamburger into X when open */
     header.menu-open .menu-toggle .hamburger{transform:rotate(45deg)}
     header.menu-open .menu-toggle .hamburger:before{transform:translateY(7px) rotate(90deg)}
