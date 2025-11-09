@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.text import slugify
+from django.contrib.auth.hashers import make_password, check_password
 
 
 class Category(models.Model):
@@ -90,3 +91,32 @@ class Product(models.Model):
 		if not self.slug:
 			self.slug = slugify(self.name, allow_unicode=True)
 		super().save(*args, **kwargs)
+
+
+class CatalogUser(models.Model):
+	"""Catalog user model for managing access to catalog pages."""
+	company_name = models.CharField("שם העסק", max_length=200)
+	contact_name = models.CharField("שם איש קשר", max_length=200)
+	contact_phone = models.CharField("טלפון איש קשר", max_length=20)
+	username = models.CharField("שם משתמש", max_length=150, unique=True)
+	password_hash = models.CharField("סיסמא", max_length=128)
+	is_active = models.BooleanField("פעיל", default=True, help_text="האם המשתמש יכול להתחבר")
+	created = models.DateTimeField(auto_now_add=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		app_label = "catalog"
+		ordering = ("company_name", "username")
+		verbose_name = "משתמש קטלוג"
+		verbose_name_plural = "משתמשי קטלוג"
+
+	def __str__(self):
+		return f"{self.company_name} ({self.username})"
+
+	def set_password(self, raw_password):
+		"""Hash and set the password."""
+		self.password_hash = make_password(raw_password)
+
+	def check_password(self, raw_password):
+		"""Check if the provided password matches the stored hash."""
+		return check_password(raw_password, self.password_hash)
