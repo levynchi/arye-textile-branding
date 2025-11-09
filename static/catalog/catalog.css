@@ -204,6 +204,8 @@
     color: #6B92BF;
     margin: 0;
     letter-spacing: 0.5px;
+    border-bottom: 0.5px solid #c9c9c9;
+    padding-bottom: 20px;
 }
 
 /* Breadcrumb */
