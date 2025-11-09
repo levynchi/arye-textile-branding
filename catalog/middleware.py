@@ -14,10 +14,8 @@ class CatalogAuthMiddleware:
 	def __call__(self, request):
 		# Check if the request is for a catalog page
 		if request.path.startswith('/catalog/'):
-			print(f"[CatalogAuthMiddleware] Checking auth for: {request.path}")
 			# Check for authentication
 			if not self._authenticate(request):
-				print("[CatalogAuthMiddleware] Authentication failed - sending 401")
 				# Return 401 with WWW-Authenticate header to trigger browser popup
 				response = HttpResponse(
 					'<h1>דרוש אימות</h1><p>עליך להזין שם משתמש וסיסמא תקפים כדי לגשת לקטלוג.</p>',
@@ -26,7 +24,6 @@ class CatalogAuthMiddleware:
 				)
 				response['WWW-Authenticate'] = 'Basic realm="Arye Textil Catalog"'
 				return response
-			print("[CatalogAuthMiddleware] Authentication successful")
 		
 		response = self.get_response(request)
 		return response
