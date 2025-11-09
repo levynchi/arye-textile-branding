@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subcategory.name }} - {{ category.name }} - קטלוג אריה טקסטיל</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}">
+</head>
+<body class="catalog-body">
+    {% include 'catalog/partials/catalog_header.html' %}
+    
+    <main class="catalog-main" id="main-content">
+        <!-- Breadcrumb -->
+        <nav class="catalog-breadcrumb" aria-label="ניווט">
+            <a href="{% url 'catalog:home' %}">דף הבית</a>
+            <span class="separator">/</span>
+            <a href="{% url 'catalog:category_detail' category.slug %}">{{ category.name }}</a>
+            <span class="separator">/</span>
+            <span class="current">{{ subcategory.name }}</span>
+        </nav>
+        
+        <!-- Subcategory Header -->
+        <div class="catalog-category-header">
+            <h1 class="catalog-page-title">{{ subcategory.name }}</h1>
+            {% if subcategory.description %}
+                <p class="catalog-category-description">{{ subcategory.description }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Products Gallery -->
+        <section class="catalog-gallery" aria-label="מוצרים">
+            <div class="catalog-grid">
+                {% for product in products %}
+                    <article class="catalog-card catalog-product-card">
+                        <div class="catalog-card-image">
+                            {% if product.image %}
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">
+                            {% else %}
+                                <div class="catalog-placeholder">{{ product.name }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="catalog-card-content">
+                            <h2 class="catalog-card-title">{{ product.name }}</h2>
+                            {% if product.description %}
+                                <p class="catalog-card-description">{{ product.description|truncatewords:20 }}</p>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% empty %}
+                    <div class="catalog-empty">
+                        <p>אין מוצרים זמינים בתת-קטגוריה זו.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+    
+    {% include 'catalog/partials/catalog_footer.html' %}
+</body>
+</html>
+
+
+

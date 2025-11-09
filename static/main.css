@@ -31,7 +31,7 @@
 :focus-visible{outline:3px solid #0f5c9c;outline-offset:2px}
 
 /* Header & Navigation */
-header {position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.06);padding-top:15px;} 
+header {position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.06);} 
 .nav-bar {max-width:1400px;margin:0 auto;display:flex;align-items:flex-end;gap:40px;height:var(--menu-height);padding:0 32px 6px;}
 .logo {display:flex;align-items:center;gap:12px;font-weight:700;font-size:1.3rem;letter-spacing:.5px;white-space:nowrap;}
 .logo img {height:70px;width:auto;display:block;}

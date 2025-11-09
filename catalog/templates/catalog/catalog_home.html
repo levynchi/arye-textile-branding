@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>קטלוג מוצרים - אריה טקסטיל 2025</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}">
+</head>
+<body class="catalog-body">
+    {% include 'catalog/partials/catalog_header.html' %}
+    
+    <main class="catalog-main" id="main-content">
+        <!-- Page Title -->
+        <div class="catalog-title-section">
+            <h1 class="catalog-main-title">קטלוג מוצרים - אריה טקסטיל<br>2025</h1>
+        </div>
+        
+        <!-- Categories Gallery (4 per row) -->
+        <section class="catalog-gallery" aria-label="קטגוריות מוצרים">
+            <div class="catalog-grid">
+                {% for category in categories %}
+                    <article class="catalog-card">
+                        <a href="{% url 'catalog:category_detail' category.slug %}" class="catalog-card-link">
+                            <div class="catalog-card-image">
+                                {% if category.image %}
+                                    <img src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy">
+                                {% else %}
+                                    <div class="catalog-placeholder">{{ category.name }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="catalog-card-content">
+                                <h2 class="catalog-card-title">{{ category.name }}</h2>
+                                {% if category.description %}
+                                    <p class="catalog-card-description">{{ category.description|truncatewords:15 }}</p>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </article>
+                {% empty %}
+                    <div class="catalog-empty">
+                        <p>אין קטגוריות זמינות כרגע.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+    
+    {% include 'catalog/partials/catalog_footer.html' %}
+</body>
+</html>
+
+
+

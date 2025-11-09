@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ category.name }} - קטלוג אריה טקסטיל</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}">
+</head>
+<body class="catalog-body">
+    {% include 'catalog/partials/catalog_header.html' %}
+    
+    <main class="catalog-main" id="main-content">
+        <!-- Breadcrumb -->
+        <nav class="catalog-breadcrumb" aria-label="ניווט">
+            <a href="{% url 'catalog:home' %}">דף הבית</a>
+            <span class="separator">/</span>
+            <span class="current">{{ category.name }}</span>
+        </nav>
+        
+        <!-- Category Header -->
+        <div class="catalog-category-header">
+            <h1 class="catalog-page-title">{{ category.name }}</h1>
+            {% if category.description %}
+                <p class="catalog-category-description">{{ category.description }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Subcategories Gallery -->
+        <section class="catalog-gallery" aria-label="תת-קטגוריות">
+            <div class="catalog-grid">
+                {% for subcategory in subcategories %}
+                    <article class="catalog-card">
+                        <a href="{% url 'catalog:subcategory_detail' category.slug subcategory.slug %}" class="catalog-card-link">
+                            <div class="catalog-card-image">
+                                {% if subcategory.image %}
+                                    <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" loading="lazy">
+                                {% else %}
+                                    <div class="catalog-placeholder">{{ subcategory.name }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="catalog-card-content">
+                                <h2 class="catalog-card-title">{{ subcategory.name }}</h2>
+                                {% if subcategory.description %}
+                                    <p class="catalog-card-description">{{ subcategory.description|truncatewords:15 }}</p>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </article>
+                {% empty %}
+                    <div class="catalog-empty">
+                        <p>אין תת-קטגוריות בקטגוריה זו.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+    
+    {% include 'catalog/partials/catalog_footer.html' %}
+</body>
+</html>
+
+
+

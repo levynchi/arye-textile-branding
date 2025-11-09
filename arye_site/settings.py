@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'main',  # main single-page app
+    'catalog.apps.CatalogConfig',  # product catalog app
 ]
 
 MIDDLEWARE = [
