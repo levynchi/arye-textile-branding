@@ -151,7 +151,8 @@
     justify-content: center;
     gap: 32px;
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 350;
+    height: 50px;
 }
 
 .catalog-nav-list a {
@@ -199,13 +200,43 @@
 
 .catalog-main-title {
     font-family: 'Heebo', sans-serif;
-    font-size: clamp(2rem, 4vw, 3rem);
-    font-weight: 400;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 350;
     color: #6B92BF;
     margin: 0;
     letter-spacing: 0.5px;
     border-bottom: 0.5px solid #c9c9c9;
     padding-bottom: 20px;
+}
+
+/* Call to Action Section */
+.catalog-cta-section {
+    max-width: 1400px;
+    margin: 40px auto 60px;
+    padding: 0 32px;
+    text-align: center;
+}
+
+.catalog-cta-text {
+    font-family: 'Heebo', sans-serif;
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    font-weight: 350;
+    color: #7594B1;
+    margin: 0 0 15px 0;
+    line-height: 1.8;
+    letter-spacing: 0.3px;
+}
+
+.catalog-cta-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.catalog-cta-icon img {
+    width: 40px;
+    height: auto;
 }
 
 /* Breadcrumb */
@@ -329,7 +360,7 @@
 .catalog-card-title {
     font-family: 'Heebo', sans-serif;
     font-size: 1.3rem;
-    font-weight: 700;
+    font-weight: 350;
     color: #111317;
     margin: 0 0 10px;
     text-align: center;
@@ -520,8 +551,21 @@
     .catalog-title-section,
     .catalog-breadcrumb,
     .catalog-category-header,
-    .catalog-gallery {
+    .catalog-gallery,
+    .catalog-cta-section {
         padding: 0 16px;
+    }
+
+    .catalog-cta-section {
+        margin: 30px auto 40px;
+    }
+
+    .catalog-cta-text {
+        font-size: clamp(0.95rem, 3vw, 1.1rem);
+    }
+
+    .catalog-cta-icon img {
+        width: 32px;
     }
 
     .catalog-main-title {
