@@ -22,23 +22,21 @@
         </div>
     </div>
     
-    <!-- Logo Section -->
+    <!-- Logo Section with Navigation -->
     <div class="catalog-logo-section">
         <div class="catalog-logo-inner">
+            <!-- Hamburger Button (Right Side) -->
+            <button class="catalog-menu-toggle" type="button" aria-label="פתח תפריט" aria-controls="catalog-nav-menu" aria-expanded="false">
+                <span class="hamburger" aria-hidden="true"></span>
+            </button>
+            
+            <!-- Logo (Center) -->
             <a href="{% url 'catalog:home' %}" aria-label="דף הבית של הקטלוג">
                 <img src="{% static 'icons_logo/LOGO-21.png' %}" alt="לוגו אריה" class="catalog-main-logo" />
             </a>
-        </div>
-    </div>
-    
-    <!-- Logo and Navigation -->
-    <div class="catalog-nav-bar">
-        <div class="catalog-nav-inner">
-            <!-- Categories Navigation Menu -->
-            <nav class="catalog-menu" aria-label="תפריט קטגוריות">
-                <button class="catalog-menu-toggle" type="button" aria-label="פתח תפריט" aria-controls="catalog-nav-menu" aria-expanded="false">
-                    <span class="hamburger" aria-hidden="true"></span>
-                </button>
+            
+            <!-- Sidebar Menu -->
+            <nav class="catalog-sidebar-menu" aria-label="תפריט קטגוריות">
                 <ul id="catalog-nav-menu" class="catalog-nav-list">
                     <li><a href="{% url 'catalog:home' %}">דף הבית</a></li>
                     {% for cat in all_categories %}
@@ -54,7 +52,7 @@
 (function(){
     const header = document.querySelector('.catalog-header');
     const btn = header.querySelector('.catalog-menu-toggle');
-    const menu = header.querySelector('#catalog-nav-menu');
+    const menu = header.querySelector('.catalog-sidebar-menu');
     if(!btn || !menu) return;
     
     const open = (v) => {
@@ -63,20 +61,28 @@
         btn.setAttribute('aria-label', v ? 'סגור תפריט' : 'פתח תפריט');
     };
     
-    btn.addEventListener('click', ()=> open(!header.classList.contains('menu-open')));
-    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') open(false); });
+    // Toggle menu on button click
+    btn.addEventListener('click', (e)=> {
+        e.stopPropagation();
+        open(!header.classList.contains('menu-open'));
+    });
+    
+    // Close menu on Escape key
+    document.addEventListener('keydown', (e)=>{ 
+        if(e.key==='Escape') open(false); 
+    });
+    
+    // Close menu when clicking outside (overlay)
     document.addEventListener('click', (e)=>{
         if(!header.classList.contains('menu-open')) return;
-        if(header.contains(e.target)) return;
+        if(menu.contains(e.target) || btn.contains(e.target)) return;
         open(false);
     });
     
+    // Close menu when clicking on links
     menu.addEventListener('click', (e)=>{
         if(e.target.closest('a')) open(false);
     });
-    
-    const mq = window.matchMedia('(min-width: 769px)');
-    mq.addEventListener('change', () => { if(mq.matches) open(false); });
 })();
 </script>
 
