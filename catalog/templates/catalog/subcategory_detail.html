@@ -37,19 +37,21 @@
             <div class="catalog-grid">
                 {% for product in products %}
                     <article class="catalog-card catalog-product-card">
-                        <div class="catalog-card-image">
-                            {% if product.image %}
-                                <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">
-                            {% else %}
-                                <div class="catalog-placeholder">{{ product.name }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="catalog-card-content">
-                            <h2 class="catalog-card-title">{{ product.name }}</h2>
-                            {% if product.description %}
-                                <p class="catalog-card-description">{{ product.description|truncatewords:20 }}</p>
-                            {% endif %}
-                        </div>
+                        <a href="{% url 'catalog:product_detail' category.slug subcategory.slug product.slug %}" class="catalog-card-link">
+                            <div class="catalog-card-image">
+                                {% if product.image %}
+                                    <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">
+                                {% else %}
+                                    <div class="catalog-placeholder">{{ product.name }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="catalog-card-content">
+                                <h2 class="catalog-card-title">{{ product.name }}</h2>
+                                {% if product.description %}
+                                    <p class="catalog-card-description">{{ product.description|truncatewords:20 }}</p>
+                                {% endif %}
+                            </div>
+                        </a>
                     </article>
                 {% empty %}
                     <div class="catalog-empty">
@@ -63,6 +65,9 @@
     {% include 'catalog/partials/catalog_footer.html' %}
 </body>
 </html>
+
+
+
 
 
 

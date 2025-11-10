@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import Category, Subcategory, Product, CatalogUser
+from .models import Category, Subcategory, Product, ProductImage, CatalogUser
 
 
 class SubcategoryInline(admin.TabularInline):
@@ -17,6 +17,14 @@ class ProductInline(admin.TabularInline):
 	extra = 1
 	fields = ("name", "description", "image", "order", "is_active", "slug")
 	prepopulated_fields = {"slug": ("name",)}
+
+
+class ProductImageInline(admin.TabularInline):
+	"""Inline admin for ProductImage within Product."""
+	model = ProductImage
+	extra = 1
+	fields = ("image", "alt_text", "order")
+	ordering = ("order",)
 
 
 @admin.register(Category)
@@ -71,6 +79,7 @@ class ProductAdmin(admin.ModelAdmin):
 	search_fields = ("name", "description", "subcategory__name")
 	prepopulated_fields = {"slug": ("name",)}
 	readonly_fields = ("created", "updated")
+	inlines = [ProductImageInline]
 	
 	fieldsets = (
 		(None, {

@@ -70,7 +70,7 @@ class Product(models.Model):
 	)
 	name = models.CharField("שם מוצר", max_length=200)
 	description = models.TextField("תיאור", blank=True)
-	image = models.ImageField("תמונה", upload_to="catalog/products/", blank=True, null=True)
+	image = models.ImageField("תמונה ראשית", upload_to="catalog/products/", blank=True, null=True, help_text="תמונה ראשית - מוצגת בכרטיס המוצר")
 	order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
 	is_active = models.BooleanField("פעיל", default=True, help_text="האם להציג את המוצר בקטלוג")
 	slug = models.SlugField("Slug", max_length=200, blank=True, help_text="יוצר אוטומטית מהשם")
@@ -91,6 +91,48 @@ class Product(models.Model):
 		if not self.slug:
 			self.slug = slugify(self.name, allow_unicode=True)
 		super().save(*args, **kwargs)
+
+	def get_main_image(self):
+		"""Get the main image for the product - either the primary image field or first ProductImage."""
+		if self.image:
+			return self.image.url
+		# Try to get first product image
+		first_image = self.images.first()
+		if first_image:
+			return first_image.image.url
+		return None
+
+	def get_all_images(self):
+		"""Get all images for the product including the main image."""
+		images = []
+		if self.image:
+			images.append({'url': self.image.url, 'alt': self.name, 'is_main': True})
+		for img in self.images.all():
+			images.append({'url': img.image.url, 'alt': img.alt_text or self.name, 'is_main': False})
+		return images
+
+
+class ProductImage(models.Model):
+	"""Additional images for a product."""
+	product = models.ForeignKey(
+		Product,
+		on_delete=models.CASCADE,
+		related_name="images",
+		verbose_name="מוצר"
+	)
+	image = models.ImageField("תמונה", upload_to="catalog/products/gallery/")
+	alt_text = models.CharField("טקסט חלופי", max_length=200, blank=True, help_text="תיאור התמונה - מומלץ למילוי")
+	order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
+	created = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		app_label = "catalog"
+		ordering = ("order", "created")
+		verbose_name = "תמונת מוצר"
+		verbose_name_plural = "תמונות מוצר"
+
+	def __str__(self):
+		return f"{self.product.name} - תמונה {self.order}"
 
 
 class CatalogUser(models.Model):
