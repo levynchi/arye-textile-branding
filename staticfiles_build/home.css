@@ -1,0 +1,140 @@
+/* Page specific (hero, divider, gallery) */
+body{margin:0;font-family:var(--font-sans);background:#fff;color:var(--text);} 
+
+/* Hero moved to main.css (global) */
+
+/* Divider */
+.divider-plain{background:#fff;color:#111;text-align:center;padding:28px 16px;margin:32px 0;border:none;box-shadow:none;font-family:'Assistant',var(--font-sans);font-weight:800;line-height:1.2;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.2px;}
+@media (max-width:768px){
+	.divider-plain{margin-bottom:16px}
+}
+/* Gallery */
+.gallery{max-width:1500px;margin:90px auto 40px;padding:0 40px;}
+@media (max-width:768px){
+	.gallery{margin:24px auto 28px;padding:0 20px}
+}
+.gallery-grid{display:grid;gap:70px 55px;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;}
+@media (max-width:1050px){.gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (max-width:640px){.gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 18px;}}
+.g-item{position:relative;display:block;margin:0;}
+.g-link{position:absolute;inset:0;display:block;color:inherit;text-decoration:none;z-index:5}
+.g-item img{width:100%;aspect-ratio:37/25;object-fit:cover;display:block;background:#eee;border:none;}
+.g-item .cap{position:absolute;inset:50% 0 auto 0;transform:translateY(-50%);text-align:center;color:#fff !important;font-family:'Assistant','Nunito',var(--font-sans);font-weight:800;font-size:clamp(1.6rem,3.8vw,3.2rem);letter-spacing:.5px;text-shadow:0 3px 10px rgba(0,0,0,.65);padding:0 12px;line-height:1.1;z-index:2;}
+.g-item::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.45));pointer-events:none;z-index:1;}
+.g-item:hover img{filter:brightness(.96);} 
+
+/* CTA below gallery */
+.gallery-cta{display:flex;align-items:center;justify-content:center;margin:80px auto 100px;max-width:1500px;padding:0 40px;position:relative;}
+.gallery-cta .hero-cta{margin:0;}
+.about-teaser{margin:0;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem, 3.5vw, 2.4rem);color:#000;text-align:right;position:absolute;right:40px;top:50%;transform:translateY(14px);} 
+@media (max-width:720px){
+	.gallery-cta{flex-direction:column;gap:18px;justify-content:center;padding:0 20px;margin:60px auto 80px;}
+	.about-teaser{position:static;transform:none;margin-top:6px;text-align:center;}
+}
+
+/* Standalone about heading under gallery-cta */
+.about-heading{max-width:1500px;margin:0 auto;padding:0 40px 6px;border-bottom:1px solid #e1e3e6;}
+.about-heading .about-teaser{position:static;transform:none;text-align:right;margin:0 0 6px}
+
+/* Info band under gallery-cta */
+.info-band{border-top:none;background:#fff;margin:20px 0 0;}
+.info-inner{max-width:1500px;margin:0 auto;padding:40px;display:grid;grid-template-columns:1fr 1.2fr;gap:30px;align-items:center;}
+/* RTL: טקסט מימין ותמונה משמאל */
+.info-text{order:1;text-align:right;max-width:42ch;}
+.info-title{margin:0 0 10px;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem,3.2vw,2.2rem);} 
+.info-text p{margin:0;color:#222;line-height:1.8;font-size:clamp(1rem,1.5vw,1.15rem);font-family:'Assistant',var(--font-sans);} 
+/* When reusing .about-teaser inside info-text, make it flow in the document (not absolute) */
+.info-text .about-teaser{position:static;transform:none;right:auto;top:auto;margin:0 0 10px;text-align:right}
+.info-text .info-actions{margin-top:18px}
+.info-image{order:2;margin:0;display:flex;justify-content:flex-end;}
+/* Make the image smaller on wide screens while keeping aspect */
+.info-image img{width:min(420px,100%);height:auto;display:block;box-shadow:0 2px 6px rgba(0,0,0,.12);} 
+@media (max-width:960px){.info-inner{grid-template-columns:1fr;gap:18px;} .info-image{order:2;justify-content:center;} .info-text{order:1;} .info-image img{width:100%;}}
+
+/* Desktop: align the CTA button with the bottom edge of the image */
+@media (min-width:961px){
+	/* Make both grid columns equal height */
+	.info-inner{align-items:stretch}
+	/* Use flex in the text column so the button can sit at the bottom */
+	.info-text{display:flex;flex-direction:column}
+	/* Push the actions block (button) to the bottom */
+	.info-text .info-actions{margin-top:auto}
+}
+
+/* Mobile layout: stack in rows (text → image → button) */
+@media (max-width:960px){
+	.info-inner{grid-template-columns:1fr; gap:16px; align-items:start; grid-template-areas:"image" "text" "button";}
+	/* Flatten .info-text so its children can be positioned as grid items */
+	.info-text{display:contents}
+	.info-text p{grid-area:text; line-height:1.2; font-size:0.9rem; text-align:right}
+	.info-image{grid-area:image; justify-content:center; align-items:center;}
+	.info-image img{width:100%; height:clamp(220px, 44vw, 320px); object-fit:cover;}
+	.info-text .info-actions{grid-area:button; margin-top:10px; text-align:center}
+	/* Mobile: use fixed font-size for slider buttons (override clamp) */
+	.slider-all{font-size:0.95rem}
+	/* Smaller button padding for the About button on mobile */
+	.info-text .slider-all{padding:10px 10px}
+	/* Smaller button padding for the slider "לכל המוצרים" button on mobile */
+	.slider-head .slider-all{padding:10px 10px}
+}
+@media (max-width:480px){
+	.info-inner{grid-template-columns:1fr; gap:14px; grid-template-areas:"image" "text" "button"}
+	.info-text p{line-height:1.15; font-size:0.82rem}
+	/* Very small phones: slightly smaller slider button text */
+	.slider-all{font-size:0.9rem}
+}
+
+/* Features icon row */
+.features{background:#fff;margin:0 0 10px;}
+.features-row{max-width:1500px;margin:0 auto;padding:70px 40px 100px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px;align-items:start;justify-items:center;direction:rtl;}
+.feature{margin:0;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.feature img{width:120px;height:120px;display:block;margin-inline:auto;}
+.feature figcaption{margin-top:10px;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.1rem,2.1vw,1.5rem);text-align:center;} 
+@media (max-width:900px){.features-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 18px;padding:50px 24px 70px;} .feature img{width:88px;height:88px;}}
+@media (max-width:520px){.features-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px;padding:36px 16px 56px;} .feature img{width:72px;height:72px;}}
+
+
+/* Horizontal slider under gallery */
+.slider-band{background:#f2f3f4;border-top:none;border-bottom:1px solid #e1e3e6;margin:50px 0 0;}
+.slider-head{max-width:1500px;margin:0 auto;padding:30px 40px 30px;display:flex;align-items:center;justify-content:space-between;}
+.slider-title{margin:0;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.3px;}
+.slider-all{display:inline-flex;align-items:center;justify-content:center;padding:18px 32px;border-radius:999px;border:1px solid #2e2f30;color:#2e2f30;text-decoration:none;font-weight:700;background:#fff;}
+.slider-all:hover{background:#f6f7f8;}
+@media (min-width:961px){
+	.slider-all{font-size:clamp(1.2rem, 2.2vw, 1.6rem)}
+}
+.h-slider{margin:0 auto 10px;width:100%;overflow:hidden;position:relative;background:#f2f3f4;border:1px solid #e1e3e6;border-left:none;border-right:none;padding:26px 0;direction:ltr;}
+.h-slider .track{min-height:180px}
+.h-slider .slider-toggle{position:absolute;z-index:3;right:16px;top:16px;direction:rtl;background:#000;color:#fff;border:none;border-radius:20px;padding:8px 14px;font-weight:700;cursor:pointer}
+.h-slider:before,.h-slider:after{content:"";position:absolute;top:0;width:64px;height:100%;z-index:2;pointer-events:none;}
+.h-slider:before{left:0;background:linear-gradient(90deg,rgba(242,243,244,.7) 0%,rgba(242,243,244,0) 60%);} 
+.h-slider:after{right:0;background:linear-gradient(270deg,rgba(242,243,244,.7) 0%,rgba(242,243,244,0) 60%);} 
+.h-slider .track{display:flex;gap:28px;animation:slideLoop 40s linear infinite;width:max-content;will-change:transform;justify-content:flex-start;direction:ltr;}
+.h-slider .slide{flex:0 0 auto;width:clamp(160px,18.5vw,300px);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;direction:ltr;margin:0;}
+.h-slider .slide.clone{opacity:.9999;}
+.h-slider img{width:100%;height:100%;object-fit:cover;box-shadow:0 2px 4px rgba(0,0,0,.12);background:#fff;border:none;}
+.h-slider figure.slide{margin:0}
+@keyframes slideLoop{0%{transform:translateX(0);}100%{transform:translateX(-50%);} }
+@media (max-width:900px){.h-slider .track{animation-duration:50s;gap:28px;} .h-slider{padding:20px 0;}}
+@media (max-width:768px){.h-slider .track{animation-duration:70s;gap:20px}}
+
+/* Extra-tight gaps on very small phones */
+@media (max-width:520px){.h-slider .track{gap:20px}}
+
+/* Slider always animates by default; pausing is controlled via Accessibility widget */
+
+/* CTA under products slider */
+.slider-cta-below{max-width:1500px;margin:16px auto 30px;padding:0 40px;display:flex;justify-content:center}
+@media (max-width:960px){
+	.slider-cta-below .slider-all{padding:10px 10px; font-size:0.95rem}
+}
+@media (max-width:480px){
+	.slider-cta-below .slider-all{font-size:0.9rem}
+}
+
+/* Contact form section moved to main.css */
+
+/* Show all features on mobile (restore quartet) */
+@media (max-width:768px){
+	.feature--mobile-hide{display:flex}
+}

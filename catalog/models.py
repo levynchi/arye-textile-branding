@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
 from django.contrib.auth.hashers import make_password, check_password
+from tinymce.models import HTMLField
 
 
 class Category(models.Model):
@@ -38,11 +39,11 @@ class Subcategory(models.Model):
 	)
 	name = models.CharField("שם תת-קטגוריה", max_length=200)
 	description = models.TextField("תיאור", blank=True)
-	marketing_description = models.TextField("תיאור שיווקי", blank=True, help_text="תיאור שיווקי של המוצר - ניתן להזין HTML")
-	information = models.TextField("מידע", blank=True, help_text="מידע כללי על המוצר - ניתן להזין HTML")
-	pattern_and_branding = models.TextField("דפוס ומיתוג", blank=True, help_text="פרטים על דפוס ומיתוג - ניתן להזין HTML")
-	fabric_production = models.TextField("אפשרות ייצור בדים", blank=True, help_text="אפשרויות ייצור בדים - ניתן להזין HTML")
-	sizes = models.TextField("מידות", blank=True, help_text="מידות זמינות למוצר - ניתן להזין HTML")
+	marketing_description = HTMLField("תיאור שיווקי", blank=True, help_text="תיאור שיווקי של המוצר")
+	information = HTMLField("מידע", blank=True, help_text="מידע כללי על המוצר")
+	pattern_and_branding = HTMLField("דפוס ומיתוג", blank=True, help_text="פרטים על דפוס ומיתוג")
+	fabric_production = HTMLField("אפשרות ייצור בדים", blank=True, help_text="אפשרויות ייצור בדים")
+	sizes = HTMLField("מידות", blank=True, help_text="מידות זמינות למוצר")
 	image = models.ImageField("תמונה ראשית", upload_to="catalog/subcategories/", blank=True, null=True, help_text="תמונה ראשית - מוצגת בכרטיס התת-קטגוריה")
 	order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
 	slug = models.SlugField("Slug", max_length=200, blank=True, help_text="יוצר אוטומטית מהשם")

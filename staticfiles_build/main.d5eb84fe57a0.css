@@ -1,0 +1,246 @@
+:root {
+    --bg: #f5f6f7;
+    --text: #111317;
+    --accent: #0f5c9c;
+    --accent-grad: linear-gradient(90deg, #0f5c9c, #357fc7);
+    --menu-height: 92px;
+    --font-sans: 'Arial','Heebo',sans-serif;
+    --font-title: 'Assistant', var(--font-sans);
+}
+
+/* Utility: plain divider/title style used across pages */
+.divider-plain{background:#fff;color:#111;text-align:center;padding:28px 16px;margin:32px 0;border:none;box-shadow:none;font-family:'Assistant',var(--font-sans);font-weight:800;line-height:1.2;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.2px;}
+
+/* Ensure any H2 using H2-title is centered and uses divider styles */
+.H2-title{grid-area:title;background:#fff;color:#111;text-align:center;padding:28px 16px;margin:32px 0;border:none;box-shadow:none;font-family:'Assistant',var(--font-sans);font-weight:800;line-height:1.2;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.2px}
+
+/* Generic intro section used across category pages */
+.intro{background:#fff}
+
+/* Shared heading block used below banners on category pages */
+.category-heading{max-width:1500px;margin:0 auto;padding:75px 0px 6px;border-bottom:1px solid #e1e3e6;grid-area:title;width:100%}
+.about-teaser{margin:0;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem, 3.5vw, 2.4rem);color:#000;text-align:right}
+
+/* Global box-sizing reset */
+*, *::before, *::after{box-sizing:border-box}
+
+/* Accessibility helpers */
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip-link{position:absolute;top:-100px;left:50%;transform:translateX(-50%);background:#000;color:#fff;padding:10px 16px;z-index:1000;border-radius:4px;text-decoration:none}
+.skip-link:focus{top:10px;outline:2px solid #fff}
+:focus-visible{outline:3px solid #0f5c9c;outline-offset:2px}
+
+/* Header & Navigation */
+header {position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.06);} 
+.nav-bar {max-width:1400px;margin:0 auto;display:flex;align-items:flex-end;gap:40px;height:var(--menu-height);padding:0 32px 6px;}
+.logo {display:flex;align-items:center;gap:12px;font-weight:700;font-size:1.3rem;letter-spacing:.5px;white-space:nowrap;}
+.logo img {height:70px;width:auto;display:block;}
+nav {flex:1;}
+ul.menu {list-style:none;margin:0;padding:0;display:flex;justify-content:center;gap:56px;font-weight:400;font-family:var(--font-title);font-size:1.2rem;}
+ul.menu a {text-decoration:none;color:var(--text);position:relative;padding:4px 0;display:inline-block;}
+/* Mobile-only social row inside collapsed menu */
+.menu-social{display:none;gap:18px;align-items:center;justify-content:center;padding:12px 0}
+.menu-social .hs img{width:44px;height:44px;display:block}
+ul.menu a::after {content:"";position:absolute;right:0;left:0;bottom:-4px;height:2px;background:var(--accent-grad);transform:scaleX(0);transform-origin:right;transition:.35s;border-radius:2px;}
+ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);} 
+/* Hamburger toggle (hidden by default; shown on mobile below) */
+.menu-toggle{display:none;appearance:none;background:#fff;border:1px solid #cfd3d9;border-radius:6px;width:44px;height:44px;align-items:center;justify-content:center;cursor:pointer}
+.menu-toggle .hamburger{position:relative;width:24px;height:2px;background:#111;display:block;transition:transform .25s ease}
+.menu-toggle .hamburger:before,.menu-toggle .hamburger:after{content:"";position:absolute;left:0;right:0;height:2px;background:#111;transition:transform .25s ease,opacity .25s ease}
+.menu-toggle .hamburger:before{top:-7px}
+.menu-toggle .hamburger:after{top:7px}
+/* WhatsApp link in header */
+/* Header social icons */
+.header-social{display:none;gap:24px;align-items:center}
+.header-social .hs img{width:44px;height:44px;display:block}
+.wa-link {display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;border-radius:0;background:transparent;border:none;transition:.25s;box-shadow:none;} 
+.wa-link:hover, .wa-link:focus-visible {background:transparent;border:none;box-shadow:none;} 
+.wa-link img {width:56px;height:56px;display:block;}
+
+/* Hero (global) */
+.hero{position:relative;width:100%;aspect-ratio:16/4.5;background:#666 center/cover no-repeat;display:flex;align-items:flex-end;justify-content:center;}
+.hero--home{aspect-ratio:16/6;}
+.hero--sub{aspect-ratio:16/4.5;}
+
+/* Video banner styling */
+.hero-video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.55));}
+.hero h1{position:relative;margin:0 0 42px;font-size:clamp(1.6rem,3.6vw,3rem);background:var(--accent-grad);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:2px;font-weight:800;text-shadow:0 0 2px rgba(0,0,0,.25);} 
+/* Hero CTA */
+.hero-cta{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;gap:10px;background:#475A7C;color:#fff;text-decoration:none;border-radius:48px;width:360px;height:96px;margin:0 0 46px;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.3rem,2.3vw,1.9rem);letter-spacing:.5px;box-shadow:0 6px 18px rgba(0,0,0,.18);} 
+.hero-cta:hover{background:#506386;}
+/* Narrower hero banner CTA without affecting other CTAs using the same class */
+.hero .hero-cta{width:240px}
+@media (max-width:560px){
+    .hero-cta{width:min(84vw,240px);height:74px;font-size:clamp(1.1rem,4.3vw,1.7rem);} 
+}
+
+/* Footer */
+.site-footer {background:#000;color:#fff;font-family:'Nunito',var(--font-sans);margin-top:0;padding:70px 0 30px;position:relative;}
+.site-footer:before {content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,#7d3cff,#ff33cc,#7d3cff);opacity:.4;top:0;}
+.f-inner {max-width:1400px;margin:0 auto;padding:0 40px;}
+.f-cols {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:40px;align-items:flex-start;}
+.f-col {list-style:none;margin:0;padding:0;font-size:.95rem;font-weight:600;}
+.f-col li {white-space:nowrap; margin:5px 0; line-height:1.7}
+.f-brand {display:flex;flex-direction:column;gap:10px;align-items:flex-start;}
+.logo-stack .brand-line {font-weight:700;font-size:1.2rem;}
+.logo-stack .brand-name {font-family:'Suez One',serif;font-size:2.1rem;line-height:1;text-align:center;}
+/* Footer white logo sizing */
+.logo-stack .brand-name img{display:block;height:70px;width:auto;margin-inline:auto}
+@media (max-width:660px){
+    .logo-stack .brand-name img{height:52px}
+}
+.logo-stack .brand-phone {font-size:.95rem;margin-top:6px;}
+.social {display:flex;gap:18px;font-size:1.35rem;}
+.social .ico {text-decoration:none;color:#fff;display:inline-flex;align-items:center;justify-content:center;transition:.3s;}
+.social .ico:hover {color:#7db7ff;}
+/* icon images (kept white) */
+.social img {width:22px;height:22px;display:block;}
+.f-bottom {text-align:center;margin-top:60px;font-size:.9rem;opacity:.55;}
+.f-bottom a{color:#fff}
+/* Bottom row layout (RTL): icons on the right, then © link, then accessibility */
+.f-bottom{position:relative;display:flex;align-items:center;justify-content:center;gap:28px;direction:rtl;flex-wrap:nowrap;padding-inline-start:140px}
+.f-bottom .social{position:absolute;inset-inline-start:0;top:50%;transform:translateY(-50%);display:flex;gap:16px}
+.f-bottom .f-center{display:flex;align-items:center;gap:28px}
+.f-bottom a{white-space:nowrap}
+/* Footer contact block (under logo) */
+.f-contact{direction:rtl;color:#fff;text-align:right;margin-top:0;font-family:'Assistant',var(--font-sans)}
+.f-contact .fc-line{margin:4px 0;line-height:1.6}
+.f-contact .fc-strong{font-family:'Suez One',serif}
+.f-contact .fc-mail{color:#fff;text-decoration:none}
+.f-contact .fc-mail:hover{opacity:.9;text-decoration:underline}
+
+/* Responsive adjustments */
+@media (max-width:1100px){.f-cols{grid-template-columns:repeat(2,minmax(0,1fr));}.f-brand{order:-1;} ul.menu{gap:32px;font-size:1.05rem;}}
+@media (max-width:860px){.nav-bar{flex-wrap:wrap;gap:18px;height:auto;padding:12px 20px 18px;}nav{order:3;flex-basis:100%;}ul.menu{justify-content:center;flex-wrap:wrap;gap:24px;} .wa-link{order:2;}}
+@media (max-width:660px){
+    .f-cols{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 16px;}
+    .f-brand{grid-column:1 / -1;align-items:center;text-align:center;}
+    .site-footer .social{justify-content:center;}
+    .f-col{font-size:.85rem;}
+    .f-col li{margin:5px 0}
+    .site-footer{padding:60px 0 28px;}
+    /* Allow wrapping to avoid overflow in narrow columns */
+    .site-footer .f-col li{white-space:normal}
+    /* Hide footer columns on mobile */
+    .site-footer .f-col{display:none}
+    .f-contact{text-align:center}
+    /* Footer bottom: stack icons above centered links on mobile */
+    .f-bottom{position:static;padding-inline-start:0;flex-wrap:wrap;gap:12px;justify-content:center}
+    .f-bottom .social{position:static;transform:none;width:100%;justify-content:center;order:0}
+    .f-bottom .f-center{width:100%;justify-content:center;order:1;gap:16px}
+}
+
+/* Contact form section (global) */
+.contact-wrap{background:linear-gradient(110deg,#53c6ff,#0d3852 55%);padding:0;display:flex;justify-content:center;}
+.contact-inner{max-width:1400px;width:100%;display:grid;grid-template-columns:1fr;align-items:stretch;}
+.contact-visual{display:none !important;background:none;min-height:0;}
+.contact-form-card{background:#fff;max-width:820px;width:100%;justify-self:center;margin:60px auto 80px;padding:38px 38px 46px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.18);display:flex;flex-direction:column;}
+.contact-form-card h2{margin:0 0 28px;text-align:center;font-family:'Assistant',var(--font-sans);font-weight:800;font-size:clamp(1.6rem, 3.5vw, 2.4rem);letter-spacing:.3px;}
+.contact-form-card form{display:flex;flex-direction:column;gap:22px;}
+.contact-form-card .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px;}
+.contact-form-card .grid .full{grid-column:1 / -1;}
+.contact-form-card input, .contact-form-card textarea{width:100%;font:inherit;border:1px solid #b9bcc0;border-radius:2px;padding:10px 14px;background:#fff;transition:.25s;}
+.contact-form-card textarea{resize:vertical;min-height:160px;}
+.contact-form-card input:focus, .contact-form-card textarea:focus{outline:none;border-color:#0f5c9c;box-shadow:0 0 0 2px rgba(15,92,156,.25);}
+.send-btn{margin-top:6px;width:100%;background:#000;color:#fff;font-size:clamp(1rem,2.5vw,1.3rem);font-weight:700;border:none;padding:8px 0;border-radius:0;cursor:pointer;transition:.3s;}
+.send-btn:hover{background:#111;}
+.form-messages{list-style:none;margin:14px 0 0;padding:0;color:#0a6c2f;font-weight:600;text-align:center;}
+@media (max-width:1050px){.contact-inner{grid-template-columns:1fr;} .contact-visual{display:none;} .contact-form-card{margin:70px 40px;}}
+
+/* Branding page styles moved to branding.css */
+
+/* Unified page inner grid for category pages: desktop and mobile layouts */
+.page-inner{max-width:1400px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:'title title' 'text image';gap:28px;align-items:center;direction:ltr;}
+@media (max-width:960px){
+    .page-inner{grid-template-columns:1fr;grid-template-areas:'title' 'text' 'image';}
+    /* small vertical spacing for the image on mobile */
+    .page-inner figure{margin-top:10px}
+}
+
+/* Unified category content blocks */
+.category-text{grid-area:text;text-align:right;direction:rtl;}
+.category-text,
+.category-list,
+.category-list li,
+.category-text p{margin:0;color:#222;line-height:1.8;font-size:clamp(1rem,1.5vw,1.15rem);font-family:'Assistant',var(--font-sans);font-weight:400}
+.category-list{margin:4px 0 10px;padding:0 1.2em 0 0;list-style:none;}
+.category-list li{margin:0 0 6px;}
+.category-outcome{font-weight:400; /* font-weight:0 is invalid; using normal/400 */ margin-top:10px;}
+
+/* Match list typography to category-text paragraphs */
+.category-list,
+.category-list li{font-size:clamp(1rem,1.5vw,1.15rem);font-family:'Assistant',var(--font-sans)}
+
+/* Shared CTA below galleries (centered) */
+.grid-cta-below{max-width:1500px;margin:100px auto 30px;padding:0 40px;display:flex;justify-content:center}
+
+/* Shared pill button used on home and category pages */
+.slider-all{display:inline-flex;align-items:center;justify-content:center;padding:18px 32px;border-radius:999px;border:1px solid #2e2f30;color:#2e2f30;text-decoration:none;font-family:'Arial','Heebo',sans-serif;font-weight:700;background:#fff;font-size:clamp(1.2rem, 2.2vw, 1.6rem)}
+.slider-all:hover{background:#f6f7f8}
+
+/* Unified category image wrapper across all pages */
+.category-image{grid-area:image;margin:0;justify-self:end}
+.category-image img{width:480px;height:360px;max-width:100%;display:block;object-fit:cover;object-position:center;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+
+/* Responsive header: Mobile first (320px–768px) */
+@media (max-width: 768px){
+    /* Prevent horizontal scroll on mobile */
+    html, body{overflow-x:hidden;max-width:100%;position:relative}
+    header{padding-top:0}
+    .nav-bar{direction:rtl;align-items:center;gap:12px;height:var(--menu-height);padding:10px 16px;position:relative;justify-content:space-between}
+    .menu-toggle{display:inline-flex}
+    .logo{position:absolute;left:50%;transform:translateX(-50%);z-index:1}
+    .wa-link{width:44px;height:44px}
+    .wa-link img{width:auto;height:auto}
+    .header-social{display:none}
+    .wa-link--mobile{display:inline-flex}
+    /* Hide ONLY the hero banner CTA on mobile (keep others like gallery-cta visible) */
+    .hero .hero-cta{display:none !important}
+    /* Reduced hero banners on mobile: use same compact height as home hero so all main banners match */
+    .hero{aspect-ratio:auto;height:clamp(260px,40vh,480px)}
+    /* Home page hero (make it smaller on mobile) */
+    .hero--home{aspect-ratio:auto;height:clamp(260px,40vh,480px)}
+    /* Make sub-page heroes match home hero height on mobile */
+    .hero--sub{aspect-ratio:auto;height:clamp(260px,40vh,480px)}
+    /* Apply unified H2 styling on mobile to all page subtitle classes (under the hero) */
+    .about-teaser,
+    .bi-title,
+    .fb-title,
+    .pi-title,
+    .pm-title,
+    .mf-title,
+    .aw-title,
+    .acc-title,
+    .slider-title{
+        margin:0;
+        font-family:'Assistant',var(--font-sans);
+        font-weight:800;
+        font-size:clamp(1.2rem, 3.5vw, 2.4rem);
+        color:#000;
+    text-align:center;
+        position:static;
+        transform:none;
+        margin-top:6px;
+    }
+    /* Collapse menu into overlay under header */
+    nav#site-menu{position:absolute;inset-inline:0;top:calc(var(--menu-height));background:#fff;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.12);border-top:1px solid #e5e7eb;display:none;z-index:40}
+    header.menu-open nav#site-menu{display:block}
+    ul.menu{flex-direction:column;align-items:stretch;gap:8px}
+    ul.menu li a{padding:12px 8px}
+    .menu-social{display:flex}
+    /* Animate hamburger into X when open */
+    header.menu-open .menu-toggle .hamburger{transform:rotate(45deg)}
+    header.menu-open .menu-toggle .hamburger:before{transform:translateY(7px) rotate(90deg)}
+    header.menu-open .menu-toggle .hamburger:after{transform:translateY(-7px) rotate(90deg);opacity:0}
+}
+
+/* Desktop (769px+) */
+@media (min-width: 769px){
+    .nav-bar{direction:rtl}
+    .menu-toggle{display:none}
+    nav#site-menu{position:static;display:block;box-shadow:none;border-top:0;padding:0}
+    ul.menu{flex-direction:row;gap:56px}
+    .header-social{display:flex}
+    .wa-link--mobile{display:none}
+}

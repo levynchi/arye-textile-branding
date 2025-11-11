@@ -36,6 +36,7 @@ urlpatterns = [
     path('about/', about, name='about'),
     path('accessibility/', accessibility, name='accessibility'),
     path('catalog/', include('catalog.urls')),
+    path('tinymce/', include('tinymce.urls')),
     path('admin/', admin.site.urls),
 ]
 

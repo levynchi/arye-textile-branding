@@ -3,20 +3,6 @@ from django import forms
 from .models import Category, Subcategory, SubcategoryImage, CatalogUser
 
 
-class SubcategoryAdminForm(forms.ModelForm):
-	"""Custom form for Subcategory with larger textareas for HTML fields."""
-	class Meta:
-		model = Subcategory
-		fields = '__all__'
-		widgets = {
-			'marketing_description': forms.Textarea(attrs={'rows': 10, 'cols': 80, 'style': 'font-family: monospace;'}),
-			'information': forms.Textarea(attrs={'rows': 10, 'cols': 80, 'style': 'font-family: monospace;'}),
-			'pattern_and_branding': forms.Textarea(attrs={'rows': 10, 'cols': 80, 'style': 'font-family: monospace;'}),
-			'fabric_production': forms.Textarea(attrs={'rows': 10, 'cols': 80, 'style': 'font-family: monospace;'}),
-			'sizes': forms.Textarea(attrs={'rows': 10, 'cols': 80, 'style': 'font-family: monospace;'}),
-		}
-
-
 class SubcategoryInline(admin.TabularInline):
 	"""Inline admin for Subcategory within Category."""
 	model = Subcategory
@@ -57,7 +43,6 @@ class CategoryAdmin(admin.ModelAdmin):
 @admin.register(Subcategory)
 class SubcategoryAdmin(admin.ModelAdmin):
 	"""Admin interface for Subcategory model."""
-	form = SubcategoryAdminForm
 	list_display = ("name", "category", "order", "created", "updated")
 	list_editable = ("order",)
 	list_filter = ("category",)
@@ -65,6 +50,15 @@ class SubcategoryAdmin(admin.ModelAdmin):
 	prepopulated_fields = {"slug": ("name",)}
 	readonly_fields = ("created", "updated")
 	inlines = [SubcategoryImageInline]
+	
+	class Media:
+		js = (
+			'https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/tinymce.min.js',
+			'admin_tinymce_init.js',
+		)
+		css = {
+			'all': ('https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/skins/ui/oxide/skin.rtl.min.css',)
+		}
 	
 	fieldsets = (
 		(None, {
