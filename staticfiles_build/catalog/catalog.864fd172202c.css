@@ -742,11 +742,11 @@
 
 .product-title {
     font-family: 'Heebo', sans-serif;
-    font-size: 24px;
-    font-weight: 550;
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 600;
     color: #111317;
     margin: 0;
-    /* padding-bottom: 20px; */
+    padding-bottom: 20px;
     border-bottom: 2px solid #e5e7eb;
 }
 
@@ -760,10 +760,7 @@
 
 .product-description {
     color: #4b5563;
-    /* line-height: 1.8; */
-    border-bottom: 2px solid #e5e7eb;
-    /* padding-bottom: 20px; */
-    /* margin-bottom: 20px; */
+    line-height: 1.8;
 }
 
 .product-description p {
@@ -898,8 +895,8 @@
 
 @media (max-width: 480px) {
     .product-title {
-        font-size: 36px;
-        /* padding-bottom: 15px; */
+        font-size: 1.5rem;
+        padding-bottom: 15px;
     }
     
     .thumbnail {
