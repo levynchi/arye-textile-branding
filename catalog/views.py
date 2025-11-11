@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from .models import Category, Subcategory, Product
+from .models import Category, Subcategory
 
 
 def catalog_home(request):
@@ -28,37 +28,18 @@ def category_detail(request, category_slug):
 
 
 def subcategory_detail(request, category_slug, subcategory_slug):
-	"""Subcategory detail page showing products."""
+	"""Subcategory detail page with image gallery."""
 	category = get_object_or_404(Category, slug=category_slug)
 	subcategory = get_object_or_404(Subcategory, category=category, slug=subcategory_slug)
-	products = subcategory.products.filter(is_active=True)
 	# Get all categories for navigation
 	all_categories = Category.objects.all()
+	# Get all subcategory images
+	subcategory_images = subcategory.images.all()
 	
 	context = {
 		"category": category,
 		"subcategory": subcategory,
-		"products": products,
+		"subcategory_images": subcategory_images,
 		"all_categories": all_categories,
 	}
 	return render(request, "catalog/subcategory_detail.html", context)
-
-
-def product_detail(request, category_slug, subcategory_slug, product_slug):
-	"""Product detail page showing single product with all images."""
-	category = get_object_or_404(Category, slug=category_slug)
-	subcategory = get_object_or_404(Subcategory, category=category, slug=subcategory_slug)
-	product = get_object_or_404(Product, subcategory=subcategory, slug=product_slug, is_active=True)
-	# Get all categories for navigation
-	all_categories = Category.objects.all()
-	# Get all product images
-	product_images = product.images.all()
-	
-	context = {
-		"category": category,
-		"subcategory": subcategory,
-		"product": product,
-		"product_images": product_images,
-		"all_categories": all_categories,
-	}
-	return render(request, "catalog/product_detail.html", context)

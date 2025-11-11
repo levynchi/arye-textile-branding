@@ -24,45 +24,118 @@
             <span class="current">{{ subcategory.name }}</span>
         </nav>
         
-        <!-- Subcategory Header -->
-        <div class="catalog-category-header">
-            <h1 class="catalog-page-title">{{ subcategory.name }}</h1>
-            {% if subcategory.description %}
-                <p class="catalog-category-description">{{ subcategory.description }}</p>
-            {% endif %}
-        </div>
-        
-        <!-- Products Gallery -->
-        <section class="catalog-gallery" aria-label="מוצרים">
-            <div class="catalog-grid">
-                {% for product in products %}
-                    <article class="catalog-card catalog-product-card">
-                        <a href="{% url 'catalog:product_detail' category.slug subcategory.slug product.slug %}" class="catalog-card-link">
-                            <div class="catalog-card-image">
-                                {% if product.image %}
-                                    <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">
-                                {% else %}
-                                    <div class="catalog-placeholder">{{ product.name }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="catalog-card-content">
-                                <h2 class="catalog-card-title">{{ product.name }}</h2>
-                                {% if product.description %}
-                                    <p class="catalog-card-description">{{ product.description|truncatewords:20 }}</p>
-                                {% endif %}
-                            </div>
-                        </a>
-                    </article>
-                {% empty %}
-                    <div class="catalog-empty">
-                        <p>אין מוצרים זמינים בתת-קטגוריה זו.</p>
+        <!-- Subcategory Detail Section -->
+        <section class="product-detail-section">
+            <div class="product-detail-container">
+                <!-- Subcategory Images (Right Side) -->
+                <div class="product-images">
+                    <!-- Main Image Display with Navigation Arrows -->
+                    <div class="product-main-image">
+                        {% if subcategory.image %}
+                            <img id="mainImage" src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" />
+                        {% elif subcategory_images %}
+                            <img id="mainImage" src="{{ subcategory_images.0.image.url }}" alt="{{ subcategory_images.0.alt_text|default:subcategory.name }}" />
+                        {% else %}
+                            <div class="product-placeholder">{{ subcategory.name }}</div>
+                        {% endif %}
+                        
+                        <!-- Navigation Arrows -->
+                        {% if subcategory.image or subcategory_images %}
+                            <button class="image-nav-arrow image-nav-next" onclick="navigateImage(1)" aria-label="תמונה הבאה">
+                                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <button class="image-nav-arrow image-nav-prev" onclick="navigateImage(-1)" aria-label="תמונה קודמת">
+                                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        {% endif %}
                     </div>
-                {% endfor %}
+                    
+                    <!-- Thumbnail Gallery -->
+                    {% if subcategory.image or subcategory_images %}
+                        <div class="product-thumbnails">
+                            {% if subcategory.image %}
+                                <div class="thumbnail active" onclick="changeImage('{{ subcategory.image.url }}', this)">
+                                    <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" />
+                                </div>
+                            {% endif %}
+                            {% for img in subcategory_images %}
+                                <div class="thumbnail" onclick="changeImage('{{ img.image.url }}', this)">
+                                    <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:subcategory.name }}" />
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Subcategory Info (Left Side) -->
+                <div class="product-info">
+                    <h1 class="product-title">{{ subcategory.name }}</h1>
+                    
+                    {% if subcategory.description %}
+                        <div class="product-description">
+                            <h2 class="product-section-title">תיאור</h2>
+                            <p>{{ subcategory.description|linebreaks }}</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </section>
     </main>
     
     {% include 'catalog/partials/catalog_footer.html' %}
+    
+    <script>
+    // Image gallery functionality
+    const images = [
+        {% if subcategory.image %}'{{ subcategory.image.url }}',{% endif %}
+        {% for img in subcategory_images %}'{{ img.image.url }}'{% if not forloop.last %},{% endif %}{% endfor %}
+    ];
+    let currentIndex = 0;
+    
+    function changeImage(imageSrc, thumbnail) {
+        // Update main image
+        document.getElementById('mainImage').src = imageSrc;
+        
+        // Update current index
+        currentIndex = images.indexOf(imageSrc);
+        
+        // Update active thumbnail
+        const thumbnails = document.querySelectorAll('.thumbnail');
+        thumbnails.forEach(t => t.classList.remove('active'));
+        if (thumbnail) {
+            thumbnail.classList.add('active');
+        }
+    }
+    
+    function navigateImage(direction) {
+        if (images.length === 0) return;
+        
+        // Calculate new index with wrapping
+        currentIndex = (currentIndex + direction + images.length) % images.length;
+        
+        // Update main image
+        document.getElementById('mainImage').src = images[currentIndex];
+        
+        // Update active thumbnail
+        const thumbnails = document.querySelectorAll('.thumbnail');
+        thumbnails.forEach((t, index) => {
+            t.classList.toggle('active', index === currentIndex);
+        });
+    }
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowLeft') {
+            navigateImage(1);  // RTL: left arrow goes to next
+        } else if (e.key === 'ArrowRight') {
+            navigateImage(-1); // RTL: right arrow goes to previous
+        }
+    });
+    </script>
 </body>
 </html>
 

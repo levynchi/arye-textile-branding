@@ -7,6 +7,5 @@ urlpatterns = [
 	path("", views.catalog_home, name="home"),
 	re_path(r"^(?P<category_slug>[\w\-]+)/$", views.category_detail, name="category_detail"),
 	re_path(r"^(?P<category_slug>[\w\-]+)/(?P<subcategory_slug>[\w\-]+)/$", views.subcategory_detail, name="subcategory_detail"),
-	re_path(r"^(?P<category_slug>[\w\-]+)/(?P<subcategory_slug>[\w\-]+)/(?P<product_slug>[\w\-]+)/$", views.product_detail, name="product_detail"),
 ]
 

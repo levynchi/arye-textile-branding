@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import Category, Subcategory, Product, ProductImage, CatalogUser
+from .models import Category, Subcategory, SubcategoryImage, CatalogUser
 
 
 class SubcategoryInline(admin.TabularInline):
@@ -11,17 +11,9 @@ class SubcategoryInline(admin.TabularInline):
 	prepopulated_fields = {"slug": ("name",)}
 
 
-class ProductInline(admin.TabularInline):
-	"""Inline admin for Product within Subcategory."""
-	model = Product
-	extra = 1
-	fields = ("name", "description", "image", "order", "is_active", "slug")
-	prepopulated_fields = {"slug": ("name",)}
-
-
-class ProductImageInline(admin.TabularInline):
-	"""Inline admin for ProductImage within Product."""
-	model = ProductImage
+class SubcategoryImageInline(admin.TabularInline):
+	"""Inline admin for SubcategoryImage within Subcategory."""
+	model = SubcategoryImage
 	extra = 1
 	fields = ("image", "alt_text", "order")
 	ordering = ("order",)
@@ -57,7 +49,7 @@ class SubcategoryAdmin(admin.ModelAdmin):
 	search_fields = ("name", "description", "category__name")
 	prepopulated_fields = {"slug": ("name",)}
 	readonly_fields = ("created", "updated")
-	inlines = [ProductInline]
+	inlines = [SubcategoryImageInline]
 	
 	fieldsets = (
 		(None, {
@@ -69,27 +61,6 @@ class SubcategoryAdmin(admin.ModelAdmin):
 		}),
 	)
 
-
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-	"""Admin interface for Product model."""
-	list_display = ("name", "subcategory", "is_active", "order", "created", "updated")
-	list_editable = ("order", "is_active")
-	list_filter = ("is_active", "subcategory__category", "subcategory")
-	search_fields = ("name", "description", "subcategory__name")
-	prepopulated_fields = {"slug": ("name",)}
-	readonly_fields = ("created", "updated")
-	inlines = [ProductImageInline]
-	
-	fieldsets = (
-		(None, {
-			"fields": ("subcategory", "name", "slug", "description", "image", "order", "is_active")
-		}),
-		("מידע נוסף", {
-			"fields": ("created", "updated"),
-			"classes": ("collapse",)
-		}),
-	)
 
 
 class CatalogUserForm(forms.ModelForm):
