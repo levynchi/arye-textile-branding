@@ -81,6 +81,41 @@
                             <p>{{ subcategory.description|linebreaks }}</p>
                         </div>
                     {% endif %}
+                    
+                    {% if subcategory.marketing_description %}
+                        <div class="product-description">
+                            <h2 class="product-section-title">תיאור שיווקי</h2>
+                            <div>{{ subcategory.marketing_description|safe }}</div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if subcategory.information %}
+                        <div class="product-description">
+                            <h2 class="product-section-title">מידע</h2>
+                            <div>{{ subcategory.information|safe }}</div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if subcategory.pattern_and_branding %}
+                        <div class="product-description">
+                            <h2 class="product-section-title">דפוס ומיתוג</h2>
+                            <div>{{ subcategory.pattern_and_branding|safe }}</div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if subcategory.fabric_production %}
+                        <div class="product-description">
+                            <h2 class="product-section-title">אפשרות ייצור בדים</h2>
+                            <div>{{ subcategory.fabric_production|safe }}</div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if subcategory.sizes %}
+                        <div class="product-description">
+                            <h2 class="product-section-title">מידות</h2>
+                            <div>{{ subcategory.sizes|safe }}</div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </section>
