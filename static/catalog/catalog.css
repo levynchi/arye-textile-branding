@@ -29,7 +29,7 @@
 
 .catalog-welcome {
     color: #fff;
-    font-size: 1rem;
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 1px;
 }
@@ -76,7 +76,7 @@
 }
 
 .catalog-main-logo {
-    height: 60px;
+    height: 50px;
     width: auto;
     display: block;
 }
