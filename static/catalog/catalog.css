@@ -488,24 +488,14 @@
 @media (max-width: 768px) {
     .catalog-top-inner {
         padding: 0 16px;
-        flex-direction: column;
-        gap: 12px;
     }
 
     .catalog-welcome {
         font-size: 0.85rem;
-        order: 1;
     }
 
     .catalog-social-icons {
-        gap: 12px;
-        position: static;
-        order: 2;
-    }
-
-    .catalog-social-icons img {
-        width: 28px;
-        height: 28px;
+        display: none;
     }
 
     .catalog-logo-section {
@@ -538,7 +528,7 @@
     .catalog-category-header,
     .catalog-gallery,
     .catalog-cta-section {
-        padding: 0 16px;
+        padding: 0 16px 10px;
     }
 
     .catalog-cta-section {
