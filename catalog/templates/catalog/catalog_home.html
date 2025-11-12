@@ -41,11 +41,35 @@
                             </div>
                         </a>
                     </article>
-                {% empty %}
+                {% endfor %}
+                
+                {% for subcategory in standalone_subcategories %}
+                    <article class="catalog-card">
+                        <a href="{% url 'catalog:standalone_subcategory_detail' subcategory.slug %}" class="catalog-card-link">
+                            <div class="catalog-card-image">
+                                {% if subcategory.image %}
+                                    <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" loading="lazy">
+                                {% elif subcategory.get_main_image %}
+                                    <img src="{{ subcategory.get_main_image }}" alt="{{ subcategory.name }}" loading="lazy">
+                                {% else %}
+                                    <div class="catalog-placeholder">{{ subcategory.name }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="catalog-card-content">
+                                <h2 class="catalog-card-title">{{ subcategory.name }}</h2>
+                                {% if subcategory.description %}
+                                    <p class="catalog-card-description">{{ subcategory.description|truncatewords:15 }}</p>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </article>
+                {% endfor %}
+                
+                {% if not categories and not standalone_subcategories %}
                     <div class="catalog-empty">
                         <p>אין קטגוריות זמינות כרגע.</p>
                     </div>
-                {% endfor %}
+                {% endif %}
             </div>
         </section>
         

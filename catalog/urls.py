@@ -5,6 +5,8 @@ app_name = "catalog"
 
 urlpatterns = [
 	path("", views.catalog_home, name="home"),
+	# Standalone subcategory (without category) - must come before category_detail
+	path("product/<slug:subcategory_slug>/", views.standalone_subcategory_detail, name="standalone_subcategory_detail"),
 	re_path(r"^(?P<category_slug>[\w\-]+)/$", views.category_detail, name="category_detail"),
 	re_path(r"^(?P<category_slug>[\w\-]+)/(?P<subcategory_slug>[\w\-]+)/$", views.subcategory_detail, name="subcategory_detail"),
 ]

@@ -35,7 +35,10 @@ class Subcategory(models.Model):
 		Category,
 		on_delete=models.CASCADE,
 		related_name="subcategories",
-		verbose_name="קטגוריה"
+		verbose_name="קטגוריה",
+		null=True,
+		blank=True,
+		help_text="השאר ריק אם תרצה שהתת-קטגוריה תופיע כקטגוריה בעמוד הראשי"
 	)
 	name = models.CharField("שם תת-קטגוריה", max_length=200)
 	description = models.TextField("תיאור", blank=True)
@@ -46,7 +49,7 @@ class Subcategory(models.Model):
 	sizes = HTMLField("מידות", blank=True, help_text="מידות זמינות למוצר")
 	image = models.ImageField("תמונה ראשית", upload_to="catalog/subcategories/", blank=True, null=True, help_text="תמונה ראשית - מוצגת בכרטיס התת-קטגוריה")
 	order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
-	slug = models.SlugField("Slug", max_length=200, blank=True, help_text="יוצר אוטומטית מהשם")
+	slug = models.SlugField("Slug", max_length=200, unique=True, blank=True, help_text="יוצר אוטומטית מהשם")
 	created = models.DateTimeField(auto_now_add=True)
 	updated = models.DateTimeField(auto_now=True)
 
@@ -55,10 +58,11 @@ class Subcategory(models.Model):
 		ordering = ("order", "name")
 		verbose_name = "תת-קטגוריה"
 		verbose_name_plural = "תת-קטגוריות"
-		unique_together = [["category", "slug"]]
 
 	def __str__(self):
-		return f"{self.category.name} - {self.name}"
+		if self.category:
+			return f"{self.category.name} - {self.name}"
+		return self.name
 
 	def save(self, *args, **kwargs):
 		if not self.slug:
