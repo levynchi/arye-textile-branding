@@ -272,7 +272,7 @@
 /* Breadcrumb */
 .catalog-breadcrumb {
     max-width: 1400px;
-    margin: 0 auto 30px;
+    margin: 0;
     padding: 0 32px;
     font-size: 0.95rem;
     color: #666;
@@ -752,10 +752,10 @@
 
 .product-section-title {
     font-family: 'Heebo', sans-serif;
-    font-size: 1.3rem;
-    font-weight: 500;
+    font-size: 1.25rem;
+    font-weight: 400;
     color: #111317;
-    margin: 0 0 12px 0;
+    margin: 4px 0 12px 0;
 }
 
 .product-description {
