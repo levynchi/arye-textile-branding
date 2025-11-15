@@ -33,7 +33,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'catalog.middleware.CatalogAuthMiddleware',
-    'white_catalog.middleware.WhiteCatalogAuthMiddleware',
 ]
 
 ROOT_URLCONF = 'arye_site.urls'
