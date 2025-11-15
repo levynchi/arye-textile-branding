@@ -42,6 +42,9 @@
                     {% for cat in all_categories %}
                         <li><a href="{% url 'white_catalog:category_detail' cat.slug %}">{{ cat.name }}</a></li>
                     {% endfor %}
+                    {% for subcat in standalone_subcategories %}
+                        <li><a href="{% url 'white_catalog:standalone_subcategory_detail' subcat.slug %}">{{ subcat.name }}</a></li>
+                    {% endfor %}
                 </ul>
             </nav>
         </div>

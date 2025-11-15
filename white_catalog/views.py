@@ -21,11 +21,14 @@ def category_detail(request, category_slug):
 	subcategories = category.subcategories.all()
 	# Get all categories for navigation
 	all_categories = WhiteCategory.objects.all()
+	# Get standalone subcategories for navigation
+	standalone_subcategories = WhiteSubcategory.objects.filter(category__isnull=True)
 	
 	context = {
 		"category": category,
 		"subcategories": subcategories,
 		"all_categories": all_categories,
+		"standalone_subcategories": standalone_subcategories,
 	}
 	return render(request, "white_catalog/category_detail.html", context)
 
@@ -36,6 +39,8 @@ def subcategory_detail(request, category_slug, subcategory_slug):
 	subcategory = get_object_or_404(WhiteSubcategory, category=category, slug=subcategory_slug)
 	# Get all categories for navigation
 	all_categories = WhiteCategory.objects.all()
+	# Get standalone subcategories for navigation
+	standalone_subcategories = WhiteSubcategory.objects.filter(category__isnull=True)
 	# Get all subcategory images
 	subcategory_images = subcategory.images.all()
 	
@@ -44,6 +49,7 @@ def subcategory_detail(request, category_slug, subcategory_slug):
 		"subcategory": subcategory,
 		"subcategory_images": subcategory_images,
 		"all_categories": all_categories,
+		"standalone_subcategories": standalone_subcategories,
 	}
 	return render(request, "white_catalog/subcategory_detail.html", context)
 
@@ -53,6 +59,8 @@ def standalone_subcategory_detail(request, subcategory_slug):
 	subcategory = get_object_or_404(WhiteSubcategory, slug=subcategory_slug, category__isnull=True)
 	# Get all categories for navigation
 	all_categories = WhiteCategory.objects.all()
+	# Get standalone subcategories for navigation
+	standalone_subcategories = WhiteSubcategory.objects.filter(category__isnull=True)
 	# Get all subcategory images
 	subcategory_images = subcategory.images.all()
 	
@@ -61,6 +69,7 @@ def standalone_subcategory_detail(request, subcategory_slug):
 		"subcategory": subcategory,
 		"subcategory_images": subcategory_images,
 		"all_categories": all_categories,
+		"standalone_subcategories": standalone_subcategories,
 	}
 	return render(request, "white_catalog/subcategory_detail.html", context)
 
