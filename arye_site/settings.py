@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'tinymce',
     'main',  # main single-page app
     'catalog.apps.CatalogConfig',  # product catalog app
+    'white_catalog',  # white catalog app
 ]
 
 MIDDLEWARE = [
@@ -60,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'catalog.middleware.CatalogAuthMiddleware',
+    'white_catalog.middleware.WhiteCatalogAuthMiddleware',
 ]
 
 ROOT_URLCONF = 'arye_site.urls'

@@ -9,15 +9,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}">
-    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}">
+    <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
 </head>
 <body class="catalog-body">
-    {% include 'catalog/partials/catalog_header.html' %}
+    {% include 'white_catalog/partials/catalog_header.html' %}
     
     <main class="catalog-main" id="main-content">
         <!-- Breadcrumb -->
         <nav class="catalog-breadcrumb" aria-label="ניווט">
-            <a href="{% url 'catalog:home' %}">דף הבית</a>
+            <a href="{% url 'white_catalog:home' %}">דף הבית</a>
             <span class="separator">/</span>
             <span class="current">{{ category.name }}</span>
         </nav>
@@ -35,7 +35,7 @@
             <div class="catalog-grid">
                 {% for subcategory in subcategories %}
                     <article class="catalog-card">
-                        <a href="{% url 'catalog:subcategory_detail' category.slug subcategory.slug %}" class="catalog-card-link">
+                        <a href="{% url 'white_catalog:subcategory_detail' category.slug subcategory.slug %}" class="catalog-card-link">
                             <div class="catalog-card-image">
                                 {% if subcategory.image %}
                                     <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" loading="lazy">
@@ -60,24 +60,7 @@
         </section>
     </main>
     
-    {% include 'catalog/partials/catalog_footer.html' %}
+    {% include 'white_catalog/partials/catalog_footer.html' %}
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

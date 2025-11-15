@@ -1,0 +1,88 @@
+{% load static %}
+<!-- Catalog Header with Blue Bar, Icons and Logo -->
+<header class="catalog-header">
+    <!-- Top blue bar with social icons -->
+    <div class="catalog-top-bar">
+        <div class="catalog-top-inner">
+            <div class="catalog-welcome">WELCOME YO ARYE</div>
+            <div class="catalog-social-icons">
+                <a href="https://www.facebook.com/people/%D7%90%D7%A8%D7%99%D7%94-%D7%98%D7%A7%D7%A1%D7%98%D7%99%D7%9C-%D7%99%D7%99%D7%A6%D7%95%D7%A8-%D7%9E%D7%99%D7%AA%D7%95%D7%92-%D7%95%D7%94%D7%93%D7%A4%D7%A1%D7%94/61578984857533/?locale=he_IL" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                    <img src="{% static 'icons_logo/ARTBOARD_FACEBOOK WHITE.svg' %}" alt="Facebook" />
+                </a>
+                <a href="https://www.instagram.com/aryetextile/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                    <img src="{% static 'icons_logo/ARTBOARD_INSTEGRAM WHITE.svg' %}" alt="Instagram" />
+                </a>
+                <a href="mailto:info@aryetextile.com" aria-label="Email">
+                    <img src="{% static 'icons_logo/ARTBOARD_MAILL WHITE.svg' %}" alt="Email" />
+                </a>
+                <a href="https://wa.me/972533694264" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                    <img src="{% static 'icons_logo/ARTBOARD_WATSAPP WHITE.svg' %}" alt="WhatsApp" />
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Logo Section with Navigation -->
+    <div class="catalog-logo-section">
+        <div class="catalog-logo-inner">
+            <!-- Hamburger Button (Right Side) -->
+            <button class="catalog-menu-toggle" type="button" aria-label="פתח תפריט" aria-controls="catalog-nav-menu" aria-expanded="false">
+                <span class="hamburger" aria-hidden="true"></span>
+            </button>
+            
+            <!-- Logo (Center) -->
+            <a href="{% url 'white_catalog:home' %}" aria-label="דף הבית של הקטלוג">
+                <img src="{% static 'icons_logo/LOGO-21.png' %}" alt="לוגו אריה" class="catalog-main-logo" />
+            </a>
+            
+            <!-- Sidebar Menu -->
+            <nav class="catalog-sidebar-menu" aria-label="תפריט קטגוריות">
+                <ul id="catalog-nav-menu" class="catalog-nav-list">
+                    <li><a href="{% url 'white_catalog:home' %}">דף הבית</a></li>
+                    {% for cat in all_categories %}
+                        <li><a href="{% url 'white_catalog:category_detail' cat.slug %}">{{ cat.name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</header>
+
+<script>
+(function(){
+    const header = document.querySelector('.catalog-header');
+    const btn = header.querySelector('.catalog-menu-toggle');
+    const menu = header.querySelector('.catalog-sidebar-menu');
+    if(!btn || !menu) return;
+    
+    const open = (v) => {
+        header.classList.toggle('menu-open', v);
+        btn.setAttribute('aria-expanded', String(v));
+        btn.setAttribute('aria-label', v ? 'סגור תפריט' : 'פתח תפריט');
+    };
+    
+    // Toggle menu on button click
+    btn.addEventListener('click', (e)=> {
+        e.stopPropagation();
+        open(!header.classList.contains('menu-open'));
+    });
+    
+    // Close menu on Escape key
+    document.addEventListener('keydown', (e)=>{ 
+        if(e.key==='Escape') open(false); 
+    });
+    
+    // Close menu when clicking outside (overlay)
+    document.addEventListener('click', (e)=>{
+        if(!header.classList.contains('menu-open')) return;
+        if(menu.contains(e.target) || btn.contains(e.target)) return;
+        open(false);
+    });
+    
+    // Close menu when clicking on links
+    menu.addEventListener('click', (e)=>{
+        if(e.target.closest('a')) open(false);
+    });
+})();
+</script>
+

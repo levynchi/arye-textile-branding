@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>קטלוג מוצרים - אריה טקסטיל 2025</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
+</head>
+<body class="catalog-body">
+    {% include 'white_catalog/partials/catalog_header.html' %}
+    
+    <main class="catalog-main" id="main-content">
+        <!-- Page Title -->
+        <div class="catalog-title-section">
+            <h1 class="catalog-main-title">קטלוג מוצרים - אריה טקסטיל</h1>
+        </div>
+        
+        <!-- Categories Gallery (4 per row) -->
+        <section class="catalog-gallery" aria-label="קטגוריות מוצרים">
+            <div class="catalog-grid">
+                {% for category in categories %}
+                    <article class="catalog-card">
+                        <a href="{% url 'white_catalog:category_detail' category.slug %}" class="catalog-card-link">
+                            <div class="catalog-card-image">
+                                {% if category.image %}
+                                    <img src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy">
+                                {% else %}
+                                    <div class="catalog-placeholder">{{ category.name }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="catalog-card-content">
+                                <h2 class="catalog-card-title">{{ category.name }}</h2>
+                                {% if category.description %}
+                                    <p class="catalog-card-description">{{ category.description|truncatewords:15 }}</p>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </article>
+                {% endfor %}
+                
+                {% for subcategory in standalone_subcategories %}
+                    <article class="catalog-card">
+                        <a href="{% url 'white_catalog:standalone_subcategory_detail' subcategory.slug %}" class="catalog-card-link">
+                            <div class="catalog-card-image">
+                                {% if subcategory.image %}
+                                    <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" loading="lazy">
+                                {% elif subcategory.get_main_image %}
+                                    <img src="{{ subcategory.get_main_image }}" alt="{{ subcategory.name }}" loading="lazy">
+                                {% else %}
+                                    <div class="catalog-placeholder">{{ subcategory.name }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="catalog-card-content">
+                                <h2 class="catalog-card-title">{{ subcategory.name }}</h2>
+                                {% if subcategory.description %}
+                                    <p class="catalog-card-description">{{ subcategory.description|truncatewords:15 }}</p>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </article>
+                {% endfor %}
+                
+                {% if not categories and not standalone_subcategories %}
+                    <div class="catalog-empty">
+                        <p>אין קטגוריות זמינות כרגע.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+        
+        <!-- Call to Action Text -->
+        <section class="catalog-cta-section">
+            <p class="catalog-cta-text">אנו מזמינים אתכם להצטרף לעסקים שבחרו באיכות, בסטייל ובעשייה מקומית כחול לבן</p>
+            <div class="catalog-cta-icon">
+                <img src="{% static 'icons_logo/hert icon fill (1).svg' %}" alt="heart icon" />
+            </div>
+        </section>
+    </main>
+    
+    {% include 'white_catalog/partials/catalog_footer.html' %}
+</body>
+</html>
+
