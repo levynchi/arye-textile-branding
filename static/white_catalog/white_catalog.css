@@ -487,6 +487,31 @@
     display: block;
 }
 
+.catalog-footer-phone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.catalog-footer-phone a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: 500;
+    transition: opacity 0.3s ease;
+}
+
+.catalog-footer-phone a:hover {
+    opacity: 0.8;
+}
+
+.catalog-footer-phone svg {
+    flex-shrink: 0;
+}
+
 .catalog-footer-social {
     display: flex;
     gap: 30px;
@@ -594,6 +619,10 @@
 
     .catalog-footer-logo img {
         height: 50px;
+    }
+
+    .catalog-footer-phone a {
+        font-size: 1rem;
     }
 
     .catalog-footer-social {
