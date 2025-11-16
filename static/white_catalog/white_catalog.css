@@ -96,11 +96,18 @@
     justify-content: center;
     cursor: pointer;
     z-index: 1001;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, opacity 0.3s ease, visibility 0.3s ease;
 }
 
 .catalog-menu-toggle:hover {
     background: #f5f6f7;
+}
+
+/* Hide hamburger button when menu is open */
+.catalog-header.menu-open .catalog-menu-toggle {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .catalog-menu-toggle .hamburger {
@@ -148,6 +155,34 @@
 
 .catalog-header.menu-open .catalog-sidebar-menu {
     transform: translateX(0);
+}
+
+/* Close Button Inside Sidebar */
+.catalog-sidebar-close {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    appearance: none;
+    background: #fff;
+    border: 1px solid #cfd3d9;
+    border-radius: 6px;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.catalog-sidebar-close:hover {
+    background: #f5f6f7;
+    transform: scale(1.05);
+}
+
+.catalog-sidebar-close svg {
+    color: #111317;
 }
 
 /* Sidebar Overlay */

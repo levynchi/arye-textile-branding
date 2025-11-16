@@ -37,6 +37,13 @@
             
             <!-- Sidebar Menu -->
             <nav class="catalog-sidebar-menu" aria-label="תפריט קטגוריות">
+                <!-- Close Button Inside Sidebar -->
+                <button class="catalog-sidebar-close" type="button" aria-label="סגור תפריט">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
                 <ul id="catalog-nav-menu" class="catalog-nav-list">
                     <li><a href="{% url 'white_catalog:home' %}">דף הבית</a></li>
                     {% for cat in all_categories %}
@@ -55,8 +62,9 @@
 (function(){
     const header = document.querySelector('.catalog-header');
     const btn = header.querySelector('.catalog-menu-toggle');
+    const closeBtn = header.querySelector('.catalog-sidebar-close');
     const menu = header.querySelector('.catalog-sidebar-menu');
-    if(!btn || !menu) return;
+    if(!btn || !menu || !closeBtn) return;
     
     const open = (v) => {
         header.classList.toggle('menu-open', v);
@@ -64,10 +72,16 @@
         btn.setAttribute('aria-label', v ? 'סגור תפריט' : 'פתח תפריט');
     };
     
-    // Toggle menu on button click
+    // Toggle menu on hamburger button click
     btn.addEventListener('click', (e)=> {
         e.stopPropagation();
         open(!header.classList.contains('menu-open'));
+    });
+    
+    // Close menu on close button click
+    closeBtn.addEventListener('click', (e)=> {
+        e.stopPropagation();
+        open(false);
     });
     
     // Close menu on Escape key
