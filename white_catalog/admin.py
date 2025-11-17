@@ -43,7 +43,7 @@ class WhiteCategoryAdmin(admin.ModelAdmin):
 @admin.register(WhiteSubcategory)
 class WhiteSubcategoryAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteSubcategory model."""
-	list_display = ("name", "category", "order", "created", "updated")
+	list_display = ("name", "category", "unit_price", "order", "created", "updated")
 	list_editable = ("order",)
 	list_filter = ("category",)
 	search_fields = ("name", "description", "category__name")
@@ -63,6 +63,9 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 	fieldsets = (
 		(None, {
 			"fields": ("category", "name", "slug", "description", "image", "order")
+		}),
+		("מחיר", {
+			"fields": ("unit_price",),
 		}),
 		("פרטים נוספים", {
 			"fields": ("marketing_description", "information", "pattern_and_branding", "fabric_production", "sizes"),

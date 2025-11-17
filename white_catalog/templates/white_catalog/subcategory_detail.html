@@ -10,6 +10,73 @@
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}">
     <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
+    <style>
+        .product-price-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-right: 4px solid #4CAF50;
+        }
+        
+        .product-price {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3rem;
+        }
+        
+        .price-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .price-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #4CAF50;
+        }
+        
+        .price-vat-note {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 400;
+            margin-right: 8px;
+        }
+        
+        .product-price-locked {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .price-lock-icon {
+            font-size: 2rem;
+        }
+        
+        .price-lock-text {
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        .price-login-link {
+            display: inline-block;
+            padding: 8px 20px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .price-login-link:hover {
+            background: #45a049;
+        }
+    </style>
 </head>
 <body class="catalog-body">
     {% include 'white_catalog/partials/catalog_header.html' %}
@@ -76,6 +143,24 @@
                 <!-- Subcategory Info (Left Side) -->
                 <div class="product-info">
                     <h1 class="product-title">{{ subcategory.name }}</h1>
+                    
+                    {% if subcategory.unit_price %}
+                        <div class="product-price-section">
+                            {% if request.session.white_catalog_user_id %}
+                                <div class="product-price">
+                                    <span class="price-label">מחיר ליחידה:</span>
+                                    <span class="price-value">₪{{ subcategory.unit_price }}</span>
+                                    <span class="price-vat-note">(לא כולל מע"מ)</span>
+                                </div>
+                            {% else %}
+                                <div class="product-price-locked">
+                                    <span class="price-lock-icon">🔒</span>
+                                    <span class="price-lock-text">יש להתחבר כדי לצפות במחירים</span>
+                                    <a href="{% url 'white_catalog:login' %}?next={{ request.path }}" class="price-login-link">התחבר</a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
                     
                     {% if subcategory.description %}
                         <div class="product-description">

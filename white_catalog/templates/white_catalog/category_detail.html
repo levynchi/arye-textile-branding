@@ -10,6 +10,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}">
     <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
+    <style>
+        .catalog-card-price {
+            margin-top: 10px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #4CAF50;
+        }
+        
+        .price-vat-small {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: #666;
+        }
+    </style>
 </head>
 <body class="catalog-body">
     {% include 'white_catalog/partials/catalog_header.html' %}
@@ -47,6 +61,9 @@
                                 <h2 class="catalog-card-title">{{ subcategory.name }}</h2>
                                 {% if subcategory.description %}
                                     <p class="catalog-card-description">{{ subcategory.description|truncatewords:15 }}</p>
+                                {% endif %}
+                                {% if subcategory.unit_price and request.session.white_catalog_user_id %}
+                                    <p class="catalog-card-price">₪{{ subcategory.unit_price }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
                                 {% endif %}
                             </div>
                         </a>

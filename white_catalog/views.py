@@ -1,5 +1,6 @@
-from django.shortcuts import render, get_object_or_404
-from .models import WhiteCategory, WhiteSubcategory
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from .models import WhiteCategory, WhiteSubcategory, WhiteCatalogUser
 
 
 def catalog_home(request):
@@ -72,4 +73,55 @@ def standalone_subcategory_detail(request, subcategory_slug):
 		"standalone_subcategories": standalone_subcategories,
 	}
 	return render(request, "white_catalog/subcategory_detail.html", context)
+
+
+def login_view(request):
+	"""Login view for white catalog users."""
+	if request.method == "POST":
+		username = request.POST.get("username", "").strip()
+		password = request.POST.get("password", "")
+		
+		if not username or not password:
+			messages.error(request, "נא למלא שם משתמש וסיסמא")
+		else:
+			try:
+				user = WhiteCatalogUser.objects.get(username=username, is_active=True)
+				if user.check_password(password):
+					# Login successful - store user ID in session
+					request.session["white_catalog_user_id"] = user.id
+					request.session["white_catalog_username"] = user.username
+					request.session["white_catalog_company_name"] = user.company_name
+					messages.success(request, f"ברוך הבא, {user.company_name}!")
+					
+					# Redirect to next page or home
+					next_url = request.GET.get("next") or request.POST.get("next") or "white_catalog:home"
+					return redirect(next_url)
+				else:
+					messages.error(request, "שם משתמש או סיסמא שגויים")
+			except WhiteCatalogUser.DoesNotExist:
+				messages.error(request, "שם משתמש או סיסמא שגויים")
+	
+	# Get all categories for navigation
+	all_categories = WhiteCategory.objects.all()
+	standalone_subcategories = WhiteSubcategory.objects.filter(category__isnull=True)
+	
+	context = {
+		"all_categories": all_categories,
+		"standalone_subcategories": standalone_subcategories,
+	}
+	return render(request, "white_catalog/login.html", context)
+
+
+def logout_view(request):
+	"""Logout view for white catalog users."""
+	# Remove user data from session
+	if "white_catalog_user_id" in request.session:
+		del request.session["white_catalog_user_id"]
+	if "white_catalog_username" in request.session:
+		del request.session["white_catalog_username"]
+	if "white_catalog_company_name" in request.session:
+		del request.session["white_catalog_company_name"]
+	
+	messages.success(request, "התנתקת בהצלחה")
+	return redirect("white_catalog:home")
 
