@@ -43,39 +43,6 @@
             font-weight: 400;
             margin-right: 8px;
         }
-        
-        .product-price-locked {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            text-align: center;
-        }
-        
-        .price-lock-icon {
-            font-size: 2rem;
-        }
-        
-        .price-lock-text {
-            color: #666;
-            font-size: 1rem;
-        }
-        
-        .price-login-link {
-            display: inline-block;
-            padding: 8px 20px;
-            background: #4CAF50;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: 600;
-            transition: background 0.3s;
-        }
-        
-        .price-login-link:hover {
-            background: #45a049;
-        }
     </style>
 </head>
 <body class="catalog-body">
@@ -144,21 +111,13 @@
                 <div class="product-info">
                     <h1 class="product-title">{{ subcategory.name }}</h1>
                     
-                    {% if subcategory.unit_price %}
+                    {% if subcategory.unit_price and request.session.white_catalog_user_id %}
                         <div class="product-price-section">
-                            {% if request.session.white_catalog_user_id %}
-                                <div class="product-price">
-                                    <span class="price-label">מחיר ליחידה:</span>
-                                    <span class="price-value">₪{{ subcategory.unit_price }}</span>
-                                    <span class="price-vat-note">(לא כולל מע"מ)</span>
-                                </div>
-                            {% else %}
-                                <div class="product-price-locked">
-                                    <span class="price-lock-icon">🔒</span>
-                                    <span class="price-lock-text">יש להתחבר כדי לצפות במחירים</span>
-                                    <a href="{% url 'white_catalog:login' %}?next={{ request.path }}" class="price-login-link">התחבר</a>
-                                </div>
-                            {% endif %}
+                            <div class="product-price">
+                                <span class="price-label">מחיר ליחידה:</span>
+                                <span class="price-value">₪{{ subcategory.unit_price }}</span>
+                                <span class="price-vat-note">(לא כולל מע"מ)</span>
+                            </div>
                         </div>
                     {% endif %}
                     
