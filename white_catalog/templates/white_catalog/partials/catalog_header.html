@@ -8,7 +8,10 @@
     .catalog-auth-section {
         display: flex;
         align-items: center;
-        margin: 0 15px;
+        /* margin: 0 0 0 15px; */
+        margin-right: 0;
+        position: absolute;
+        right: 20px;
     }
     
     .catalog-auth-link {
@@ -28,7 +31,9 @@
     
     @media (max-width: 768px) {
         .catalog-auth-section {
-            margin: 0 8px;
+            /* margin: 0 0 0 8px; */
+            margin-right: 0;
+            right: 16px;
         }
         
         .catalog-auth-link {
@@ -46,17 +51,17 @@
     <!-- Top blue bar with social icons -->
     <div class="catalog-top-bar">
         <div class="catalog-top-inner">
-            <div class="catalog-welcome">
-                WELCOME YO ARYE
-                {% if request.session.white_catalog_user_id %}
-                    <span class="catalog-user-info"> | {{ request.session.white_catalog_company_name }}</span>
-                {% endif %}
-            </div>
             <div class="catalog-auth-section">
                 {% if request.session.white_catalog_user_id %}
                     <a href="{% url 'white_catalog:logout' %}" class="catalog-auth-link">התנתק</a>
                 {% else %}
                     <a href="{% url 'white_catalog:login' %}" class="catalog-auth-link">התחבר</a>
+                {% endif %}
+            </div>
+            <div class="catalog-welcome">
+                WELCOME YO ARYE
+                {% if request.session.white_catalog_user_id %}
+                    <span class="catalog-user-info"> | {{ request.session.white_catalog_company_name }}</span>
                 {% endif %}
             </div>
             <div class="catalog-social-icons">
