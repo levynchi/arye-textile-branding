@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django import forms
+from django.utils.html import mark_safe
 from .models import WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice, WhiteCatalogUser
 
 
@@ -15,8 +16,16 @@ class WhiteSubcategoryImageInline(admin.TabularInline):
 	"""Inline admin for WhiteSubcategoryImage within WhiteSubcategory."""
 	model = WhiteSubcategoryImage
 	extra = 1
-	fields = ("image", "alt_text", "order")
+	fields = ("image_preview", "image", "alt_text", "order")
+	readonly_fields = ("image_preview",)
 	ordering = ("order",)
+	
+	def image_preview(self, obj):
+		"""Display a thumbnail preview of the image."""
+		if obj.image:
+			return mark_safe(f'<img src="{obj.image.url}" style="max-height: 100px; max-width: 150px;" />')
+		return "אין תמונה"
+	image_preview.short_description = "תצוגה מקדימה"
 
 
 class WhiteSubcategoryPriceInline(admin.TabularInline):
