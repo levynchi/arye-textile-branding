@@ -75,8 +75,14 @@
                                 {% if subcategory.description %}
                                     <p class="catalog-card-description">{{ subcategory.description|truncatewords:15 }}</p>
                                 {% endif %}
-                                {% if subcategory.unit_price and request.session.white_catalog_user_id %}
-                                    <p class="catalog-card-price">₪{{ subcategory.unit_price }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
+                                {% if request.session.white_catalog_user_id %}
+                                    {% with price_range=subcategory.get_price_range %}
+                                        {% if price_range %}
+                                            <p class="catalog-card-price">₪{{ price_range.0 }} - ₪{{ price_range.1 }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
+                                        {% elif subcategory.unit_price %}
+                                            <p class="catalog-card-price">₪{{ subcategory.unit_price }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
+                                        {% endif %}
+                                    {% endwith %}
                                 {% endif %}
                             </div>
                         </a>

@@ -89,6 +89,23 @@ class WhiteSubcategory(models.Model):
 			images.append({'url': img.image.url, 'alt': img.alt_text or self.name, 'is_main': False})
 		return images
 
+	def has_size_prices(self):
+		"""Check if this subcategory has size-based pricing."""
+		return self.size_prices.exists()
+
+	def get_price_range(self):
+		"""Get the min and max price range for size-based pricing.
+		
+		Returns:
+			tuple: (min_price, max_price) or None if no size prices exist
+		"""
+		prices = self.size_prices.all()
+		if not prices:
+			return None
+		
+		price_values = [p.price for p in prices]
+		return (min(price_values), max(price_values))
+
 
 class WhiteSubcategoryImage(models.Model):
 	"""Additional images for a white subcategory."""
@@ -111,6 +128,29 @@ class WhiteSubcategoryImage(models.Model):
 
 	def __str__(self):
 		return f"{self.subcategory.name} - תמונה {self.order}"
+
+
+class WhiteSubcategoryPrice(models.Model):
+	"""Price per size for a white subcategory."""
+	subcategory = models.ForeignKey(
+		WhiteSubcategory,
+		on_delete=models.CASCADE,
+		related_name="size_prices",
+		verbose_name="תת-קטגוריה"
+	)
+	size_name = models.CharField("שם המידה", max_length=50, help_text="למשל: S, M, L, XL, 2-4, 6-8")
+	price = models.DecimalField("מחיר (לא כולל מע\"מ)", max_digits=10, decimal_places=2, help_text="מחיר למידה זו בשקלים - לא כולל מע\"מ")
+	order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
+	created = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		app_label = "white_catalog"
+		ordering = ("order", "id")
+		verbose_name = "מחיר למידה"
+		verbose_name_plural = "מחירים למידות"
+
+	def __str__(self):
+		return f"{self.subcategory.name} - {self.size_name}: ₪{self.price}"
 
 
 class WhiteCatalogUser(models.Model):

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django import forms
-from .models import WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteCatalogUser
+from .models import WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice, WhiteCatalogUser
 
 
 class WhiteSubcategoryInline(admin.TabularInline):
@@ -16,6 +16,14 @@ class WhiteSubcategoryImageInline(admin.TabularInline):
 	model = WhiteSubcategoryImage
 	extra = 1
 	fields = ("image", "alt_text", "order")
+	ordering = ("order",)
+
+
+class WhiteSubcategoryPriceInline(admin.TabularInline):
+	"""Inline admin for WhiteSubcategoryPrice within WhiteSubcategory."""
+	model = WhiteSubcategoryPrice
+	extra = 1
+	fields = ("size_name", "price", "order")
 	ordering = ("order",)
 
 
@@ -49,7 +57,7 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 	search_fields = ("name", "description", "category__name")
 	prepopulated_fields = {"slug": ("name",)}
 	readonly_fields = ("created", "updated")
-	inlines = [WhiteSubcategoryImageInline]
+	inlines = [WhiteSubcategoryPriceInline, WhiteSubcategoryImageInline]
 	
 	class Media:
 		js = (

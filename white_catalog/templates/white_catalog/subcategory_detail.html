@@ -43,6 +43,63 @@
             font-weight: 400;
             margin-right: 8px;
         }
+        
+        .size-price-table {
+            width: 100%;
+            max-width: 500px;
+            margin: 20px 0;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .size-price-table thead {
+            background: #7594b1;
+            color: white;
+        }
+        
+        .size-price-table th {
+            padding: 12px 15px;
+            text-align: right;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .size-price-table td {
+            padding: 12px 15px;
+            text-align: right;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .size-price-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .size-price-table tbody tr:hover {
+            background: #f5f6f7;
+        }
+        
+        .size-price-table .size-col {
+            font-weight: 600;
+            color: #333;
+            width: 40%;
+        }
+        
+        .size-price-table .price-col {
+            font-weight: 700;
+            color: #7594b1;
+            font-size: 1.2rem;
+            width: 60%;
+        }
+        
+        .size-price-section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body class="catalog-body">
@@ -111,14 +168,38 @@
                 <div class="product-info">
                     <h1 class="product-title">{{ subcategory.name }}</h1>
                     
-                    {% if subcategory.unit_price and request.session.white_catalog_user_id %}
-                        <div class="product-price-section">
-                            <div class="product-price">
-                                <span class="price-label">מחיר ליחידה:</span>
-                                <span class="price-value">₪{{ subcategory.unit_price }}</span>
-                                <span class="price-vat-note">(לא כולל מע"מ)</span>
+                    {% if request.session.white_catalog_user_id %}
+                        {% if subcategory.has_size_prices %}
+                            <!-- Size-based pricing table -->
+                            <div class="product-price-section">
+                                <h3 class="size-price-section-title">מחירון לפי מידות</h3>
+                                <table class="size-price-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="size-col">מידה</th>
+                                            <th class="price-col">מחיר ליחידה (לא כולל מע"מ)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for size_price in subcategory.size_prices.all %}
+                                        <tr>
+                                            <td class="size-col">{{ size_price.size_name }}</td>
+                                            <td class="price-col">₪{{ size_price.price }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
-                        </div>
+                        {% elif subcategory.unit_price %}
+                            <!-- Single unit price -->
+                            <div class="product-price-section">
+                                <div class="product-price">
+                                    <span class="price-label">מחיר ליחידה:</span>
+                                    <span class="price-value">₪{{ subcategory.unit_price }}</span>
+                                    <span class="price-vat-note">(לא כולל מע"מ)</span>
+                                </div>
+                            </div>
+                        {% endif %}
                     {% endif %}
                     
                     {% if subcategory.description %}
