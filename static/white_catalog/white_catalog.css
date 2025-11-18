@@ -751,10 +751,17 @@
 
 /* Thumbnails Gallery */
 .product-thumbnails {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
+    justify-items: center;
+}
+
+/* Responsive: 2 columns on mobile */
+@media (max-width: 768px) {
+    .product-thumbnails {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .thumbnail {
