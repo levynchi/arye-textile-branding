@@ -106,7 +106,7 @@ ul.menu a:hover::after, ul.menu a:focus-visible::after {transform:scaleX(1);}
 /* Footer contact block (under logo) */
 .f-contact{direction:rtl;color:#fff;text-align:right;margin-top:0;font-family:'Assistant',var(--font-sans)}
 .f-contact .fc-line{margin:4px 0;line-height:1.6}
-.f-contact .fc-strong{font-family:'Suez One',serif}
+/* .f-contact .fc-strong{font-family:'Suez One',serif} */
 .f-contact .fc-mail{color:#fff;text-decoration:none}
 .f-contact .fc-mail:hover{opacity:.9;text-decoration:underline}
 
