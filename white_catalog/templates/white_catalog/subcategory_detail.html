@@ -177,7 +177,7 @@
                                     <thead>
                                         <tr>
                                             <th class="size-col">מידה</th>
-                                            <th class="price-col">מחיר ליחידה (לא כולל מע"מ)</th>
+                                            <th class="price-col">מחיר סיטונאי (לא כולל מע"מ)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -190,14 +190,23 @@
                                     </tbody>
                                 </table>
                             </div>
-                        {% elif subcategory.unit_price %}
+                        {% elif subcategory.unit_price or subcategory.online_price %}
                             <!-- Single unit price -->
                             <div class="product-price-section">
-                                <div class="product-price">
-                                    <span class="price-label">מחיר ליחידה:</span>
-                                    <span class="price-value">₪{{ subcategory.unit_price }}</span>
-                                    <span class="price-vat-note">(לא כולל מע"מ)</span>
-                                </div>
+                                {% if subcategory.unit_price %}
+                                    <div class="product-price">
+                                        <span class="price-label">מחיר סיטונאי:</span>
+                                        <span class="price-value">₪{{ subcategory.unit_price }}</span>
+                                        <span class="price-vat-note">(לא כולל מע"מ)</span>
+                                    </div>
+                                {% endif %}
+                                {% if subcategory.online_price %}
+                                    <div class="product-price" style="margin-top: 10px;">
+                                        <span class="price-label">מחיר קמעונאי מומלץ:</span>
+                                        <span class="price-value">₪{{ subcategory.online_price }}</span>
+                                        <span class="price-vat-note">(לא כולל מע"מ)</span>
+                                    </div>
+                                {% endif %}
                             </div>
                         {% endif %}
                     {% endif %}
