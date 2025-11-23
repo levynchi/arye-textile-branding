@@ -756,10 +756,10 @@
     justify-items: center;
 }
 
-/* Responsive: 2 columns on mobile */
+/* Responsive: 3 columns on mobile */
 @media (max-width: 768px) {
     .product-thumbnails {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
