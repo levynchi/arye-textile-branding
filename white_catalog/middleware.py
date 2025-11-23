@@ -2,7 +2,17 @@
 
 import base64
 from django.http import HttpResponse
-from .models import WhiteCatalogUser
+from .models import WhiteCatalogUser, WhiteCatalogUserActivity
+
+
+def get_client_ip(request):
+	"""Get the client's IP address from the request, handling proxies."""
+	x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+	if x_forwarded_for:
+		ip = x_forwarded_for.split(',')[0].strip()
+	else:
+		ip = request.META.get('REMOTE_ADDR')
+	return ip
 
 
 class WhiteCatalogAuthMiddleware:
@@ -48,9 +58,29 @@ class WhiteCatalogAuthMiddleware:
 			if user.check_password(password):
 				# Store user in request for potential use in views
 				request.white_catalog_user = user
+				
+				# Log activity
+				self._log_activity(request, user)
+				
+				# Update last activity timestamp
+				user.update_activity()
+				
 				return True
 		except WhiteCatalogUser.DoesNotExist:
 			pass
 		
 		return False
+	
+	def _log_activity(self, request, user):
+		"""Log user activity to the database."""
+		try:
+			WhiteCatalogUserActivity.objects.create(
+				user=user,
+				ip_address=get_client_ip(request),
+				user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+				page_url=request.path[:500]
+			)
+		except Exception:
+			# Don't let logging errors break the authentication flow
+			pass
 

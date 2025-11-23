@@ -161,6 +161,8 @@ class WhiteCatalogUser(models.Model):
 	username = models.CharField("שם משתמש", max_length=150, unique=True)
 	password_hash = models.CharField("סיסמא", max_length=128)
 	is_active = models.BooleanField("פעיל", default=True, help_text="האם המשתמש יכול להתחבר")
+	last_login = models.DateTimeField("כניסה אחרונה", null=True, blank=True)
+	last_activity_at = models.DateTimeField("פעילות אחרונה", null=True, blank=True)
 	created = models.DateTimeField(auto_now_add=True)
 	updated = models.DateTimeField(auto_now=True)
 
@@ -180,4 +182,36 @@ class WhiteCatalogUser(models.Model):
 	def check_password(self, raw_password):
 		"""Check if the provided password matches the stored hash."""
 		return check_password(raw_password, self.password_hash)
+	
+	def update_activity(self):
+		"""Update the last activity timestamp."""
+		from django.utils import timezone
+		self.last_activity_at = timezone.now()
+		self.save(update_fields=['last_activity_at'])
+
+
+class WhiteCatalogUserActivity(models.Model):
+	"""Activity log for white catalog users - tracks every page visit."""
+	user = models.ForeignKey(
+		WhiteCatalogUser,
+		on_delete=models.CASCADE,
+		related_name="activities",
+		verbose_name="משתמש"
+	)
+	timestamp = models.DateTimeField("זמן", auto_now_add=True, db_index=True)
+	ip_address = models.GenericIPAddressField("כתובת IP", null=True, blank=True)
+	user_agent = models.TextField("דפדפן", blank=True)
+	page_url = models.CharField("דף", max_length=500)
+	
+	class Meta:
+		app_label = "white_catalog"
+		ordering = ("-timestamp",)
+		verbose_name = "פעילות משתמש"
+		verbose_name_plural = "פעילויות משתמשים"
+		indexes = [
+			models.Index(fields=['-timestamp', 'user']),
+		]
+	
+	def __str__(self):
+		return f"{self.user.username} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
 

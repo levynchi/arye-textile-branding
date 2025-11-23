@@ -1,6 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from .models import WhiteCategory, WhiteSubcategory, WhiteCatalogUser
+from django.utils import timezone
+from .models import WhiteCategory, WhiteSubcategory, WhiteCatalogUser, WhiteCatalogUserActivity
+from .middleware import get_client_ip
 
 
 def catalog_home(request):
@@ -91,6 +93,25 @@ def login_view(request):
 					request.session["white_catalog_user_id"] = user.id
 					request.session["white_catalog_username"] = user.username
 					request.session["white_catalog_company_name"] = user.company_name
+					
+					# Update last login time
+					user.last_login = timezone.now()
+					user.save(update_fields=['last_login'])
+					
+					# Log activity
+					try:
+						WhiteCatalogUserActivity.objects.create(
+							user=user,
+							ip_address=get_client_ip(request),
+							user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+							page_url=request.path[:500]
+						)
+					except Exception:
+						pass  # Don't let logging errors break the login flow
+					
+					# Update activity timestamp
+					user.update_activity()
+					
 					messages.success(request, f"ברוך הבא, {user.company_name}!")
 					
 					# Redirect to next page or home
