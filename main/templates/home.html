@@ -10,13 +10,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://arye-textil-media.fra1.cdn.digitaloceanspaces.com">
     <link rel="preconnect" href="https://arye-textil-media.fra1.cdn.digitaloceanspaces.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}?v=20250904g" />
     <link rel="stylesheet" href="{% static 'home.css' %}?v=20250902" />
         {% if slides %}
             {% for s in slides|slice:':4' %}
                 <link rel="preload" as="image" href="{{ s.image.url }}" imagesrcset="{{ s.image.url }}" />
             {% endfor %}
+        {% endif %}
+        {# Preload first 2 gallery images for faster LCP #}
+        {% if gallery and gallery.image1 %}
+            <link rel="preload" as="image" href="{{ gallery.image1.url }}" fetchpriority="high" />
+        {% endif %}
+        {% if gallery and gallery.image2 %}
+            <link rel="preload" as="image" href="{{ gallery.image2.url }}" />
         {% endif %}
 </head>
 <body>
@@ -28,16 +35,18 @@
     <section class="gallery" id="services" aria-label="גלריית שירותים">
         <div class="gallery-grid">
             {# Six slots: figure/figcaption so text overlays center of image #}
+            {# First 2 images are above the fold - load with high priority #}
             <figure class="g-item">
-                <img src="{% if gallery and gallery.image1 %}{{ gallery.image1.url }}{% else %}https://placehold.co/370x250?text=1{% endif %}" alt="{{ gallery.caption1|default:'' }}" loading="lazy" />
+                <img src="{% if gallery and gallery.image1 %}{{ gallery.image1.url }}{% else %}https://placehold.co/370x250?text=1{% endif %}" alt="{{ gallery.caption1|default:'' }}" fetchpriority="high" />
                 <figcaption class="cap">{{ gallery.caption1|default:'ייעוץ וליווי' }}</figcaption>
                 <a class="g-link" href="{{ gallery.link1|resolve_link }}" aria-label="{{ gallery.caption1|default:'ייעוץ וליווי' }}"></a>
             </figure>
             <figure class="g-item">
-                <img src="{% if gallery and gallery.image2 %}{{ gallery.image2.url }}{% else %}https://placehold.co/370x250?text=2{% endif %}" alt="{{ gallery.caption2|default:'' }}" loading="lazy" />
+                <img src="{% if gallery and gallery.image2 %}{{ gallery.image2.url }}{% else %}https://placehold.co/370x250?text=2{% endif %}" alt="{{ gallery.caption2|default:'' }}" fetchpriority="high" />
                 <figcaption class="cap">{{ gallery.caption2|default:'מיתוג' }}</figcaption>
                 <a class="g-link" href="{{ gallery.link2|resolve_link }}" aria-label="{{ gallery.caption2|default:'מיתוג' }}"></a>
             </figure>
+            {# Rest of gallery images - lazy load #}
             <figure class="g-item">
                 <img src="{% if gallery and gallery.image3 %}{{ gallery.image3.url }}{% else %}https://placehold.co/370x250?text=3{% endif %}" alt="{{ gallery.caption3|default:'' }}" loading="lazy" />
                 <figcaption class="cap">{{ gallery.caption3|default:'תפירה לפי כמויות, סיטונאות' }}</figcaption>
@@ -77,7 +86,7 @@
                     </div>
                 </div>
                 <figure class="info-image">
-                    <img src="{% static 'ARYETEXTILE.jpg' %}" alt="דוגמאות מיתוג טקסטיל" />
+                    <img src="{% static 'ARYETEXTILE.jpg' %}" alt="דוגמאות מיתוג טקסטיל" loading="lazy" />
                 </figure>
             </div>
         </section>
@@ -110,10 +119,10 @@
     <div class="h-slider" id="products" aria-label="גלריה נעה אופקית" aria-live="off">
             <div class="track">
                     {% for s in slides %}
-                        <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt|default:'תמונת מוצר' }}" decoding="async" /></figure>
+                        <figure class="slide"><img src="{{ s.image.url }}" alt="{{ s.alt|default:'תמונת מוצר' }}" loading="lazy" decoding="async" /></figure>
                     {% empty %}
                         {% for i in "12345678" %}
-                            <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" decoding="async" /></figure>
+                            <figure class="slide"><img src="https://placehold.co/220x220?text={{ forloop.counter }}" alt="" loading="lazy" decoding="async" /></figure>
                         {% endfor %}
                     {% endfor %}
             </div>

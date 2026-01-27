@@ -750,10 +750,21 @@
 }
 
 /* Thumbnails Gallery */
+/* Wrapper for thumbnails - always full width */
+.thumbnails-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    min-width: 100%; /* מבטיח רוחב מלא תמיד */
+}
+
 .product-thumbnails {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     justify-items: center;
+    max-width: 450px;
+    width: 100%;
 }
 
 /* Responsive: 3 columns on mobile */

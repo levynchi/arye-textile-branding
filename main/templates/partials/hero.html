@@ -2,14 +2,10 @@
 <section class="hero {% if hero_variant == 'tall' %}hero--home{% else %}hero--sub{% endif %}" aria-label="תמונת באנר" {% if banner and banner.image and not banner.video %}style="background-image:url('{{ banner.image.url }}');"{% endif %}>
     {# Video banner - takes priority over image #}
     {% if banner and banner.video %}
-        <video class="hero-video" autoplay muted loop playsinline>
+        <video class="hero-video" autoplay muted loop playsinline preload="metadata"{% if banner.image %} poster="{{ banner.image.url }}"{% endif %}>
             <source src="{{ banner.video.url }}" type="video/mp4">
-            <source src="{{ banner.video.url }}" type="video/webm">
-            <source src="{{ banner.video.url }}" type="video/ogg">
-            {# Fallback to image if video fails to load #}
-            {% if banner.image %}
-                <img src="{{ banner.image.url }}" alt="באנר" style="width: 100%; height: 100%; object-fit: cover;">
-            {% endif %}
+            {# Fallback text for browsers that don't support video #}
+            הדפדפן שלך לא תומך בוידאו.
         </video>
     {% endif %}
     

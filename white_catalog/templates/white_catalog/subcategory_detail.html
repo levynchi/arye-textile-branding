@@ -7,7 +7,7 @@
     {% load static %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400;600;700&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}">
     <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
     <style>
@@ -149,17 +149,19 @@
                     
                     <!-- Thumbnail Gallery -->
                     {% if subcategory.image or subcategory_images %}
-                        <div class="product-thumbnails">
-                            {% if subcategory.image %}
-                                <div class="thumbnail active" onclick="changeImage('{{ subcategory.image.url }}', this)">
-                                    <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" />
-                                </div>
-                            {% endif %}
-                            {% for img in subcategory_images %}
-                                <div class="thumbnail" onclick="changeImage('{{ img.image.url }}', this)">
-                                    <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:subcategory.name }}" />
-                                </div>
-                            {% endfor %}
+                        <div class="thumbnails-wrapper">
+                            <div class="product-thumbnails">
+                                {% if subcategory.image %}
+                                    <div class="thumbnail active" onclick="changeImage('{{ subcategory.image.url }}', this)">
+                                        <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" />
+                                    </div>
+                                {% endif %}
+                                {% for img in subcategory_images %}
+                                    <div class="thumbnail" onclick="changeImage('{{ img.image.url }}', this)">
+                                        <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:subcategory.name }}" />
+                                    </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     {% endif %}
                 </div>
