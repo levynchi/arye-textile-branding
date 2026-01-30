@@ -86,7 +86,7 @@
                     </div>
                 </div>
                 <figure class="info-image">
-                    <img src="{% static 'ARYETEXTILE.jpg' %}" alt="דוגמאות מיתוג טקסטיל" loading="lazy" />
+                    <img src="{% if gallery and gallery.info_image %}{{ gallery.info_image.url }}{% else %}{% static 'ARYETEXTILE.jpg' %}{% endif %}" alt="דוגמאות מיתוג טקסטיל" loading="lazy" />
                 </figure>
             </div>
         </section>

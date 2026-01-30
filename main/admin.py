@@ -81,9 +81,12 @@ class GalleryAdmin(admin.ModelAdmin):
 				("image4", "caption4", "link4"),
 				("image5", "caption5", "link5"),
 				("image6", "caption6", "link6"),
-				"updated",
 			)
 		}),
+		("מי אנחנו", {
+			"fields": ("info_image",)
+		}),
+		(None, {"fields": ("updated",)}),
 	)
 
 	def changelist_view(self, request, extra_context=None):

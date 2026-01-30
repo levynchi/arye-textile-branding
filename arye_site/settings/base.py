@@ -89,7 +89,6 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]
 STATIC_ROOT = BASE_DIR / 'staticfiles_build'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STORAGES = {
     'staticfiles': { 'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage' },
     # Django 5 requires explicit default storage. Use filesystem by default,
@@ -101,7 +100,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Spaces (conditionally enabled)
 USE_SPACES = os.environ.get('AWS_STORAGE_BUCKET_NAME') and (
@@ -116,7 +114,6 @@ if USE_SPACES:
     else:
         INSTALLED_APPS.append('storages')
         STORAGES['default'] = { 'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage' }
-        DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
         AWS_STORAGE_BUCKET_NAME = os.environ['AWS_STORAGE_BUCKET_NAME']
         AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']

@@ -103,6 +103,7 @@ class Gallery(models.Model):
 	image6 = models.ImageField("תמונה 6", upload_to="gallery/", blank=True, null=True)
 	caption6 = models.CharField("שם קטגוריה 6", max_length=120, blank=True, help_text="הטקסט שמופיע על התמונה")
 	link6 = models.CharField("קישור 6", max_length=200, blank=True, help_text="נתיב פנימי (למשל /branding/) או שם ניתוב (branding) או URL מלא")
+	info_image = models.ImageField("תמונת מי אנחנו", upload_to="gallery/", blank=True, null=True, help_text="התמונה שמופיעה בסקשן 'מי אנחנו' בדף הבית")
 	updated = models.DateTimeField(auto_now=True)
 
 	class Meta:
