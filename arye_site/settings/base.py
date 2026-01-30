@@ -139,7 +139,7 @@ if USE_SPACES:
 
 # Email settings for contact form notifications (using Resend API)
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-CONTACT_EMAIL = 'arye.textile@gmail.com'
+CONTACT_EMAIL = 'levynchi@gmail.com'
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'true').lower() in ('1', 'true', 'yes', 'on')
