@@ -2,9 +2,9 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Q
-from django.core.mail import send_mail
 from django.conf import settings
 import logging
+import resend
 
 from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, CuttingGallery, PhotosGallery
 from .forms import ContactRequestForm
@@ -13,9 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 def send_contact_email(contact_request):
-	"""Send email notification for a new contact form submission."""
+	"""Send email notification for a new contact form submission using Resend."""
 	try:
-		subject = f"פנייה חדשה מהאתר: {contact_request.full_name}"
+		if not settings.RESEND_API_KEY:
+			logger.warning("RESEND_API_KEY not configured, skipping email")
+			return
+		
+		resend.api_key = settings.RESEND_API_KEY
+		
 		message = f"""פנייה חדשה מטופס יצירת קשר באתר:
 
 שם מלא: {contact_request.full_name}
@@ -29,13 +34,12 @@ def send_contact_email(contact_request):
 ---
 נשלח מאתר אריה טקסטיל
 """
-		send_mail(
-			subject=subject,
-			message=message,
-			from_email=settings.EMAIL_HOST_USER or settings.CONTACT_EMAIL,
-			recipient_list=[settings.CONTACT_EMAIL],
-			fail_silently=False,
-		)
+		resend.emails.send({
+			"from": "Arye Textile <onboarding@resend.dev>",
+			"to": [settings.CONTACT_EMAIL],
+			"subject": f"פנייה חדשה מהאתר: {contact_request.full_name}",
+			"text": message,
+		})
 		logger.info(f"Contact email sent for {contact_request.email}")
 	except Exception as e:
 		logger.error(f"Failed to send contact email: {e}")
