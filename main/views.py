@@ -34,7 +34,7 @@ def send_contact_email(contact_request):
 ---
 נשלח מאתר אריה טקסטיל
 """
-		resend.emails.send({
+		resend.Emails.send({
 			"from": "Arye Textile <onboarding@resend.dev>",
 			"to": [settings.CONTACT_EMAIL],
 			"subject": f"פנייה חדשה מהאתר: {contact_request.full_name}",
