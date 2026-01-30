@@ -11,7 +11,7 @@ def home(request):
 	gallery = Gallery.objects.order_by("-updated", "-id").first()
 
 	# Slides: all with images, ordered; duplicate list for seamless CSS loop
-	slides_qs = Slide.objects.filter(image__isnull=False).order_by("order", "id")
+	slides_qs = Slide.objects.filter(image__isnull=False).exclude(image='').order_by("order", "id")
 	slides = list(slides_qs)
 	slides_loop = slides + slides if slides else []
 
