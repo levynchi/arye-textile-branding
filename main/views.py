@@ -2,8 +2,43 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Q
+from django.core.mail import send_mail
+from django.conf import settings
+import logging
+
 from .models import Gallery, Slide, BrandingGallery, PrintingGallery, PatternmakingGallery, FabricsGallery, ManufacturingGallery, CuttingGallery, PhotosGallery
 from .forms import ContactRequestForm
+
+logger = logging.getLogger(__name__)
+
+
+def send_contact_email(contact_request):
+	"""Send email notification for a new contact form submission."""
+	try:
+		subject = f"פנייה חדשה מהאתר: {contact_request.full_name}"
+		message = f"""פנייה חדשה מטופס יצירת קשר באתר:
+
+שם מלא: {contact_request.full_name}
+חברה: {contact_request.company or 'לא צוין'}
+אימייל: {contact_request.email}
+טלפון: {contact_request.phone or 'לא צוין'}
+
+תיאור הבקשה:
+{contact_request.message or 'לא צוין'}
+
+---
+נשלח מאתר אריה טקסטיל
+"""
+		send_mail(
+			subject=subject,
+			message=message,
+			from_email=settings.EMAIL_HOST_USER or settings.CONTACT_EMAIL,
+			recipient_list=[settings.CONTACT_EMAIL],
+			fail_silently=False,
+		)
+		logger.info(f"Contact email sent for {contact_request.email}")
+	except Exception as e:
+		logger.error(f"Failed to send contact email: {e}")
 
 
 def home(request):
@@ -19,7 +54,8 @@ def home(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("home")
 	else:
@@ -39,7 +75,8 @@ def branding(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("branding")
 	else:
@@ -76,7 +113,8 @@ def printing(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("printing")
 	else:
@@ -114,7 +152,8 @@ def patternmaking(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("patternmaking")
 	else:
@@ -148,7 +187,8 @@ def fabrics(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("fabrics")
 	else:
@@ -182,7 +222,8 @@ def manufacturing(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("manufacturing")
 	else:
@@ -216,7 +257,8 @@ def about(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("about")
 	else:
@@ -256,7 +298,8 @@ def cutting(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("cutting")
 	else:
@@ -292,7 +335,8 @@ def photos(request):
 	if request.method == "POST":
 		form = ContactRequestForm(request.POST)
 		if form.is_valid():
-			form.save()
+			contact_request = form.save()
+			send_contact_email(contact_request)
 			messages.success(request, "ההודעה נשלחה בהצלחה, נחזור אליך בהקדם.")
 			return redirect("photos")
 	else:
