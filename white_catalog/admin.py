@@ -19,23 +19,22 @@ class WhiteSubcategoryInline(admin.TabularInline):
 	prepopulated_fields = {"slug": ("name",)}
 
 
-class WhiteSubcategoryImageInline(admin.TabularInline):
+class WhiteSubcategoryImageInline(nested_admin.NestedTabularInline):
 	"""Inline admin for WhiteSubcategoryImage within WhiteSubcategory."""
 	model = WhiteSubcategoryImage
 	extra = 1
 	fields = ("image_preview", "image", "alt_text", "order")
 	readonly_fields = ("image_preview",)
 	ordering = ("order",)
-	
+
 	def image_preview(self, obj):
-		"""Display a thumbnail preview of the image."""
 		if obj.image:
 			return mark_safe(f'<img src="{obj.image.url}" style="max-height: 100px; max-width: 150px;" />')
 		return "אין תמונה"
 	image_preview.short_description = "תצוגה מקדימה"
 
 
-class WhiteSubcategoryPriceInline(admin.TabularInline):
+class WhiteSubcategoryPriceInline(nested_admin.NestedTabularInline):
 	"""Inline admin for WhiteSubcategoryPrice within WhiteSubcategory."""
 	model = WhiteSubcategoryPrice
 	extra = 1
