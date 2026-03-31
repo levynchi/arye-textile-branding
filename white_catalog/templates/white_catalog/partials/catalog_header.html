@@ -53,6 +53,9 @@
         <div class="catalog-top-inner">
             <div class="catalog-auth-section">
                 {% if request.session.white_catalog_user_id %}
+                    <a href="{% url 'white_catalog:cart' %}" class="catalog-auth-link" style="margin-left:6px;">
+                        🛒{% if cart_count %} {{ cart_count }}{% endif %}
+                    </a>
                     <a href="{% url 'white_catalog:logout' %}" class="catalog-auth-link">התנתק</a>
                 {% else %}
                     <a href="{% url 'white_catalog:login' %}" class="catalog-auth-link">התחבר</a>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סל הזמנות - קטלוג אריה טקסטיל</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
+    <style>
+        .cart-page { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+        .cart-page h1 { font-size: 1.8rem; color: #333; margin-bottom: 20px; }
+        .cart-empty { text-align: center; padding: 60px 20px; color: #666; }
+        .cart-empty a { color: #7594b1; font-weight: 700; }
+        .cart-table { width: 100%; border-collapse: collapse; background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        .cart-table thead { background: #7594b1; color: white; }
+        .cart-table th { padding: 12px 14px; text-align: right; font-size: 0.95rem; }
+        .cart-table td { padding: 12px 14px; border-bottom: 1px solid #eee; vertical-align: middle; }
+        .cart-table tbody tr:last-child td { border-bottom: none; }
+        .cart-table tbody tr:hover { background: #f9f9f9; }
+        .qty-input-small { width: 60px; padding: 4px 6px; border: 1px solid #ccc;
+            border-radius: 4px; text-align: center; font-size: 0.95rem; }
+        .btn-remove { background: none; border: none; color: #c0392b; cursor: pointer;
+            font-size: 0.9rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; }
+        .btn-remove:hover { background: #fdecea; }
+        .btn-update { background: none; border: 1px solid #7594b1; color: #7594b1;
+            cursor: pointer; font-size: 0.85rem; padding: 4px 10px; border-radius: 4px; font-family: inherit; }
+        .btn-update:hover { background: #7594b1; color: white; }
+        .cart-total-row { font-weight: 800; font-size: 1.1rem; background: #f5f6f7; }
+        .cart-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+        .btn-checkout { background: #7594b1; color: white; padding: 14px 28px;
+            border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 700;
+            cursor: pointer; font-family: inherit; text-decoration: none; }
+        .btn-checkout:hover { background: #5a7a98; }
+        .btn-clear { background: none; border: 2px solid #c0392b; color: #c0392b;
+            padding: 12px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 700;
+            cursor: pointer; font-family: inherit; }
+        .btn-clear:hover { background: #c0392b; color: white; }
+        .btn-continue { color: #7594b1; font-weight: 700; text-decoration: underline;
+            padding: 14px 0; font-size: 0.95rem; }
+        .vat-note { color: #888; font-size: 0.85rem; margin-top: 8px; }
+        .messages-wrap { margin-bottom: 16px; }
+        .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; font-weight: 600; }
+        .msg-success { background: #d4edda; color: #155724; }
+        .msg-error { background: #f8d7da; color: #721c24; }
+        .msg-info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body class="catalog-body">
+    {% include 'white_catalog/partials/catalog_header.html' %}
+
+    <main class="catalog-main" id="main-content">
+        <div class="cart-page">
+            <nav class="catalog-breadcrumb" aria-label="ניווט">
+                <a href="{% url 'white_catalog:home' %}">דף הבית</a>
+                <span class="separator">/</span>
+                <span class="current">סל הזמנות</span>
+            </nav>
+
+            <h1>סל הזמנות</h1>
+
+            {% if messages %}
+                <div class="messages-wrap">
+                    {% for message in messages %}
+                        <div class="msg msg-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if cart and cart.items.exists %}
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>מוצר</th>
+                            <th>גרסה</th>
+                            <th>מידה</th>
+                            <th>מארז</th>
+                            <th>מחיר למארז</th>
+                            <th>כמות</th>
+                            <th>סה"כ</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in cart.items.all %}
+                        <tr>
+                            <td><strong>{{ item.product.name }}</strong></td>
+                            <td>{{ item.variant.name }}</td>
+                            <td>{{ item.variant_size.size_name }}</td>
+                            <td>{{ item.pack_type.name }}</td>
+                            <td>₪{{ item.price_at_add }}</td>
+                            <td>
+                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline-flex;gap:6px;align-items:center;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <input type="hidden" name="action" value="update">
+                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small">
+                                    <button type="submit" class="btn-update">עדכן</button>
+                                </form>
+                            </td>
+                            <td><strong>₪{{ item.get_line_total }}</strong></td>
+                            <td>
+                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <input type="hidden" name="action" value="remove">
+                                    <button type="submit" class="btn-remove">✕ הסר</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="cart-total-row">
+                            <td colspan="6" style="text-align:left;">סה"כ (לא כולל מע"מ):</td>
+                            <td colspan="2">₪{{ cart.get_total }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="vat-note">* המחירים אינם כוללים מע"מ</p>
+
+                <div class="cart-actions">
+                    <a href="{% url 'white_catalog:checkout' %}" class="btn-checkout">המשך להזמנה ←</a>
+                    <form method="post" action="{% url 'white_catalog:cart_clear' %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-clear" onclick="return confirm('לרוקן את הסל?')">רוקן סל</button>
+                    </form>
+                    <a href="{% url 'white_catalog:home' %}" class="btn-continue">← המשך לקנות</a>
+                </div>
+            {% else %}
+                <div class="cart-empty">
+                    <p style="font-size:3rem;">🛒</p>
+                    <p style="font-size:1.2rem;">הסל שלך ריק</p>
+                    <a href="{% url 'white_catalog:home' %}">חזור לקטלוג</a>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    {% include 'white_catalog/partials/catalog_footer.html' %}
+</body>
+</html>

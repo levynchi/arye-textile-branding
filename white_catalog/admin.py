@@ -1,14 +1,19 @@
 from django.contrib import admin
 from django import forms
 from django.utils.html import mark_safe
-from .models import WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice, WhiteCatalogUser, WhiteCatalogUserActivity
+from .models import (
+    WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice,
+    WhiteCatalogUser, WhiteCatalogUserActivity,
+    WhitePackType, WhiteProductVariant, WhiteVariantSize, WhiteVariantPackPrice,
+    WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
+)
 
 
 class WhiteSubcategoryInline(admin.TabularInline):
 	"""Inline admin for WhiteSubcategory within WhiteCategory."""
 	model = WhiteSubcategory
 	extra = 1
-	fields = ("name", "description", "image", "order", "slug")
+	fields = ("name", "description", "image", "order", "slug", "is_orderable")
 	prepopulated_fields = {"slug": ("name",)}
 
 
@@ -78,6 +83,14 @@ class WhiteCategoryAdmin(admin.ModelAdmin):
 	)
 
 
+class WhiteProductVariantInline(admin.TabularInline):
+	"""Inline admin for WhiteProductVariant within WhiteSubcategory."""
+	model = WhiteProductVariant
+	extra = 1
+	fields = ("name", "description", "is_active", "order")
+	show_change_link = True
+
+
 @admin.register(WhiteSubcategory)
 class WhiteSubcategoryAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteSubcategory model."""
@@ -87,8 +100,7 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 	search_fields = ("name", "description", "category__name")
 	prepopulated_fields = {"slug": ("name",)}
 	readonly_fields = ("created", "updated")
-	inlines = [WhiteSubcategoryPriceInline, WhiteSubcategoryImageInline]
-	
+
 	class Media:
 		js = (
 			'https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/tinymce.min.js',
@@ -98,11 +110,13 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 			'all': ('https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/skins/ui/oxide/skin.rtl.min.css',)
 		}
 	
+	inlines = [WhiteSubcategoryPriceInline, WhiteSubcategoryImageInline, WhiteProductVariantInline]
+
 	fieldsets = (
 		(None, {
-			"fields": ("category", "name", "slug", "description", "image", "order")
+			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable")
 		}),
-		("מחירים", {
+		("מחירים (למוצרים ללא גרסאות)", {
 			"fields": ("unit_price", "online_price"),
 		}),
 		("פרטים נוספים", {
@@ -223,8 +237,113 @@ class WhiteCatalogUserActivityAdmin(admin.ModelAdmin):
 	def has_add_permission(self, request):
 		"""Prevent manual addition of activity logs."""
 		return False
-	
+
 	def has_change_permission(self, request, obj=None):
 		"""Prevent editing of activity logs."""
 		return False
+
+
+# ---------------------------------------------------------------------------
+# Ordering system admin
+# ---------------------------------------------------------------------------
+
+@admin.register(WhitePackType)
+class WhitePackTypeAdmin(admin.ModelAdmin):
+	list_display = ("name", "quantity", "order", "is_active")
+	list_editable = ("order", "is_active")
+	search_fields = ("name",)
+
+
+class WhiteVariantPackPriceInline(admin.TabularInline):
+	model = WhiteVariantPackPrice
+	extra = 1
+	fields = ("pack_type", "price")
+
+
+class WhiteVariantSizeInline(admin.TabularInline):
+	model = WhiteVariantSize
+	extra = 1
+	fields = ("size_name", "order")
+
+
+@admin.register(WhiteProductVariant)
+class WhiteProductVariantAdmin(admin.ModelAdmin):
+	list_display = ("product", "name", "is_active", "order")
+	list_editable = ("is_active", "order")
+	list_filter = ("product", "is_active")
+	search_fields = ("name", "product__name")
+	inlines = [WhiteVariantSizeInline]
+
+
+@admin.register(WhiteVariantSize)
+class WhiteVariantSizeAdmin(admin.ModelAdmin):
+	list_display = ("variant", "size_name", "order")
+	list_editable = ("order",)
+	list_filter = ("variant__product",)
+	search_fields = ("size_name", "variant__name", "variant__product__name")
+	inlines = [WhiteVariantPackPriceInline]
+
+
+class WhiteCartItemInline(admin.TabularInline):
+	model = WhiteCartItem
+	extra = 0
+	readonly_fields = ("product", "variant", "variant_size", "pack_type", "quantity", "price_at_add", "get_line_total")
+	fields = ("product", "variant", "variant_size", "pack_type", "quantity", "price_at_add", "get_line_total")
+	can_delete = False
+
+	def get_line_total(self, obj):
+		return f"₪{obj.get_line_total()}"
+	get_line_total.short_description = "סה\"כ"
+
+	def has_add_permission(self, request, obj=None):
+		return False
+
+
+@admin.register(WhiteCart)
+class WhiteCartAdmin(admin.ModelAdmin):
+	list_display = ("id", "user", "status", "get_item_count", "get_total", "created", "updated")
+	list_filter = ("status", "created")
+	search_fields = ("user__company_name", "user__username")
+	readonly_fields = ("user", "status", "created", "updated")
+	inlines = [WhiteCartItemInline]
+
+	def get_total(self, obj):
+		return f"₪{obj.get_total()}"
+	get_total.short_description = "סה\"כ"
+
+	def has_add_permission(self, request):
+		return False
+
+
+class WhiteOrderItemInline(admin.TabularInline):
+	model = WhiteOrderItem
+	extra = 0
+	readonly_fields = ("product_name", "variant_name", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
+	fields = ("product_name", "variant_name", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
+	can_delete = False
+
+	def get_line_total(self, obj):
+		return f"₪{obj.get_line_total()}"
+	get_line_total.short_description = "סה\"כ"
+
+	def has_add_permission(self, request, obj=None):
+		return False
+
+
+@admin.register(WhiteOrder)
+class WhiteOrderAdmin(admin.ModelAdmin):
+	list_display = ("order_number", "user", "status", "total_amount", "created", "updated")
+	list_filter = ("status", "created")
+	search_fields = ("order_number", "user__company_name", "user__username")
+	readonly_fields = ("order_number", "user", "cart", "total_amount", "created", "updated")
+	inlines = [WhiteOrderItemInline]
+
+	fieldsets = (
+		("פרטי הזמנה", {
+			"fields": ("order_number", "user", "status", "total_amount", "created", "updated")
+		}),
+		("הערות", {
+			"fields": ("notes", "admin_notes"),
+		}),
+	)
 

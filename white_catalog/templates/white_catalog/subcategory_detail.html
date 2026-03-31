@@ -100,6 +100,56 @@
             color: #333;
             margin-bottom: 10px;
         }
+
+        /* ---- Ordering widget ---- */
+        .ordering-widget { margin: 20px 0; }
+        .variant-selector-wrap { margin-bottom: 16px; }
+        .variant-label { font-weight: 700; font-size: 1rem; display: block; margin-bottom: 6px; color: #333; }
+        .variant-select {
+            width: 100%; max-width: 280px; padding: 8px 12px;
+            border: 2px solid #7594b1; border-radius: 6px;
+            font-size: 1rem; font-family: inherit; background: #fff; cursor: pointer;
+        }
+        .order-table {
+            width: 100%; border-collapse: collapse;
+            background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px; overflow: hidden; margin-bottom: 16px;
+        }
+        .order-table thead { background: #7594b1; color: white; }
+        .order-table th { padding: 10px 12px; text-align: center; font-size: 0.95rem; }
+        .order-table th.col-size { text-align: right; }
+        .order-table td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: center; vertical-align: middle; }
+        .order-table tbody tr:last-child td { border-bottom: none; }
+        .order-table tbody tr:hover { background: #f5f6f7; }
+        .col-size { text-align: right !important; min-width: 70px; }
+        .col-qty { min-width: 110px; }
+        .col-na { color: #aaa; }
+        .qty-price { font-size: 0.85rem; color: #7594b1; font-weight: 700; margin-bottom: 4px; }
+        .qty-input {
+            width: 70px; padding: 5px 8px; border: 1px solid #ccc;
+            border-radius: 4px; text-align: center; font-size: 1rem;
+        }
+        .qty-input:focus { border-color: #7594b1; outline: none; box-shadow: 0 0 0 2px rgba(117,148,177,0.2); }
+        .order-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+        .btn-add-to-cart {
+            background: #7594b1; color: white; border: none;
+            padding: 12px 24px; border-radius: 6px; font-size: 1rem;
+            font-weight: 700; cursor: pointer; font-family: inherit;
+            transition: background 0.2s;
+        }
+        .btn-add-to-cart:hover { background: #5a7a98; }
+        .btn-view-cart {
+            padding: 11px 20px; border: 2px solid #7594b1; border-radius: 6px;
+            color: #7594b1; font-weight: 700; text-decoration: none; font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+        .btn-view-cart:hover { background: #7594b1; color: white; }
+        .login-to-order { margin: 16px 0; color: #666; font-size: 1rem; }
+        .login-to-order a { color: #7594b1; font-weight: 700; text-decoration: underline; }
+        .order-message { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-weight: 600; }
+        .order-message-success { background: #d4edda; color: #155724; }
+        .order-message-error { background: #f8d7da; color: #721c24; }
+        .order-message-info { background: #d1ecf1; color: #0c5460; }
     </style>
 </head>
 <body class="catalog-body">
@@ -169,47 +219,165 @@
                 <!-- Subcategory Info (Left Side) -->
                 <div class="product-info">
                     <h1 class="product-title">{{ subcategory.name }}</h1>
-                    
-                    {% if request.session.white_catalog_user_id %}
-                        {% if subcategory.has_size_prices %}
-                            <!-- Size-based pricing table -->
-                            <div class="product-price-section">
-                                <h3 class="size-price-section-title">מחירון לפי מידות</h3>
-                                <table class="size-price-table">
-                                    <thead>
-                                        <tr>
-                                            <th class="size-col">מידה</th>
-                                            <th class="price-col">מחיר סיטונאי (לא כולל מע"מ)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for size_price in subcategory.size_prices.all %}
-                                        <tr>
-                                            <td class="size-col">{{ size_price.size_name }}</td>
-                                            <td class="price-col">₪{{ size_price.price }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        {% elif subcategory.unit_price or subcategory.online_price %}
-                            <!-- Single unit price -->
-                            <div class="product-price-section">
-                                {% if subcategory.unit_price %}
-                                    <div class="product-price">
-                                        <span class="price-label">מחיר סיטונאי:</span>
-                                        <span class="price-value">₪{{ subcategory.unit_price }}</span>
-                                        <span class="price-vat-note">(לא כולל מע"מ)</span>
+
+                    {% if catalog_user %}
+                        {% if subcategory.is_orderable %}
+                            <!-- ===== Ordering Widget ===== -->
+                            <div class="ordering-widget">
+                                {% for message in messages %}
+                                    <div class="order-message order-message-{{ message.tags }}">{{ message }}</div>
+                                {% endfor %}
+
+                                <!-- Variant selector -->
+                                <div class="variant-selector-wrap">
+                                    <label for="variantSelect" class="variant-label">בחר סוג בד:</label>
+                                    <select id="variantSelect" class="variant-select" onchange="renderOrderTable()">
+                                        <option value="">— בחר —</option>
+                                    </select>
+                                </div>
+
+                                <!-- Order table (rendered by JS) -->
+                                <form id="orderForm" method="post" action="{% url 'white_catalog:cart_add' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <div id="orderTableWrap" style="display:none;">
+                                        <table class="order-table">
+                                            <thead id="orderTableHead"></thead>
+                                            <tbody id="orderTableBody"></tbody>
+                                        </table>
+                                        <div class="order-actions">
+                                            <button type="submit" class="btn-add-to-cart">הוסף לסל 🛒</button>
+                                            <a href="{% url 'white_catalog:cart' %}" class="btn-view-cart">צפה בסל ({{ cart_count }})</a>
+                                        </div>
                                     </div>
-                                {% endif %}
-                                {% if subcategory.online_price %}
-                                    <div class="product-price" style="margin-top: 10px;">
-                                        <span class="price-label">מחיר לצרכן און ליין:</span>
-                                        <span class="price-value">₪{{ subcategory.online_price }}</span>
-                                    </div>
-                                {% endif %}
+                                </form>
                             </div>
+
+                            {{ variants_json|json_script:"variants-data" }}
+                            <script>
+                            (function() {
+                                const variants = JSON.parse(document.getElementById('variants-data').textContent);
+                                const select = document.getElementById('variantSelect');
+
+                                // Populate dropdown
+                                variants.forEach(function(v) {
+                                    const opt = document.createElement('option');
+                                    opt.value = v.id;
+                                    opt.textContent = v.name;
+                                    select.appendChild(opt);
+                                });
+
+                                // Auto-select first variant if only one
+                                if (variants.length === 1) {
+                                    select.value = variants[0].id;
+                                    renderOrderTable();
+                                }
+
+                                window.renderOrderTable = function() {
+                                    const variantId = parseInt(select.value);
+                                    const wrap = document.getElementById('orderTableWrap');
+                                    if (!variantId) { wrap.style.display = 'none'; return; }
+
+                                    const variant = variants.find(function(v) { return v.id === variantId; });
+                                    if (!variant || !variant.sizes.length) { wrap.style.display = 'none'; return; }
+
+                                    // Collect all pack types from this variant's sizes
+                                    const packMap = {};
+                                    variant.sizes.forEach(function(s) {
+                                        s.pack_prices.forEach(function(pp) {
+                                            packMap[pp.pack_id] = pp.pack_name;
+                                        });
+                                    });
+                                    const packIds = Object.keys(packMap);
+
+                                    // Build header
+                                    const thead = document.getElementById('orderTableHead');
+                                    thead.innerHTML = '';
+                                    const headerRow = document.createElement('tr');
+                                    headerRow.innerHTML = '<th class="col-size">מידה</th>';
+                                    packIds.forEach(function(pid) {
+                                        headerRow.innerHTML += '<th class="col-pack">' + packMap[pid] + '<br><small class="price-hint" id="price-hint-' + pid + '"></small></th>';
+                                    });
+                                    thead.appendChild(headerRow);
+
+                                    // Build body
+                                    const tbody = document.getElementById('orderTableBody');
+                                    tbody.innerHTML = '';
+
+                                    // Clear old inputs from form (except csrf + next)
+                                    const form = document.getElementById('orderForm');
+                                    Array.from(form.querySelectorAll('input[name^="qty_"]')).forEach(function(el) { el.remove(); });
+
+                                    variant.sizes.forEach(function(size) {
+                                        const priceByPack = {};
+                                        size.pack_prices.forEach(function(pp) { priceByPack[pp.pack_id] = pp; });
+
+                                        const row = document.createElement('tr');
+                                        row.innerHTML = '<td class="col-size"><strong>' + size.name + '</strong></td>';
+                                        packIds.forEach(function(pid) {
+                                            const pp = priceByPack[pid];
+                                            if (pp) {
+                                                row.innerHTML += '<td class="col-qty">' +
+                                                    '<div class="qty-price">₪' + pp.price + '</div>' +
+                                                    '<input type="number" name="qty_' + size.id + '_' + pid + '" ' +
+                                                    'min="0" value="0" class="qty-input" placeholder="0">' +
+                                                    '</td>';
+                                            } else {
+                                                row.innerHTML += '<td class="col-qty col-na">—</td>';
+                                            }
+                                        });
+                                        tbody.appendChild(row);
+                                    });
+
+                                    wrap.style.display = 'block';
+                                };
+                            })();
+                            </script>
+
+                        {% else %}
+                            <!-- Old pricing display for non-orderable products -->
+                            {% if subcategory.has_size_prices %}
+                                <div class="product-price-section">
+                                    <h3 class="size-price-section-title">מחירון לפי מידות</h3>
+                                    <table class="size-price-table">
+                                        <thead>
+                                            <tr>
+                                                <th class="size-col">מידה</th>
+                                                <th class="price-col">מחיר סיטונאי (לא כולל מע"מ)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for size_price in subcategory.size_prices.all %}
+                                            <tr>
+                                                <td class="size-col">{{ size_price.size_name }}</td>
+                                                <td class="price-col">₪{{ size_price.price }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% elif subcategory.unit_price or subcategory.online_price %}
+                                <div class="product-price-section">
+                                    {% if subcategory.unit_price %}
+                                        <div class="product-price">
+                                            <span class="price-label">מחיר סיטונאי:</span>
+                                            <span class="price-value">₪{{ subcategory.unit_price }}</span>
+                                            <span class="price-vat-note">(לא כולל מע"מ)</span>
+                                        </div>
+                                    {% endif %}
+                                    {% if subcategory.online_price %}
+                                        <div class="product-price" style="margin-top: 10px;">
+                                            <span class="price-label">מחיר לצרכן און ליין:</span>
+                                            <span class="price-value">₪{{ subcategory.online_price }}</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         {% endif %}
+                    {% else %}
+                        <p class="login-to-order">
+                            <a href="{% url 'white_catalog:login' %}?next={{ request.path }}">התחבר</a> כדי לראות מחירים ולהזמין
+                        </p>
                     {% endif %}
                     
                     {% if subcategory.description %}

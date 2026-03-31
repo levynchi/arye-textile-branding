@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ההזמנות שלי - קטלוג אריה טקסטיל</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
+    <style>
+        .orders-page { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+        .orders-page h1 { font-size: 1.8rem; color: #333; margin-bottom: 20px; }
+        .orders-table { width: 100%; border-collapse: collapse; background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        .orders-table thead { background: #7594b1; color: white; }
+        .orders-table th { padding: 12px 14px; text-align: right; }
+        .orders-table td { padding: 12px 14px; border-bottom: 1px solid #eee; }
+        .orders-table tbody tr:last-child td { border-bottom: none; }
+        .orders-table tbody tr:hover { background: #f9f9f9; }
+        .status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 700; }
+        .status-pending   { background: #fff3cd; color: #856404; }
+        .status-confirmed { background: #d1ecf1; color: #0c5460; }
+        .status-processing{ background: #cce5ff; color: #004085; }
+        .status-shipped   { background: #d4edda; color: #155724; }
+        .status-delivered { background: #d4edda; color: #155724; }
+        .status-cancelled { background: #f8d7da; color: #721c24; }
+        .btn-view { color: #7594b1; font-weight: 700; text-decoration: underline; font-size: 0.9rem; }
+        .no-orders { text-align: center; padding: 60px; color: #666; }
+        .order-items-preview { font-size: 0.85rem; color: #666; margin-top: 4px; }
+    </style>
+</head>
+<body class="catalog-body">
+    {% include 'white_catalog/partials/catalog_header.html' %}
+
+    <main class="catalog-main" id="main-content">
+        <div class="orders-page">
+            <nav class="catalog-breadcrumb" aria-label="ניווט">
+                <a href="{% url 'white_catalog:home' %}">דף הבית</a>
+                <span class="separator">/</span>
+                <span class="current">ההזמנות שלי</span>
+            </nav>
+
+            <h1>ההזמנות שלי</h1>
+
+            {% if orders %}
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>מספר הזמנה</th>
+                            <th>תאריך</th>
+                            <th>מוצרים</th>
+                            <th>סה"כ</th>
+                            <th>סטטוס</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td><strong>{{ order.order_number }}</strong></td>
+                            <td>{{ order.created|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {{ order.items.count }} פריטים
+                                <div class="order-items-preview">
+                                    {% for item in order.items.all|slice:":2" %}
+                                        {{ item.product_name }} ({{ item.variant_name }}){% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                    {% if order.items.count > 2 %}...{% endif %}
+                                </div>
+                            </td>
+                            <td>₪{{ order.total_amount }}</td>
+                            <td>
+                                <span class="status-badge status-{{ order.status }}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'white_catalog:order_confirm' order.order_number %}" class="btn-view">צפה</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="no-orders">
+                    <p style="font-size:3rem;">📋</p>
+                    <p style="font-size:1.2rem;">אין הזמנות עדיין</p>
+                    <a href="{% url 'white_catalog:home' %}" style="color:#7594b1;font-weight:700;">עבור לקטלוג</a>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    {% include 'white_catalog/partials/catalog_footer.html' %}
+</body>
+</html>

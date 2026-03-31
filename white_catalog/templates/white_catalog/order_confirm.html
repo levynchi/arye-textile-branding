@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הזמנה התקבלה - קטלוג אריה טקסטיל</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
+    <style>
+        .confirm-page { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .confirm-banner { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px;
+            padding: 24px; text-align: center; margin-bottom: 24px; }
+        .confirm-banner h1 { color: #155724; font-size: 1.8rem; margin-bottom: 8px; }
+        .confirm-banner .order-num { font-size: 1.3rem; color: #155724; font-weight: 800; }
+        .confirm-box { background: white; padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .confirm-box h2 { font-size: 1.1rem; color: #555; margin-bottom: 12px; }
+        .order-items-table { width: 100%; border-collapse: collapse; }
+        .order-items-table th { background: #7594b1; color: white; padding: 10px 14px; text-align: right; }
+        .order-items-table td { padding: 10px 14px; border-bottom: 1px solid #eee; }
+        .order-items-table tbody tr:last-child td { border-bottom: none; }
+        .total-row { font-weight: 800; background: #f5f6f7; }
+        .confirm-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+        .btn-orders { background: #7594b1; color: white; padding: 12px 24px; border-radius: 6px;
+            text-decoration: none; font-weight: 700; }
+        .btn-home { color: #7594b1; font-weight: 700; text-decoration: underline; padding: 12px 0; }
+        .notes-box { background: #fff8e1; padding: 14px; border-radius: 6px; border-right: 4px solid #f9a825; }
+        .vat-note { color: #888; font-size: 0.85rem; margin-top: 8px; }
+    </style>
+</head>
+<body class="catalog-body">
+    {% include 'white_catalog/partials/catalog_header.html' %}
+
+    <main class="catalog-main" id="main-content">
+        <div class="confirm-page">
+            <div class="confirm-banner">
+                <div style="font-size:3rem;">✅</div>
+                <h1>ההזמנה התקבלה בהצלחה!</h1>
+                <div class="order-num">מספר הזמנה: {{ order.order_number }}</div>
+                <div style="margin-top:8px;color:#155724;">ניצור איתך קשר בהקדם</div>
+            </div>
+
+            <div class="confirm-box">
+                <h2>פרטי הזמנה</h2>
+                <table class="order-items-table">
+                    <thead>
+                        <tr>
+                            <th>מוצר</th>
+                            <th>גרסה</th>
+                            <th>מידה</th>
+                            <th>מארז</th>
+                            <th>מחיר</th>
+                            <th>כמות</th>
+                            <th>סה"כ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in order.items.all %}
+                        <tr>
+                            <td>{{ item.product_name }}</td>
+                            <td>{{ item.variant_name }}</td>
+                            <td>{{ item.size_name }}</td>
+                            <td>{{ item.pack_type_name }}</td>
+                            <td>₪{{ item.unit_price }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td><strong>₪{{ item.get_line_total }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="total-row">
+                            <td colspan="6">סה"כ (לא כולל מע"מ):</td>
+                            <td>₪{{ order.total_amount }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="vat-note">* המחירים אינם כוללים מע"מ</p>
+            </div>
+
+            {% if order.notes %}
+            <div class="confirm-box">
+                <h2>הערות שנשלחו</h2>
+                <div class="notes-box">{{ order.notes }}</div>
+            </div>
+            {% endif %}
+
+            <div class="confirm-actions">
+                <a href="{% url 'white_catalog:order_list' %}" class="btn-orders">ההזמנות שלי</a>
+                <a href="{% url 'white_catalog:home' %}" class="btn-home">← חזור לקטלוג</a>
+            </div>
+        </div>
+    </main>
+
+    {% include 'white_catalog/partials/catalog_footer.html' %}
+</body>
+</html>
