@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteCatalogUser, WhiteCatalogUserActivity,
-    WhiteFabricType, WhiteProductVariant, WhiteVariantSize, WhiteVariantPackPrice, WhitePackType,
+    WhiteFabricType, WhiteProductVariant, WhiteVariantPackPrice, WhitePackType,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
 )
 from .middleware import get_client_ip
@@ -91,30 +91,35 @@ def _subcategory_detail_context(request, subcategory, category=None):
     """Build context for subcategory detail views."""
     catalog_user = get_current_catalog_user(request)
 
-    # Build variants JSON for the ordering widget
+    # Build variants JSON grouped by fabric_type for the ordering widget
     variants_data = []
     if subcategory.is_orderable and catalog_user:
-        pack_types = list(WhitePackType.objects.filter(is_active=True).values("id", "name", "quantity"))
-        for variant in subcategory.variants.filter(is_active=True).prefetch_related("sizes__pack_prices__pack_type"):
-            sizes_data = []
-            for size in variant.sizes.all():
-                pack_prices_data = []
-                for pp in size.pack_prices.select_related("pack_type").all():
-                    pack_prices_data.append({
-                        "pack_id": pp.pack_type_id,
-                        "pack_name": pp.pack_type.name,
-                        "price": str(pp.price),
-                    })
-                sizes_data.append({
-                    "id": size.id,
-                    "name": size.size_name,
-                    "pack_prices": pack_prices_data,
-                })
-            variants_data.append({
-                "id": variant.id,
-                "name": variant.name,
-                "sizes": sizes_data,
+        fabric_map = {}  # fabric_type_id -> {id, name, sizes[]}
+        for variant in (subcategory.variants
+                        .filter(is_active=True)
+                        .select_related("fabric_type", "size_type")
+                        .prefetch_related("pack_prices__pack_type")):
+            fid = variant.fabric_type_id
+            if fid not in fabric_map:
+                fabric_map[fid] = {
+                    "fabric_id": fid,
+                    "name": variant.fabric_type.name,
+                    "sizes": [],
+                }
+            pack_prices_data = [
+                {
+                    "pack_id": pp.pack_type_id,
+                    "pack_name": pp.pack_type.name,
+                    "price": str(pp.price),
+                }
+                for pp in variant.pack_prices.all()
+            ]
+            fabric_map[fid]["sizes"].append({
+                "variant_id": variant.id,
+                "size_name": variant.size_type.name,
+                "pack_prices": pack_prices_data,
             })
+        variants_data = list(fabric_map.values())
 
     return {
         **_nav_context(),
@@ -219,11 +224,11 @@ def cart_add(request):
 
     added = 0
     for key, value in request.POST.items():
-        # Field names: qty_{size_id}_{pack_type_id}
+        # Field names: qty_{variant_id}_{pack_type_id}
         if not key.startswith("qty_"):
             continue
         try:
-            _, size_id, pack_id = key.split("_")
+            _, variant_id, pack_id = key.split("_")
             quantity = int(value)
         except (ValueError, AttributeError):
             continue
@@ -232,22 +237,21 @@ def cart_add(request):
             continue
 
         try:
-            variant_size = WhiteVariantSize.objects.select_related("variant__product").get(pk=size_id)
+            variant = WhiteProductVariant.objects.select_related("product").get(pk=variant_id, is_active=True)
             pack_type = WhitePackType.objects.get(pk=pack_id, is_active=True)
-            price_obj = WhiteVariantPackPrice.objects.get(variant_size=variant_size, pack_type=pack_type)
-        except (WhiteVariantSize.DoesNotExist, WhitePackType.DoesNotExist, WhiteVariantPackPrice.DoesNotExist):
+            price_obj = WhiteVariantPackPrice.objects.get(variant=variant, pack_type=pack_type)
+        except (WhiteProductVariant.DoesNotExist, WhitePackType.DoesNotExist, WhiteVariantPackPrice.DoesNotExist):
             continue
 
         if quantity == 0:
-            WhiteCartItem.objects.filter(cart=cart, variant_size=variant_size, pack_type=pack_type).delete()
+            WhiteCartItem.objects.filter(cart=cart, variant=variant, pack_type=pack_type).delete()
         else:
             WhiteCartItem.objects.update_or_create(
                 cart=cart,
-                variant_size=variant_size,
+                variant=variant,
                 pack_type=pack_type,
                 defaults={
-                    "product": variant_size.variant.product,
-                    "variant": variant_size.variant,
+                    "product": variant.product,
                     "quantity": quantity,
                     "price_at_add": price_obj.price,
                 }

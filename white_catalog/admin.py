@@ -1,10 +1,12 @@
 from django.contrib import admin
 from django import forms
 from django.utils.html import mark_safe
+import nested_admin
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice,
     WhiteCatalogUser, WhiteCatalogUserActivity,
-    WhiteFabricType, WhitePackType, WhiteProductVariant, WhiteVariantSize, WhiteVariantPackPrice,
+    WhiteFabricType, WhiteSizeType, WhitePackType,
+    WhiteProductVariant, WhiteVariantPackPrice,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
 )
 
@@ -83,16 +85,25 @@ class WhiteCategoryAdmin(admin.ModelAdmin):
 	)
 
 
-class WhiteProductVariantInline(admin.TabularInline):
-	"""Inline admin for WhiteProductVariant within WhiteSubcategory."""
+class WhiteVariantPackPriceNestedInline(nested_admin.NestedTabularInline):
+	model = WhiteVariantPackPrice
+	extra = 0
+	fields = ("pack_type", "price")
+	verbose_name = "מחיר מארז"
+	verbose_name_plural = "מחירי מארזים"
+
+
+class WhiteProductVariantInline(nested_admin.NestedTabularInline):
+	"""Inline: one row = fabric type + size. Pack prices nested inside."""
 	model = WhiteProductVariant
 	extra = 1
-	fields = ("fabric_type", "is_active", "order")
+	fields = ("fabric_type", "size_type", "is_active", "order")
+	inlines = [WhiteVariantPackPriceNestedInline]
 	show_change_link = True
 
 
 @admin.register(WhiteSubcategory)
-class WhiteSubcategoryAdmin(admin.ModelAdmin):
+class WhiteSubcategoryAdmin(nested_admin.NestedModelAdmin):
 	"""Admin interface for WhiteSubcategory model."""
 	list_display = ("name", "category", "unit_price", "online_price", "order", "created", "updated")
 	list_editable = ("order",)
@@ -254,23 +265,18 @@ class WhiteFabricTypeAdmin(admin.ModelAdmin):
 	search_fields = ("name", "description")
 
 
+@admin.register(WhiteSizeType)
+class WhiteSizeTypeAdmin(admin.ModelAdmin):
+	list_display = ("name", "order", "is_active")
+	list_editable = ("order", "is_active")
+	search_fields = ("name",)
+
+
 @admin.register(WhitePackType)
 class WhitePackTypeAdmin(admin.ModelAdmin):
 	list_display = ("name", "quantity", "order", "is_active")
 	list_editable = ("order", "is_active")
 	search_fields = ("name",)
-
-
-class WhiteVariantPackPriceInline(admin.TabularInline):
-	model = WhiteVariantPackPrice
-	extra = 1
-	fields = ("pack_type", "price")
-
-
-class WhiteVariantSizeInline(admin.TabularInline):
-	model = WhiteVariantSize
-	extra = 1
-	fields = ("size_name", "order")
 
 
 @admin.register(WhiteProductVariant)
@@ -279,23 +285,15 @@ class WhiteProductVariantAdmin(admin.ModelAdmin):
 	list_editable = ("is_active", "order")
 	list_filter = ("fabric_type", "is_active")
 	search_fields = ("fabric_type__name", "product__name")
-	inlines = [WhiteVariantSizeInline]
 
 
-@admin.register(WhiteVariantSize)
-class WhiteVariantSizeAdmin(admin.ModelAdmin):
-	list_display = ("variant", "size_name", "order")
-	list_editable = ("order",)
-	list_filter = ("variant__product",)
-	search_fields = ("size_name", "variant__name", "variant__product__name")
-	inlines = [WhiteVariantPackPriceInline]
 
 
 class WhiteCartItemInline(admin.TabularInline):
 	model = WhiteCartItem
 	extra = 0
-	readonly_fields = ("product", "variant", "variant_size", "pack_type", "quantity", "price_at_add", "get_line_total")
-	fields = ("product", "variant", "variant_size", "pack_type", "quantity", "price_at_add", "get_line_total")
+	readonly_fields = ("product", "variant", "pack_type", "quantity", "price_at_add", "get_line_total")
+	fields = ("product", "variant", "pack_type", "quantity", "price_at_add", "get_line_total")
 	can_delete = False
 
 	def get_line_total(self, obj):

@@ -256,34 +256,34 @@
                             {{ variants_json|json_script:"variants-data" }}
                             <script>
                             (function() {
-                                const variants = JSON.parse(document.getElementById('variants-data').textContent);
+                                const fabrics = JSON.parse(document.getElementById('variants-data').textContent);
                                 const select = document.getElementById('variantSelect');
 
-                                // Populate dropdown
-                                variants.forEach(function(v) {
+                                // Populate dropdown with fabric types
+                                fabrics.forEach(function(f) {
                                     const opt = document.createElement('option');
-                                    opt.value = v.id;
-                                    opt.textContent = v.name;
+                                    opt.value = f.fabric_id;
+                                    opt.textContent = f.name;
                                     select.appendChild(opt);
                                 });
 
-                                // Auto-select first variant if only one
-                                if (variants.length === 1) {
-                                    select.value = variants[0].id;
+                                // Auto-select if only one fabric
+                                if (fabrics.length === 1) {
+                                    select.value = fabrics[0].fabric_id;
                                     renderOrderTable();
                                 }
 
                                 window.renderOrderTable = function() {
-                                    const variantId = parseInt(select.value);
+                                    const fabricId = parseInt(select.value);
                                     const wrap = document.getElementById('orderTableWrap');
-                                    if (!variantId) { wrap.style.display = 'none'; return; }
+                                    if (!fabricId) { wrap.style.display = 'none'; return; }
 
-                                    const variant = variants.find(function(v) { return v.id === variantId; });
-                                    if (!variant || !variant.sizes.length) { wrap.style.display = 'none'; return; }
+                                    const fabric = fabrics.find(function(f) { return f.fabric_id === fabricId; });
+                                    if (!fabric || !fabric.sizes.length) { wrap.style.display = 'none'; return; }
 
-                                    // Collect all pack types from this variant's sizes
+                                    // Collect all pack types from this fabric's sizes
                                     const packMap = {};
-                                    variant.sizes.forEach(function(s) {
+                                    fabric.sizes.forEach(function(s) {
                                         s.pack_prices.forEach(function(pp) {
                                             packMap[pp.pack_id] = pp.pack_name;
                                         });
@@ -296,7 +296,7 @@
                                     const headerRow = document.createElement('tr');
                                     headerRow.innerHTML = '<th class="col-size">מידה</th>';
                                     packIds.forEach(function(pid) {
-                                        headerRow.innerHTML += '<th class="col-pack">' + packMap[pid] + '<br><small class="price-hint" id="price-hint-' + pid + '"></small></th>';
+                                        headerRow.innerHTML += '<th class="col-pack">' + packMap[pid] + '</th>';
                                     });
                                     thead.appendChild(headerRow);
 
@@ -304,22 +304,18 @@
                                     const tbody = document.getElementById('orderTableBody');
                                     tbody.innerHTML = '';
 
-                                    // Clear old inputs from form (except csrf + next)
-                                    const form = document.getElementById('orderForm');
-                                    Array.from(form.querySelectorAll('input[name^="qty_"]')).forEach(function(el) { el.remove(); });
-
-                                    variant.sizes.forEach(function(size) {
+                                    fabric.sizes.forEach(function(size) {
                                         const priceByPack = {};
                                         size.pack_prices.forEach(function(pp) { priceByPack[pp.pack_id] = pp; });
 
                                         const row = document.createElement('tr');
-                                        row.innerHTML = '<td class="col-size"><strong>' + size.name + '</strong></td>';
+                                        row.innerHTML = '<td class="col-size"><strong>' + size.size_name + '</strong></td>';
                                         packIds.forEach(function(pid) {
                                             const pp = priceByPack[pid];
                                             if (pp) {
                                                 row.innerHTML += '<td class="col-qty">' +
                                                     '<div class="qty-price">₪' + pp.price + '</div>' +
-                                                    '<input type="number" name="qty_' + size.id + '_' + pid + '" ' +
+                                                    '<input type="number" name="qty_' + size.variant_id + '_' + pid + '" ' +
                                                     'min="0" value="0" class="qty-input" placeholder="0">' +
                                                     '</td>';
                                             } else {

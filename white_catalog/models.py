@@ -264,7 +264,7 @@ class WhiteFabricType(models.Model):
 
 
 class WhiteProductVariant(models.Model):
-	"""A fabric variant of a product — links a product to a global fabric type."""
+	"""One row = one combination of product + fabric type + size."""
 	product = models.ForeignKey(
 		WhiteSubcategory,
 		on_delete=models.CASCADE,
@@ -277,6 +277,12 @@ class WhiteProductVariant(models.Model):
 		related_name="product_variants",
 		verbose_name="סוג בד"
 	)
+	size_type = models.ForeignKey(
+		"WhiteSizeType",
+		on_delete=models.PROTECT,
+		related_name="product_variants",
+		verbose_name="מידה"
+	)
 	is_active = models.BooleanField("פעיל", default=True)
 	order = models.PositiveIntegerField("סדר תצוגה", default=0)
 	created = models.DateTimeField(auto_now_add=True)
@@ -284,50 +290,43 @@ class WhiteProductVariant(models.Model):
 
 	class Meta:
 		app_label = "white_catalog"
-		ordering = ("order", "fabric_type__name")
+		ordering = ("order", "fabric_type__name", "size_type__order")
 		verbose_name = "גרסת מוצר"
 		verbose_name_plural = "גרסאות מוצר"
-		unique_together = ("product", "fabric_type")
+		unique_together = ("product", "fabric_type", "size_type")
 
 	def __str__(self):
-		return f"{self.product.name} — {self.fabric_type.name}"
+		return f"{self.product.name} — {self.fabric_type.name} {self.size_type.name}"
 
 	@property
 	def name(self):
-		"""Convenience property so templates/views can still use variant.name."""
-		return self.fabric_type.name
+		return f"{self.fabric_type.name} {self.size_type.name}"
 
 
-class WhiteVariantSize(models.Model):
-	"""A size available for a specific variant — each variant has its own size list."""
-	variant = models.ForeignKey(
-		WhiteProductVariant,
-		on_delete=models.CASCADE,
-		related_name="sizes",
-		verbose_name="גרסה"
-	)
-	size_name = models.CharField("מידה", max_length=50, help_text="למשל: 0-3, 3-6, 6-12, 12-18, 18-24")
+class WhiteSizeType(models.Model):
+	"""Global catalog of sizes — defined once, reused across all variants."""
+	name = models.CharField("שם מידה", max_length=50, unique=True, help_text="למשל: 0-3, 3-6, 6-12, 12-18, 18-24")
 	order = models.PositiveIntegerField("סדר תצוגה", default=0)
+	is_active = models.BooleanField("פעיל", default=True)
 	created = models.DateTimeField(auto_now_add=True)
 
 	class Meta:
 		app_label = "white_catalog"
-		ordering = ("order", "id")
-		verbose_name = "מידה לגרסה"
-		verbose_name_plural = "מידות לגרסה"
-		unique_together = ("variant", "size_name")
+		ordering = ("order", "name")
+		verbose_name = "מידה"
+		verbose_name_plural = "מידות"
 
 	def __str__(self):
-		return f"{self.variant} — {self.size_name}"
+		return self.name
 
 
 class WhiteVariantPackPrice(models.Model):
-	"""Price for a specific size + pack-type combination on a variant."""
-	variant_size = models.ForeignKey(
-		WhiteVariantSize,
+	"""Price per pack-type for a specific variant (product + fabric + size)."""
+	variant = models.ForeignKey(
+		WhiteProductVariant,
 		on_delete=models.CASCADE,
 		related_name="pack_prices",
-		verbose_name="מידה"
+		verbose_name="גרסה"
 	)
 	pack_type = models.ForeignKey(
 		WhitePackType,
@@ -346,12 +345,12 @@ class WhiteVariantPackPrice(models.Model):
 
 	class Meta:
 		app_label = "white_catalog"
-		verbose_name = "מחיר מארז לפי מידה"
-		verbose_name_plural = "מחירי מארזים לפי מידה"
-		unique_together = ("variant_size", "pack_type")
+		verbose_name = "מחיר מארז"
+		verbose_name_plural = "מחירי מארזים"
+		unique_together = ("variant", "pack_type")
 
 	def __str__(self):
-		return f"{self.variant_size} | {self.pack_type} = ₪{self.price}"
+		return f"{self.variant} | {self.pack_type} = ₪{self.price}"
 
 
 class WhiteCart(models.Model):
@@ -392,11 +391,10 @@ class WhiteCart(models.Model):
 
 
 class WhiteCartItem(models.Model):
-	"""One line in the cart: variant + size + pack-type + quantity."""
+	"""One line in the cart: variant (product+fabric+size) + pack-type + quantity."""
 	cart = models.ForeignKey(WhiteCart, on_delete=models.CASCADE, related_name="items", verbose_name="עגלה")
 	product = models.ForeignKey(WhiteSubcategory, on_delete=models.CASCADE, related_name="cart_items", verbose_name="מוצר")
 	variant = models.ForeignKey(WhiteProductVariant, on_delete=models.CASCADE, related_name="cart_items", verbose_name="גרסה")
-	variant_size = models.ForeignKey(WhiteVariantSize, on_delete=models.CASCADE, related_name="cart_items", verbose_name="מידה")
 	pack_type = models.ForeignKey(WhitePackType, on_delete=models.CASCADE, related_name="cart_items", verbose_name="סוג מארז")
 	quantity = models.PositiveIntegerField("כמות מארזים", default=1)
 	price_at_add = models.DecimalField("מחיר בעת הוספה", max_digits=10, decimal_places=2)
@@ -407,12 +405,12 @@ class WhiteCartItem(models.Model):
 		app_label = "white_catalog"
 		verbose_name = "פריט בעגלה"
 		verbose_name_plural = "פריטים בעגלה"
-		unique_together = ("cart", "variant_size", "pack_type")
+		unique_together = ("cart", "variant", "pack_type")
 
 	def __str__(self):
 		return (
-			f"{self.product.name} | {self.variant.name} | "
-			f"{self.variant_size.size_name} | {self.pack_type.name} x{self.quantity}"
+			f"{self.product.name} | {self.variant.fabric_type.name} | "
+			f"{self.variant.size_type.name} | {self.pack_type.name} x{self.quantity}"
 		)
 
 	def get_line_total(self):
