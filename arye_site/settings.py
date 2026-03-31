@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tinymce',
-    'nested_admin',
     'main',  # main single-page app
     'catalog.apps.CatalogConfig',  # product catalog app
     'white_catalog',  # white catalog app

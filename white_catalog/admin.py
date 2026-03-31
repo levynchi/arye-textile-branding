@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django import forms
 from django.utils.html import mark_safe
-import nested_admin
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice,
     WhiteCatalogUser, WhiteCatalogUserActivity,
@@ -19,8 +18,7 @@ class WhiteSubcategoryInline(admin.TabularInline):
 	prepopulated_fields = {"slug": ("name",)}
 
 
-class WhiteSubcategoryImageInline(nested_admin.NestedTabularInline):
-	"""Inline admin for WhiteSubcategoryImage within WhiteSubcategory."""
+class WhiteSubcategoryImageInline(admin.TabularInline):
 	model = WhiteSubcategoryImage
 	extra = 1
 	fields = ("image_preview", "image", "alt_text", "order")
@@ -34,8 +32,7 @@ class WhiteSubcategoryImageInline(nested_admin.NestedTabularInline):
 	image_preview.short_description = "תצוגה מקדימה"
 
 
-class WhiteSubcategoryPriceInline(nested_admin.NestedTabularInline):
-	"""Inline admin for WhiteSubcategoryPrice within WhiteSubcategory."""
+class WhiteSubcategoryPriceInline(admin.TabularInline):
 	model = WhiteSubcategoryPrice
 	extra = 1
 	fields = ("size_name", "price", "order")
@@ -84,25 +81,16 @@ class WhiteCategoryAdmin(admin.ModelAdmin):
 	)
 
 
-class WhiteVariantPackPriceNestedInline(nested_admin.NestedTabularInline):
-	model = WhiteVariantPackPrice
-	extra = 0
-	fields = ("pack_type", "price")
-	verbose_name = "מחיר מארז"
-	verbose_name_plural = "מחירי מארזים"
-
-
-class WhiteProductVariantInline(nested_admin.NestedTabularInline):
-	"""Inline: one row = fabric type + size. Pack prices nested inside."""
+class WhiteProductVariantInline(admin.TabularInline):
+	"""Inline: one row = fabric type + size. Click 'שנה' to add pack prices."""
 	model = WhiteProductVariant
 	extra = 1
 	fields = ("fabric_type", "size_type", "is_active", "order")
-	inlines = [WhiteVariantPackPriceNestedInline]
 	show_change_link = True
 
 
 @admin.register(WhiteSubcategory)
-class WhiteSubcategoryAdmin(nested_admin.NestedModelAdmin):
+class WhiteSubcategoryAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteSubcategory model."""
 	list_display = ("name", "category", "unit_price", "online_price", "order", "created", "updated")
 	list_editable = ("order",)
@@ -278,12 +266,19 @@ class WhitePackTypeAdmin(admin.ModelAdmin):
 	search_fields = ("name",)
 
 
+class WhiteVariantPackPriceInline(admin.TabularInline):
+	model = WhiteVariantPackPrice
+	extra = 1
+	fields = ("pack_type", "price")
+
+
 @admin.register(WhiteProductVariant)
 class WhiteProductVariantAdmin(admin.ModelAdmin):
-	list_display = ("product", "fabric_type", "is_active", "order")
+	list_display = ("product", "fabric_type", "size_type", "is_active", "order")
 	list_editable = ("is_active", "order")
-	list_filter = ("fabric_type", "is_active")
-	search_fields = ("fabric_type__name", "product__name")
+	list_filter = ("product", "fabric_type", "is_active")
+	search_fields = ("fabric_type__name", "size_type__name", "product__name")
+	inlines = [WhiteVariantPackPriceInline]
 
 
 
