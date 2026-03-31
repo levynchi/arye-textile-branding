@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteCatalogUser, WhiteCatalogUserActivity,
-    WhiteProductVariant, WhiteVariantSize, WhiteVariantPackPrice, WhitePackType,
+    WhiteFabricType, WhiteProductVariant, WhiteVariantSize, WhiteVariantPackPrice, WhitePackType,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
 )
 from .middleware import get_client_ip

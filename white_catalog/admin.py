@@ -4,7 +4,7 @@ from django.utils.html import mark_safe
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice,
     WhiteCatalogUser, WhiteCatalogUserActivity,
-    WhitePackType, WhiteProductVariant, WhiteVariantSize, WhiteVariantPackPrice,
+    WhiteFabricType, WhitePackType, WhiteProductVariant, WhiteVariantSize, WhiteVariantPackPrice,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
 )
 
@@ -87,7 +87,7 @@ class WhiteProductVariantInline(admin.TabularInline):
 	"""Inline admin for WhiteProductVariant within WhiteSubcategory."""
 	model = WhiteProductVariant
 	extra = 1
-	fields = ("name", "description", "is_active", "order")
+	fields = ("fabric_type", "is_active", "order")
 	show_change_link = True
 
 
@@ -247,6 +247,13 @@ class WhiteCatalogUserActivityAdmin(admin.ModelAdmin):
 # Ordering system admin
 # ---------------------------------------------------------------------------
 
+@admin.register(WhiteFabricType)
+class WhiteFabricTypeAdmin(admin.ModelAdmin):
+	list_display = ("name", "description", "is_active", "order")
+	list_editable = ("is_active", "order")
+	search_fields = ("name", "description")
+
+
 @admin.register(WhitePackType)
 class WhitePackTypeAdmin(admin.ModelAdmin):
 	list_display = ("name", "quantity", "order", "is_active")
@@ -268,10 +275,10 @@ class WhiteVariantSizeInline(admin.TabularInline):
 
 @admin.register(WhiteProductVariant)
 class WhiteProductVariantAdmin(admin.ModelAdmin):
-	list_display = ("product", "name", "is_active", "order")
+	list_display = ("product", "fabric_type", "is_active", "order")
 	list_editable = ("is_active", "order")
-	list_filter = ("product", "is_active")
-	search_fields = ("name", "product__name")
+	list_filter = ("fabric_type", "is_active")
+	search_fields = ("fabric_type__name", "product__name")
 	inlines = [WhiteVariantSizeInline]
 
 

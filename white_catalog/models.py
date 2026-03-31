@@ -244,16 +244,10 @@ class WhitePackType(models.Model):
 		return f"{self.name} (x{self.quantity})"
 
 
-class WhiteProductVariant(models.Model):
-	"""A fabric/material variant of a product — e.g. טריקו, פלנל."""
-	product = models.ForeignKey(
-		WhiteSubcategory,
-		on_delete=models.CASCADE,
-		related_name="variants",
-		verbose_name="מוצר"
-	)
-	name = models.CharField("שם חומר/גרסה", max_length=100, help_text="למשל: טריקו, פלנל, כותנה")
-	description = models.TextField("תיאור", blank=True)
+class WhiteFabricType(models.Model):
+	"""Global catalog of fabric/material types — defined once, reused across all products."""
+	name = models.CharField("שם הבד", max_length=100, unique=True, help_text="למשל: טריקו ג'רזי, פלנל, כותנה")
+	description = models.TextField("תיאור הבד", blank=True, help_text="הרכב הבד, עונתיות, תכונות...")
 	is_active = models.BooleanField("פעיל", default=True)
 	order = models.PositiveIntegerField("סדר תצוגה", default=0)
 	created = models.DateTimeField(auto_now_add=True)
@@ -262,12 +256,46 @@ class WhiteProductVariant(models.Model):
 	class Meta:
 		app_label = "white_catalog"
 		ordering = ("order", "name")
-		verbose_name = "גרסת מוצר"
-		verbose_name_plural = "גרסאות מוצר"
-		unique_together = ("product", "name")
+		verbose_name = "סוג בד"
+		verbose_name_plural = "סוגי בדים"
 
 	def __str__(self):
-		return f"{self.product.name} — {self.name}"
+		return self.name
+
+
+class WhiteProductVariant(models.Model):
+	"""A fabric variant of a product — links a product to a global fabric type."""
+	product = models.ForeignKey(
+		WhiteSubcategory,
+		on_delete=models.CASCADE,
+		related_name="variants",
+		verbose_name="מוצר"
+	)
+	fabric_type = models.ForeignKey(
+		WhiteFabricType,
+		on_delete=models.PROTECT,
+		related_name="product_variants",
+		verbose_name="סוג בד"
+	)
+	is_active = models.BooleanField("פעיל", default=True)
+	order = models.PositiveIntegerField("סדר תצוגה", default=0)
+	created = models.DateTimeField(auto_now_add=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		app_label = "white_catalog"
+		ordering = ("order", "fabric_type__name")
+		verbose_name = "גרסת מוצר"
+		verbose_name_plural = "גרסאות מוצר"
+		unique_together = ("product", "fabric_type")
+
+	def __str__(self):
+		return f"{self.product.name} — {self.fabric_type.name}"
+
+	@property
+	def name(self):
+		"""Convenience property so templates/views can still use variant.name."""
+		return self.fabric_type.name
 
 
 class WhiteVariantSize(models.Model):
