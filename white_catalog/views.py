@@ -251,11 +251,12 @@ def cart_add(request):
         except WhiteProductVariant.DoesNotExist:
             continue
 
-        if not variant.unit_price:
+        effective_price = variant.unit_price if variant.unit_price is not None else variant.product.unit_price
+        if not effective_price:
             continue
 
         # Price per pack = unit_price × units in pack
-        price_per_pack = variant.unit_price * pack_type.quantity
+        price_per_pack = effective_price * pack_type.quantity
 
         if quantity == 0:
             WhiteCartItem.objects.filter(cart=cart, variant=variant, pack_type=pack_type).delete()
