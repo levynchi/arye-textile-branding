@@ -82,10 +82,10 @@ class WhiteCategoryAdmin(admin.ModelAdmin):
 
 
 class WhiteProductVariantInline(admin.TabularInline):
-	"""Inline: one row = fabric type + size. Click 'שנה' to add pack prices."""
+	"""Inline: one row = fabric type + size + unit price."""
 	model = WhiteProductVariant
 	extra = 1
-	fields = ("fabric_type", "size_type", "is_active", "order")
+	fields = ("fabric_type", "size_type", "unit_price", "is_active", "order")
 	show_change_link = True
 
 
@@ -274,11 +274,10 @@ class WhiteVariantPackPriceInline(admin.TabularInline):
 
 @admin.register(WhiteProductVariant)
 class WhiteProductVariantAdmin(admin.ModelAdmin):
-	list_display = ("product", "fabric_type", "size_type", "is_active", "order")
-	list_editable = ("is_active", "order")
+	list_display = ("product", "fabric_type", "size_type", "unit_price", "is_active", "order")
+	list_editable = ("unit_price", "is_active", "order")
 	list_filter = ("product", "fabric_type", "is_active")
 	search_fields = ("fabric_type__name", "size_type__name", "product__name")
-	inlines = [WhiteVariantPackPriceInline]
 
 
 

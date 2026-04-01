@@ -283,6 +283,14 @@ class WhiteProductVariant(models.Model):
 		related_name="product_variants",
 		verbose_name="מידה"
 	)
+	unit_price = models.DecimalField(
+		'מחיר ליחידה (לא כולל מע"מ)',
+		max_digits=10,
+		decimal_places=2,
+		null=True,
+		blank=True,
+		help_text='מחיר ליחידה בודדת — המחיר למארז יחושב אוטומטית לפי הכמות'
+	)
 	is_active = models.BooleanField("פעיל", default=True)
 	order = models.PositiveIntegerField("סדר תצוגה", default=0)
 	created = models.DateTimeField(auto_now_add=True)
