@@ -63,8 +63,8 @@ class WhiteSubcategory(models.Model):
 	class Meta:
 		app_label = "white_catalog"
 		ordering = ("order", "name")
-		verbose_name = "תת-קטגוריה לבנה"
-		verbose_name_plural = "תת-קטגוריות לבנות"
+		verbose_name = "מוצר"
+		verbose_name_plural = "מוצרים"
 
 	def __str__(self):
 		if self.category:
