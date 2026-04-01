@@ -274,9 +274,9 @@ def cart_add(request):
             added += 1
 
     if added:
-        messages.success(request, f"הסל עודכן — {added} פריטים נוספו")
+        messages.success(request, f"דף ההזמנה עודכן — {added} פריטים נוספו")
     else:
-        messages.info(request, "לא נוספו פריטים לסל")
+        messages.info(request, "לא נוספו פריטים להזמנה")
 
     return redirect(request.POST.get("next") or "white_catalog:cart")
 
@@ -316,7 +316,7 @@ def cart_update(request):
 
     if action == "remove":
         item.delete()
-        messages.success(request, "הפריט הוסר מהסל")
+        messages.success(request, "הפריט הוסר מההזמנה")
     elif action == "update":
         try:
             qty = int(request.POST.get("quantity", 0))
@@ -324,7 +324,7 @@ def cart_update(request):
             qty = 0
         if qty <= 0:
             item.delete()
-            messages.success(request, "הפריט הוסר מהסל")
+            messages.success(request, "הפריט הוסר מההזמנה")
         else:
             item.quantity = qty
             item.save(update_fields=["quantity", "updated"])
@@ -339,7 +339,7 @@ def cart_clear(request):
     """Remove all items from the active cart."""
     user = get_current_catalog_user(request)
     WhiteCart.objects.filter(user=user, status=WhiteCart.STATUS_ACTIVE).delete()
-    messages.success(request, "הסל רוקן בהצלחה")
+    messages.success(request, "ההזמנה נוקתה בהצלחה")
     return redirect("white_catalog:cart")
 
 
@@ -356,11 +356,11 @@ def checkout(request):
             "items__product", "items__variant__fabric_type", "items__variant__size_type", "items__pack_type"
         ).get(user=user, status=WhiteCart.STATUS_ACTIVE)
     except WhiteCart.DoesNotExist:
-        messages.error(request, "הסל שלך ריק")
+        messages.error(request, "דף ההזמנה ריק")
         return redirect("white_catalog:cart")
 
     if not cart.items.exists():
-        messages.error(request, "הסל שלך ריק")
+        messages.error(request, "דף ההזמנה ריק")
         return redirect("white_catalog:cart")
 
     if request.method == "POST":

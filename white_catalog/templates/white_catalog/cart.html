@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>סל הזמנות - קטלוג אריה טקסטיל</title>
+    <title>דף הזמנה - קטלוג אריה טקסטיל</title>
     {% load static %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -58,10 +58,10 @@
             <nav class="catalog-breadcrumb" aria-label="ניווט">
                 <a href="{% url 'white_catalog:home' %}">דף הבית</a>
                 <span class="separator">/</span>
-                <span class="current">סל הזמנות</span>
+                <span class="current">דף הזמנה</span>
             </nav>
 
-            <h1>סל הזמנות</h1>
+            <h1>דף הזמנה</h1>
 
             {% if messages %}
                 <div class="messages-wrap">
@@ -125,14 +125,14 @@
                     <a href="{% url 'white_catalog:checkout' %}" class="btn-checkout">המשך להזמנה ←</a>
                     <form method="post" action="{% url 'white_catalog:cart_clear' %}" style="display:inline;">
                         {% csrf_token %}
-                        <button type="submit" class="btn-clear" onclick="return confirm('לרוקן את הסל?')">רוקן סל</button>
+                        <button type="submit" class="btn-clear" onclick="return confirm('לנקות את דף ההזמנה?')">נקה הזמנה</button>
                     </form>
                     <a href="{% url 'white_catalog:home' %}" class="btn-continue">← המשך לקנות</a>
                 </div>
             {% else %}
                 <div class="cart-empty">
                     <p style="font-size:3rem;">🛒</p>
-                    <p style="font-size:1.2rem;">הסל שלך ריק</p>
+                    <p style="font-size:1.2rem;">דף ההזמנה ריק</p>
                     <a href="{% url 'white_catalog:home' %}">חזור לקטלוג</a>
                 </div>
             {% endif %}

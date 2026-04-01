@@ -46,7 +46,7 @@
             <nav class="catalog-breadcrumb" aria-label="ניווט">
                 <a href="{% url 'white_catalog:home' %}">דף הבית</a>
                 <span class="separator">/</span>
-                <a href="{% url 'white_catalog:cart' %}">סל הזמנות</a>
+                <a href="{% url 'white_catalog:cart' %}">דף הזמנה</a>
                 <span class="separator">/</span>
                 <span class="current">אישור הזמנה</span>
             </nav>
@@ -97,7 +97,7 @@
 
                 <div class="checkout-actions">
                     <button type="submit" class="btn-submit">שלח הזמנה ✓</button>
-                    <a href="{% url 'white_catalog:cart' %}" class="btn-back">← חזור לסל</a>
+                    <a href="{% url 'white_catalog:cart' %}" class="btn-back">← חזור לדף הזמנה</a>
                 </div>
             </form>
         </div>
