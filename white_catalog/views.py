@@ -112,10 +112,11 @@ def _subcategory_detail_context(request, subcategory, category=None):
                     "name": variant.fabric_type.name,
                     "sizes": [],
                 }
+            effective_price = variant.unit_price if variant.unit_price is not None else subcategory.unit_price
             fabric_map[fid]["sizes"].append({
                 "variant_id": variant.id,
                 "size_name": variant.size_type.name,
-                "unit_price": str(variant.unit_price) if variant.unit_price is not None else None,
+                "unit_price": str(effective_price) if effective_price is not None else None,
             })
         variants_data = list(fabric_map.values())
 
