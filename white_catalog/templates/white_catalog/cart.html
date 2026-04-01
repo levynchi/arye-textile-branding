@@ -31,23 +31,32 @@
             cursor: pointer; font-size: 0.85rem; padding: 4px 10px; border-radius: 4px; font-family: inherit; }
         .btn-update:hover { background: #7594b1; color: white; }
         .cart-total-row { font-weight: 800; font-size: 1.1rem; background: #f5f6f7; }
-        .cart-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
-        .btn-checkout { background: #7594b1; color: white; padding: 14px 28px;
-            border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 700;
-            cursor: pointer; font-family: inherit; text-decoration: none; }
-        .btn-checkout:hover { background: #5a7a98; }
         .btn-clear { background: none; border: 2px solid #c0392b; color: #c0392b;
             padding: 12px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 700;
             cursor: pointer; font-family: inherit; }
         .btn-clear:hover { background: #c0392b; color: white; }
-        .btn-continue { color: #7594b1; font-weight: 700; text-decoration: underline;
-            padding: 14px 0; font-size: 0.95rem; }
+        .btn-add-more { background: none; border: 2px solid #7594b1; color: #7594b1;
+            padding: 12px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 700;
+            cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; }
+        .btn-add-more:hover { background: #7594b1; color: white; }
         .vat-note { color: #888; font-size: 0.85rem; margin-top: 8px; }
         .messages-wrap { margin-bottom: 16px; }
         .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; font-weight: 600; }
         .msg-success { background: #d4edda; color: #155724; }
         .msg-error { background: #f8d7da; color: #721c24; }
         .msg-info { background: #d1ecf1; color: #0c5460; }
+        .notes-box { background: white; padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 24px; }
+        .notes-box h2 { font-size: 1.1rem; margin-bottom: 10px; color: #555; font-weight: 700; }
+        .notes-textarea { width: 100%; padding: 10px; border: 1px solid #ccc;
+            border-radius: 6px; font-family: inherit; font-size: 0.95rem;
+            resize: vertical; min-height: 80px; box-sizing: border-box; }
+        .notes-textarea:focus { border-color: #7594b1; outline: none; }
+        .order-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
+        .btn-submit { background: #5a7a52; color: white; padding: 14px 28px;
+            border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 700;
+            cursor: pointer; font-family: inherit; }
+        .btn-submit:hover { background: #4a6644; }
     </style>
 </head>
 <body class="catalog-body">
@@ -121,14 +130,22 @@
                 </table>
                 <p class="vat-note">* המחירים אינם כוללים מע"מ</p>
 
-                <div class="cart-actions">
-                    <a href="{% url 'white_catalog:checkout' %}" class="btn-checkout">המשך להזמנה ←</a>
-                    <form method="post" action="{% url 'white_catalog:cart_clear' %}" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-clear" onclick="return confirm('לנקות את דף ההזמנה?')">נקה הזמנה</button>
-                    </form>
-                    <a href="{% url 'white_catalog:home' %}" class="btn-continue">← המשך לקנות</a>
-                </div>
+                <form method="post" action="{% url 'white_catalog:checkout' %}">
+                    {% csrf_token %}
+                    <div class="notes-box">
+                        <h2>הערות להזמנה (אופציונלי)</h2>
+                        <textarea name="notes" class="notes-textarea" placeholder="הערות מיוחדות, בקשות, כתובת למשלוח..."></textarea>
+                    </div>
+                    <div class="order-actions">
+                        <button type="submit" class="btn-submit">שלח הזמנה ✓</button>
+                        <form method="post" action="{% url 'white_catalog:cart_clear' %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-clear" onclick="return confirm('לנקות את דף ההזמנה?')">נקה הזמנה</button>
+                        </form>
+                        <a href="{% url 'white_catalog:home' %}" class="btn-add-more">← המשך להוסיף מוצרים להזמנה</a>
+                    </div>
+                </form>
+
             {% else %}
                 <div class="cart-empty">
                     <p style="font-size:3rem;">🛒</p>

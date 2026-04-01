@@ -349,7 +349,10 @@ def cart_clear(request):
 
 @require_catalog_login
 def checkout(request):
-    """Review cart and submit the order."""
+    """Submit the order (POST only). GET redirects to cart."""
+    if request.method != "POST":
+        return redirect("white_catalog:cart")
+
     user = get_current_catalog_user(request)
     try:
         cart = WhiteCart.objects.prefetch_related(
@@ -363,44 +366,36 @@ def checkout(request):
         messages.error(request, "דף ההזמנה ריק")
         return redirect("white_catalog:cart")
 
-    if request.method == "POST":
-        notes = request.POST.get("notes", "").strip()
-        total = cart.get_total()
+    notes = request.POST.get("notes", "").strip()
+    total = cart.get_total()
 
-        order = WhiteOrder.objects.create(
-            user=user,
-            cart=cart,
-            status=WhiteOrder.STATUS_PENDING,
-            notes=notes,
-            total_amount=total,
+    order = WhiteOrder.objects.create(
+        user=user,
+        cart=cart,
+        status=WhiteOrder.STATUS_PENDING,
+        notes=notes,
+        total_amount=total,
+    )
+
+    for item in cart.items.select_related("product", "variant__fabric_type", "variant__size_type", "pack_type").all():
+        WhiteOrderItem.objects.create(
+            order=order,
+            product=item.product,
+            variant=item.variant,
+            product_name=item.product.name,
+            variant_name=item.variant.name,
+            size_name=item.variant.size_type.name,
+            pack_type_name=item.pack_type.name,
+            pack_quantity=item.pack_type.quantity,
+            quantity=item.quantity,
+            unit_price=item.price_at_add,
         )
 
-        for item in cart.items.select_related("product", "variant__fabric_type", "variant__size_type", "pack_type").all():
-            WhiteOrderItem.objects.create(
-                order=order,
-                product=item.product,
-                variant=item.variant,
-                product_name=item.product.name,
-                variant_name=item.variant.name,
-                size_name=item.variant.size_type.name,
-                pack_type_name=item.pack_type.name,
-                pack_quantity=item.pack_type.quantity,
-                quantity=item.quantity,
-                unit_price=item.price_at_add,
-            )
+    cart.status = WhiteCart.STATUS_SUBMITTED
+    cart.save(update_fields=["status", "updated"])
 
-        cart.status = WhiteCart.STATUS_SUBMITTED
-        cart.save(update_fields=["status", "updated"])
-
-        messages.success(request, f"ההזמנה {order.order_number} התקבלה בהצלחה!")
-        return redirect("white_catalog:order_confirm", order_number=order.order_number)
-
-    context = {
-        **_nav_context(),
-        "cart": cart,
-        "cart_count": cart.get_item_count(),
-    }
-    return render(request, "white_catalog/checkout.html", context)
+    messages.success(request, f"ההזמנה {order.order_number} התקבלה בהצלחה!")
+    return redirect("white_catalog:order_confirm", order_number=order.order_number)
 
 
 @require_catalog_login
