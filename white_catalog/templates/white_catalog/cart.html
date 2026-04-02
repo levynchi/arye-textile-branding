@@ -46,6 +46,8 @@
             resize: vertical; min-height: 80px; box-sizing: border-box; }
         .notes-textarea:focus { border-color: #7594b1; outline: none; }
         .order-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
+        .btn-add-more-lines { display: inline; }
+        .btn-add-more-line-a::after { content: '\00a0'; }
         .btn-submit { background: #5a7a52; color: white; padding: 14px 28px;
             border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 700;
             cursor: pointer; font-family: inherit; }
@@ -116,6 +118,37 @@
         @media (max-width: 640px) {
             .cart-table { display: none; }
             .mobile-cart { display: block; }
+
+            .order-actions {
+                flex-wrap: nowrap;
+                gap: 8px;
+                align-items: stretch;
+            }
+            .btn-submit {
+                flex: 1 1 0;
+                min-width: 0;
+                padding: 12px 10px;
+                font-size: 0.9rem;
+            }
+            .btn-add-more {
+                flex: 1 1 0;
+                min-width: 0;
+                padding: 10px 8px;
+                font-size: 0.78rem;
+                font-weight: 700;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1.2;
+            }
+            .btn-add-more-lines {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 2px;
+            }
+            .btn-add-more-line-a::after { content: none; }
         }
     </style>
 </head>
@@ -255,7 +288,11 @@
                     </div>
                     <div class="order-actions">
                         <button type="submit" class="btn-submit">שלח הזמנה ✓</button>
-                        <a href="{% url 'white_catalog:home' %}" class="btn-add-more">← המשך להוסיף מוצרים להזמנה</a>
+                        <a href="{% url 'white_catalog:home' %}" class="btn-add-more">
+                            <span class="btn-add-more-lines">
+                                <span class="btn-add-more-line-a">← המשך להוסיף</span><span class="btn-add-more-line-b">מוצרים להזמנה</span>
+                            </span>
+                        </a>
                     </div>
                 </form>
 

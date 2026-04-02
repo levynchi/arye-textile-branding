@@ -29,18 +29,42 @@
         background: rgba(255,255,255,0.3);
     }
     
+    /* עגלה נפרדת — נראית רק במובייל בצד ימין */
+    .catalog-cart-mobile {
+        display: none;
+    }
+
     @media (max-width: 768px) {
         .catalog-auth-section {
-            /* margin: 0 0 0 8px; */
             margin-right: 0;
+            left: 16px;
+            right: auto;
+        }
+
+        /* הסתר עגלה מתוך auth-section במובייל */
+        .catalog-auth-section .catalog-cart-link {
+            display: none;
+        }
+
+        /* הצג עגלה נפרדת בצד ימין פיזי */
+        .catalog-cart-mobile {
+            display: flex;
+            align-items: center;
+            position: absolute;
             right: 16px;
         }
-        
+
+        .catalog-welcome {
+            padding: 0 96px;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+
         .catalog-auth-link {
             padding: 4px 10px;
             font-size: 0.85rem;
         }
-        
+
         .catalog-user-info {
             display: none;
         }
@@ -53,7 +77,7 @@
         <div class="catalog-top-inner">
             <div class="catalog-auth-section">
                 {% if request.session.white_catalog_user_id %}
-                    <a href="{% url 'white_catalog:cart' %}" class="catalog-auth-link" style="margin-left:6px;">
+                    <a href="{% url 'white_catalog:cart' %}" class="catalog-auth-link catalog-cart-link" style="margin-left:6px;">
                         🛒{% if cart_count %} {{ cart_count }}{% endif %}
                     </a>
                     <a href="{% url 'white_catalog:logout' %}" class="catalog-auth-link">התנתק</a>
@@ -67,6 +91,13 @@
                     <span class="catalog-user-info"> | {{ request.session.white_catalog_company_name }}</span>
                 {% endif %}
             </div>
+            {% if request.session.white_catalog_user_id %}
+            <div class="catalog-cart-mobile">
+                <a href="{% url 'white_catalog:cart' %}" class="catalog-auth-link">
+                    🛒{% if cart_count %} {{ cart_count }}{% endif %}
+                </a>
+            </div>
+            {% endif %}
             <div class="catalog-social-icons">
                 <a href="https://www.facebook.com/people/%D7%90%D7%A8%D7%99%D7%94-%D7%98%D7%A7%D7%A1%D7%98%D7%99%D7%9C-%D7%99%D7%99%D7%A6%D7%95%D7%A8-%D7%9E%D7%99%D7%AA%D7%95%D7%92-%D7%95%D7%94%D7%93%D7%A4%D7%A1%D7%94/61578984857533/?locale=he_IL" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                     <img src="{% static 'icons_logo/ARTBOARD_FACEBOOK WHITE.svg' %}" alt="Facebook" />
