@@ -138,10 +138,6 @@
                     </div>
                     <div class="order-actions">
                         <button type="submit" class="btn-submit">שלח הזמנה ✓</button>
-                        <form method="post" action="{% url 'white_catalog:cart_clear' %}" style="display:inline;">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-clear" onclick="return confirm('לנקות את דף ההזמנה?')">נקה הזמנה</button>
-                        </form>
                         <a href="{% url 'white_catalog:home' %}" class="btn-add-more">← המשך להוסיף מוצרים להזמנה</a>
                     </div>
                 </form>
