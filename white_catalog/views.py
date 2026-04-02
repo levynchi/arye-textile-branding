@@ -292,9 +292,30 @@ def cart_view(request):
     except WhiteCart.DoesNotExist:
         cart = None
 
+    # Group items for mobile: (product, fabric_type, pack_type) → one card with size rows
+    grouped_items = []
+    if cart:
+        groups_map = {}
+        for item in cart.items.all():
+            key = (item.product_id, item.variant.fabric_type_id, item.pack_type_id)
+            if key not in groups_map:
+                group = {
+                    "product_name": item.product.name,
+                    "fabric_type": item.variant.fabric_type.name,
+                    "pack_type": item.pack_type.name,
+                    "price_at_add": item.price_at_add,
+                    "items": [],
+                    "group_total": Decimal("0"),
+                }
+                groups_map[key] = group
+                grouped_items.append(group)
+            groups_map[key]["items"].append(item)
+            groups_map[key]["group_total"] += item.price_at_add * item.quantity
+
     context = {
         **_nav_context(),
         "cart": cart,
+        "grouped_items": grouped_items,
         "cart_count": cart.get_item_count() if cart else 0,
     }
     return render(request, "white_catalog/cart.html", context)
@@ -314,8 +335,13 @@ def cart_update(request):
         messages.error(request, "הפריט לא נמצא")
         return redirect("white_catalog:cart")
 
+    is_ajax = request.POST.get("format") == "json"
+
     if action == "remove":
         item.delete()
+        if is_ajax:
+            cart = item.cart
+            return JsonResponse({"status": "removed", "cart_total": "{:.2f}".format(cart.get_total())})
         messages.success(request, "הפריט הוסר מההזמנה")
     elif action == "update":
         try:
@@ -324,11 +350,21 @@ def cart_update(request):
             qty = 0
         if qty <= 0:
             item.delete()
+            if is_ajax:
+                cart = item.cart
+                return JsonResponse({"status": "removed", "cart_total": "{:.2f}".format(cart.get_total())})
             messages.success(request, "הפריט הוסר מההזמנה")
         else:
             item.quantity = qty
             item.save(update_fields=["quantity", "updated"])
-            messages.success(request, "הכמות עודכנה")
+            if is_ajax:
+                line_total = item.price_at_add * qty
+                return JsonResponse({
+                    "status": "ok",
+                    "item_id": item.id,
+                    "line_total": "{:.2f}".format(line_total),
+                    "cart_total": "{:.2f}".format(item.cart.get_total()),
+                })
 
     return redirect("white_catalog:cart")
 

@@ -105,10 +105,76 @@
         .ordering-widget { margin: 20px 0; }
         .variant-selector-wrap { margin-bottom: 16px; }
         .variant-label { font-weight: 700; font-size: 1rem; display: block; margin-bottom: 6px; color: #333; }
-        .variant-select {
-            width: 100%; max-width: 280px; padding: 8px 12px;
+        /* Native select is visually hidden; custom list allows option hover color */
+        .custom-variant-select {
+            position: relative;
+            width: 100%;
+            max-width: 280px;
+        }
+        .variant-select-native {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            padding: 0 !important;
+            margin: -1px !important;
+            overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .variant-select,
+        .custom-variant-select__trigger {
+            width: 100%; max-width: 280px; padding: 8px 32px 8px 12px;
             border: 2px solid #7594b1; border-radius: 6px;
             font-size: 1rem; font-family: inherit; background: #fff; cursor: pointer;
+            text-align: right;
+            box-sizing: border-box;
+        }
+        .custom-variant-select__trigger {
+            display: block;
+            margin: 0;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237594b1' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 12px center;
+        }
+        .variant-select:focus,
+        .custom-variant-select__trigger:focus {
+            outline: none;
+            border-color: #7594b1;
+            box-shadow: 0 0 0 2px rgba(117, 148, 177, 0.25);
+        }
+        .custom-variant-select__list {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            z-index: 100;
+            margin: 4px 0 0;
+            padding: 0;
+            list-style: none;
+            background: #fff;
+            border: 2px solid #7594b1;
+            border-radius: 6px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .custom-variant-select__option {
+            padding: 10px 12px;
+            cursor: pointer;
+            text-align: right;
+            font-size: 1rem;
+            transition: background 0.12s, color 0.12s;
+        }
+        .custom-variant-select__option:hover,
+        .custom-variant-select__option:focus {
+            background: #7695b2;
+            color: #fff;
+            outline: none;
         }
         .order-table {
             width: 100%; border-collapse: collapse;
@@ -231,7 +297,7 @@
                                 <!-- Step 1: Fabric type -->
                                 <div class="variant-selector-wrap">
                                     <label for="fabricSelect" class="variant-label">1. בחר סוג בד:</label>
-                                    <select id="fabricSelect" class="variant-select" onchange="onFabricChange()">
+                                    <select id="fabricSelect" class="variant-select-native" tabindex="-1" onchange="onFabricChange()">
                                         <option value="">— בחר —</option>
                                     </select>
                                 </div>
@@ -239,7 +305,7 @@
                                 <!-- Step 2: Pack type -->
                                 <div class="variant-selector-wrap" id="packSelectWrap" style="display:none;">
                                     <label for="packSelect" class="variant-label">2. בחר סוג אריזה:</label>
-                                    <select id="packSelect" class="variant-select" onchange="renderOrderTable()">
+                                    <select id="packSelect" class="variant-select-native" tabindex="-1" onchange="renderOrderTable()">
                                         <option value="">— בחר —</option>
                                     </select>
                                 </div>
@@ -281,6 +347,98 @@
                                 const packSelect = document.getElementById('packSelect');
                                 const packWrap = document.getElementById('packSelectWrap');
 
+                                function initStyledSelect(selectEl) {
+                                    if (!selectEl || selectEl.dataset.styledInit) return;
+                                    selectEl.dataset.styledInit = '1';
+                                    var wrap = document.createElement('div');
+                                    wrap.className = 'custom-variant-select';
+                                    selectEl.parentNode.insertBefore(wrap, selectEl);
+                                    wrap.appendChild(selectEl);
+
+                                    var btn = document.createElement('button');
+                                    btn.type = 'button';
+                                    btn.className = 'custom-variant-select__trigger variant-select';
+                                    btn.setAttribute('aria-haspopup', 'listbox');
+                                    btn.setAttribute('aria-expanded', 'false');
+
+                                    var list = document.createElement('ul');
+                                    list.className = 'custom-variant-select__list';
+                                    list.hidden = true;
+                                    list.setAttribute('role', 'listbox');
+
+                                    wrap.appendChild(btn);
+                                    wrap.appendChild(list);
+
+                                    var docClick, docKey;
+
+                                    function close() {
+                                        list.hidden = true;
+                                        btn.setAttribute('aria-expanded', 'false');
+                                        if (docClick) {
+                                            document.removeEventListener('click', docClick, true);
+                                            document.removeEventListener('keydown', docKey, true);
+                                            docClick = null;
+                                            docKey = null;
+                                        }
+                                    }
+
+                                    function open() {
+                                        rebuildList();
+                                        list.hidden = false;
+                                        btn.setAttribute('aria-expanded', 'true');
+                                        docClick = function(ev) {
+                                            if (!wrap.contains(ev.target)) close();
+                                        };
+                                        docKey = function(ev) {
+                                            if (ev.key === 'Escape') close();
+                                        };
+                                        setTimeout(function() {
+                                            document.addEventListener('click', docClick, true);
+                                            document.addEventListener('keydown', docKey, true);
+                                        }, 0);
+                                    }
+
+                                    function rebuildList() {
+                                        list.innerHTML = '';
+                                        Array.prototype.forEach.call(selectEl.options, function(opt, idx) {
+                                            var li = document.createElement('li');
+                                            li.className = 'custom-variant-select__option';
+                                            li.setAttribute('role', 'option');
+                                            li.setAttribute('tabindex', '-1');
+                                            li.textContent = opt.textContent;
+                                            if (opt.selected) li.setAttribute('aria-selected', 'true');
+                                            else li.setAttribute('aria-selected', 'false');
+                                            li.addEventListener('click', function(e) {
+                                                e.preventDefault();
+                                                selectEl.selectedIndex = idx;
+                                                selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                                                close();
+                                                updateTrigger();
+                                            });
+                                            list.appendChild(li);
+                                        });
+                                    }
+
+                                    function updateTrigger() {
+                                        var sel = selectEl.options[selectEl.selectedIndex];
+                                        btn.textContent = sel ? sel.textContent : '';
+                                    }
+
+                                    btn.addEventListener('click', function(e) {
+                                        e.preventDefault();
+                                        if (list.hidden) open();
+                                        else close();
+                                    });
+
+                                    selectEl.addEventListener('change', updateTrigger);
+                                    new MutationObserver(function() {
+                                        updateTrigger();
+                                        if (!list.hidden) rebuildList();
+                                    }).observe(selectEl, { childList: true });
+
+                                    updateTrigger();
+                                }
+
                                 fabrics.forEach(function(f) {
                                     const opt = document.createElement('option');
                                     opt.value = f.fabric_id;
@@ -295,6 +453,9 @@
                                     packSelect.appendChild(opt);
                                 });
 
+                                initStyledSelect(fabricSelect);
+                                initStyledSelect(packSelect);
+
                                 window.onFabricChange = function() {
                                     const fabricId = parseInt(fabricSelect.value);
                                     if (!fabricId) {
@@ -305,7 +466,7 @@
                                     packWrap.style.display = 'block';
                                     if (packTypes.length === 1) {
                                         packSelect.value = packTypes[0].pack_id;
-                                        renderOrderTable();
+                                        packSelect.dispatchEvent(new Event('change', { bubbles: true }));
                                     } else {
                                         document.getElementById('orderTableWrap').style.display = 'none';
                                     }
@@ -366,7 +527,7 @@
 
                                 if (fabrics.length === 1) {
                                     fabricSelect.value = fabrics[0].fabric_id;
-                                    onFabricChange();
+                                    fabricSelect.dispatchEvent(new Event('change', { bubbles: true }));
                                 }
                             })();
                             </script>

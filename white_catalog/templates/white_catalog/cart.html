@@ -28,10 +28,6 @@
             font-size: 0.9rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; }
         .btn-remove:hover { background: #fdecea; }
         .cart-total-row { font-weight: 800; font-size: 1.1rem; background: #f5f6f7; }
-        .btn-clear { background: none; border: 2px solid #c0392b; color: #c0392b;
-            padding: 12px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 700;
-            cursor: pointer; font-family: inherit; }
-        .btn-clear:hover { background: #c0392b; color: white; }
         .btn-add-more { background: none; border: 2px solid #7594b1; color: #7594b1;
             padding: 12px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 700;
             cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; }
@@ -55,39 +51,71 @@
             cursor: pointer; font-family: inherit; }
         .btn-submit:hover { background: #4a6644; }
 
+        /* Mobile grouped cart */
+        .mobile-cart { display: none; }
+        .mobile-cart-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 16px;
+            overflow: hidden;
+            direction: rtl;
+        }
+        .mobile-cart-header {
+            padding: 12px 16px;
+            background: #f0f4f8;
+            border-bottom: 2px solid #dce6f0;
+        }
+        .mobile-cart-title { font-weight: 800; font-size: 1rem; color: #333; }
+        .mobile-cart-meta { font-size: 0.85rem; color: #666; margin-top: 3px; }
+        .mobile-sizes-table { width: 100%; border-collapse: collapse; direction: rtl; }
+        .mobile-sizes-table th {
+            padding: 8px 12px;
+            background: #f8fafc;
+            font-size: 0.82rem;
+            color: #7594b1;
+            text-align: right;
+            font-weight: 700;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        .mobile-sizes-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+            text-align: right;
+            vertical-align: middle;
+        }
+        .mobile-sizes-table tbody tr:last-child td { border-bottom: none; }
+        .mobile-sizes-table .qty-input-small { width: 52px; }
+        .mobile-group-total {
+            background: #f5f6f7;
+            padding: 10px 16px;
+            text-align: right;
+            font-weight: 800;
+            color: #333;
+            border-top: 2px solid #e5e5e5;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mobile-cart-total {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            direction: rtl;
+            font-weight: 800;
+            font-size: 1.05rem;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
         @media (max-width: 640px) {
-            .cart-table, .cart-table tbody, .cart-table tr, .cart-table td { display: block; }
-            .cart-table thead { display: none; }
-            .cart-table tbody tr {
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-                margin-bottom: 14px;
-                padding: 4px 0;
-            }
-            .cart-table tbody tr:hover { background: white; }
-            .cart-table td {
-                display: flex;
-                justify-content: flex-start;
-                align-items: center;
-                gap: 12px;
-                padding: 9px 14px;
-                border-bottom: 1px solid #f0f0f0;
-                direction: rtl;
-            }
-            .cart-table td:last-child { border-bottom: none; }
-            .cart-table td::before {
-                content: attr(data-label);
-                font-weight: 700;
-                color: #7594b1;
-                font-size: 0.85rem;
-                white-space: nowrap;
-            }
-            .cart-table td[data-label=""]::before { display: none; }
-            .cart-table td[data-label=""] { justify-content: flex-start; }
-            .cart-total-row td { background: #f5f6f7; font-weight: 800; font-size: 1rem; }
-            .cart-total-row td:first-child { display: none; }
-            .cart-total-row td:last-child::before { content: 'סה"כ (לא כולל מע"מ)'; }
+            .cart-table { display: none; }
+            .mobile-cart { display: block; }
         }
     </style>
 </head>
@@ -113,6 +141,8 @@
             {% endif %}
 
             {% if cart and cart.items.exists %}
+
+                <!-- Desktop table -->
                 <table class="cart-table">
                     <thead>
                         <tr>
@@ -139,10 +169,10 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="item_id" value="{{ item.id }}">
                                     <input type="hidden" name="action" value="update">
-                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" onchange="this.form.submit()">
+                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)">
                                 </form>
                             </td>
-                            <td data-label='סה"כ'><strong>₪{{ item.get_line_total }}</strong></td>
+                            <td data-label='סה"כ'><strong data-line-total="{{ item.id }}">₪{{ item.get_line_total }}</strong></td>
                             <td data-label="">
                                 <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
                                     {% csrf_token %}
@@ -155,10 +185,66 @@
                         {% endfor %}
                         <tr class="cart-total-row">
                             <td colspan="6" style="text-align:left;">סה"כ (לא כולל מע"מ):</td>
-                            <td colspan="2">₪{{ cart.get_total }}</td>
+                            <td colspan="2" data-cart-total>₪{{ cart.get_total }}</td>
                         </tr>
                     </tbody>
                 </table>
+
+                <!-- Mobile grouped view -->
+                <div class="mobile-cart">
+                    {% for group in grouped_items %}
+                    <div class="mobile-cart-card">
+                        <div class="mobile-cart-header">
+                            <div class="mobile-cart-title">{{ group.product_name }}</div>
+                            <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז</div>
+                        </div>
+                        <table class="mobile-sizes-table">
+                            <thead>
+                                <tr>
+                                    <th>מידה</th>
+                                    <th>כמות</th>
+                                    <th>סה"כ</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in group.items %}
+                                <tr>
+                                    <td>{{ item.variant.size_type.name }}</td>
+                                    <td>
+                                        <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="update">
+                                            <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)">
+                                        </form>
+                                    </td>
+                                    <td><strong data-line-total="{{ item.id }}">₪{{ item.get_line_total }}</strong></td>
+                                    <td>
+                                        <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="remove">
+                                            <button type="submit" class="btn-remove">✕</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="mobile-group-total">
+                            <span>סה"כ קבוצה:</span>
+                            <strong data-group-total>₪{{ group.group_total }}</strong>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="mobile-cart-total">
+                        <span>סה"כ (לא כולל מע"מ):</span>
+                        <strong data-cart-total>₪{{ cart.get_total }}</strong>
+                    </div>
+                </div>
+
                 <p class="vat-note">* המחירים אינם כוללים מע"מ</p>
 
                 <form method="post" action="{% url 'white_catalog:checkout' %}">
@@ -184,5 +270,49 @@
     </main>
 
     {% include 'white_catalog/partials/catalog_footer.html' %}
+
+    <script>
+    var _cartQtyTimer;
+    function updateCartQty(input) {
+        clearTimeout(_cartQtyTimer);
+        _cartQtyTimer = setTimeout(function() {
+            var form = input.closest('form');
+            var formData = new FormData(form);
+            formData.append('format', 'json');
+
+            fetch(form.action, { method: 'POST', body: formData })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.status === 'removed') {
+                        window.location.reload();
+                        return;
+                    }
+                    if (data.status !== 'ok') return;
+
+                    var itemId = formData.get('item_id');
+
+                    document.querySelectorAll('[data-line-total="' + itemId + '"]').forEach(function(el) {
+                        el.textContent = '₪' + data.line_total;
+                    });
+
+                    document.querySelectorAll('[data-cart-total]').forEach(function(el) {
+                        el.textContent = '₪' + data.cart_total;
+                    });
+
+                    var card = input.closest('.mobile-cart-card');
+                    if (card) {
+                        var groupTotalEl = card.querySelector('[data-group-total]');
+                        if (groupTotalEl) {
+                            var sum = 0;
+                            card.querySelectorAll('[data-line-total]').forEach(function(el) {
+                                sum += parseFloat(el.textContent.replace('₪', '')) || 0;
+                            });
+                            groupTotalEl.textContent = '₪' + sum.toFixed(2);
+                        }
+                    }
+                });
+        }, 700);
+    }
+    </script>
 </body>
 </html>
