@@ -27,9 +27,6 @@
         .btn-remove { background: none; border: none; color: #c0392b; cursor: pointer;
             font-size: 0.9rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; }
         .btn-remove:hover { background: #fdecea; }
-        .btn-update { background: none; border: 1px solid #7594b1; color: #7594b1;
-            cursor: pointer; font-size: 0.85rem; padding: 4px 10px; border-radius: 4px; font-family: inherit; }
-        .btn-update:hover { background: #7594b1; color: white; }
         .cart-total-row { font-weight: 800; font-size: 1.1rem; background: #f5f6f7; }
         .btn-clear { background: none; border: 2px solid #c0392b; color: #c0392b;
             padding: 12px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 700;
@@ -103,12 +100,11 @@
                             <td>{{ item.pack_type.name }}</td>
                             <td>₪{{ item.price_at_add }}</td>
                             <td>
-                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline-flex;gap:6px;align-items:center;">
+                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="item_id" value="{{ item.id }}">
                                     <input type="hidden" name="action" value="update">
-                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small">
-                                    <button type="submit" class="btn-update">עדכן</button>
+                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" onchange="this.form.submit()">
                                 </form>
                             </td>
                             <td><strong>₪{{ item.get_line_total }}</strong></td>
