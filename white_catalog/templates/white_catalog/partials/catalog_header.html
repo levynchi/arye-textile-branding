@@ -78,7 +78,7 @@
             <div class="catalog-auth-section">
                 {% if request.session.white_catalog_user_id %}
                     <a href="{% url 'white_catalog:cart' %}" class="catalog-auth-link catalog-cart-link" style="margin-left:6px;">
-                        🛒{% if cart_count %} {{ cart_count }}{% endif %}
+                        🛒<span class="header-cart-count">{% if cart_count %} {{ cart_count }}{% endif %}</span>
                     </a>
                     <a href="{% url 'white_catalog:logout' %}" class="catalog-auth-link">התנתק</a>
                 {% else %}
@@ -94,7 +94,7 @@
             {% if request.session.white_catalog_user_id %}
             <div class="catalog-cart-mobile">
                 <a href="{% url 'white_catalog:cart' %}" class="catalog-auth-link">
-                    🛒{% if cart_count %} {{ cart_count }}{% endif %}
+                    🛒<span class="header-cart-count">{% if cart_count %} {{ cart_count }}{% endif %}</span>
                 </a>
             </div>
             {% endif %}

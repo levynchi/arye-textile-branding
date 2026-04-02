@@ -7,149 +7,16 @@
     {% load static %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;700;800&family=Heebo:wght@400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}">
     <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
+    <link rel="stylesheet" href="{% static 'white_catalog/cart_order.css' %}">
     <style>
-        .cart-page { max-width: 900px; margin: 30px auto; padding: 0 20px; }
-        .cart-page h1 { font-size: 1.8rem; color: #333; margin-bottom: 20px; }
-        .cart-empty { text-align: center; padding: 60px 20px; color: #666; }
-        .cart-empty a { color: #7594b1; font-weight: 700; }
-        .cart-table { width: 100%; border-collapse: collapse; background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
-        .cart-table thead { background: #7594b1; color: white; }
-        .cart-table th { padding: 12px 14px; text-align: right; font-size: 0.95rem; }
-        .cart-table td { padding: 12px 14px; border-bottom: 1px solid #eee; vertical-align: middle; }
-        .cart-table tbody tr:last-child td { border-bottom: none; }
-        .cart-table tbody tr:hover { background: #f9f9f9; }
-        .qty-input-small { width: 60px; padding: 4px 6px; border: 1px solid #ccc;
-            border-radius: 4px; text-align: center; font-size: 0.95rem; }
-        .btn-remove { background: none; border: none; color: #c0392b; cursor: pointer;
-            font-size: 0.9rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; }
-        .btn-remove:hover { background: #fdecea; }
-        .cart-total-row { font-weight: 800; font-size: 1.1rem; background: #f5f6f7; }
-        .btn-add-more { background: none; border: 2px solid #7594b1; color: #7594b1;
-            padding: 12px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 700;
-            cursor: pointer; font-family: inherit; text-decoration: none; display: inline-block; }
-        .btn-add-more:hover { background: #7594b1; color: white; }
-        .vat-note { color: #888; font-size: 0.85rem; margin-top: 8px; }
         .messages-wrap { margin-bottom: 16px; }
         .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; font-weight: 600; }
         .msg-success { background: #d4edda; color: #155724; }
         .msg-error { background: #f8d7da; color: #721c24; }
         .msg-info { background: #d1ecf1; color: #0c5460; }
-        .notes-box { background: white; padding: 20px; border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 24px; }
-        .notes-box h2 { font-size: 1.1rem; margin-bottom: 10px; color: #555; font-weight: 700; }
-        .notes-textarea { width: 100%; padding: 10px; border: 1px solid #ccc;
-            border-radius: 6px; font-family: inherit; font-size: 0.95rem;
-            resize: vertical; min-height: 80px; box-sizing: border-box; }
-        .notes-textarea:focus { border-color: #7594b1; outline: none; }
-        .order-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
-        .btn-add-more-lines { display: inline; }
-        .btn-add-more-line-a::after { content: '\00a0'; }
-        .btn-submit { background: #5a7a52; color: white; padding: 14px 28px;
-            border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 700;
-            cursor: pointer; font-family: inherit; }
-        .btn-submit:hover { background: #4a6644; }
-
-        /* Mobile grouped cart */
-        .mobile-cart { display: none; }
-        .mobile-cart-card {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 16px;
-            overflow: hidden;
-            direction: rtl;
-        }
-        .mobile-cart-header {
-            padding: 12px 16px;
-            background: #f0f4f8;
-            border-bottom: 2px solid #dce6f0;
-        }
-        .mobile-cart-title { font-weight: 800; font-size: 1rem; color: #333; }
-        .mobile-cart-meta { font-size: 0.85rem; color: #666; margin-top: 3px; }
-        .mobile-sizes-table { width: 100%; border-collapse: collapse; direction: rtl; }
-        .mobile-sizes-table th {
-            padding: 8px 12px;
-            background: #f8fafc;
-            font-size: 0.82rem;
-            color: #7594b1;
-            text-align: right;
-            font-weight: 700;
-            border-bottom: 1px solid #e5e5e5;
-        }
-        .mobile-sizes-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
-            text-align: right;
-            vertical-align: middle;
-        }
-        .mobile-sizes-table tbody tr:last-child td { border-bottom: none; }
-        .mobile-sizes-table .qty-input-small { width: 52px; }
-        .mobile-group-total {
-            background: #f5f6f7;
-            padding: 10px 16px;
-            text-align: right;
-            font-weight: 800;
-            color: #333;
-            border-top: 2px solid #e5e5e5;
-            font-size: 0.95rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .mobile-cart-total {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            padding: 14px 16px;
-            display: flex;
-            justify-content: space-between;
-            direction: rtl;
-            font-weight: 800;
-            font-size: 1.05rem;
-            color: #333;
-            margin-bottom: 4px;
-        }
-
-        @media (max-width: 640px) {
-            .cart-table { display: none; }
-            .mobile-cart { display: block; }
-
-            .order-actions {
-                flex-wrap: nowrap;
-                gap: 8px;
-                align-items: stretch;
-            }
-            .btn-submit {
-                flex: 1 1 0;
-                min-width: 0;
-                padding: 12px 10px;
-                font-size: 0.9rem;
-            }
-            .btn-add-more {
-                flex: 1 1 0;
-                min-width: 0;
-                padding: 10px 8px;
-                font-size: 0.78rem;
-                font-weight: 700;
-                text-align: center;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                line-height: 1.2;
-            }
-            .btn-add-more-lines {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 2px;
-            }
-            .btn-add-more-line-a::after { content: none; }
-        }
     </style>
 </head>
 <body class="catalog-body">
@@ -173,136 +40,7 @@
                 </div>
             {% endif %}
 
-            {% if cart and cart.items.exists %}
-
-                <!-- Desktop table -->
-                <table class="cart-table">
-                    <thead>
-                        <tr>
-                            <th>מוצר</th>
-                            <th>סוג בד</th>
-                            <th>מידה</th>
-                            <th>מארז</th>
-                            <th>מחיר למארז</th>
-                            <th>כמות</th>
-                            <th>סה"כ</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in cart.items.all %}
-                        <tr>
-                            <td data-label="מוצר"><strong>{{ item.product.name }}</strong></td>
-                            <td data-label="סוג בד">{{ item.variant.fabric_type.name }}</td>
-                            <td data-label="מידה">{{ item.variant.size_type.name }}</td>
-                            <td data-label="מארז">{{ item.pack_type.name }}</td>
-                            <td data-label="מחיר למארז">₪{{ item.price_at_add }}</td>
-                            <td data-label="כמות">
-                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="item_id" value="{{ item.id }}">
-                                    <input type="hidden" name="action" value="update">
-                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)">
-                                </form>
-                            </td>
-                            <td data-label='סה"כ'><strong data-line-total="{{ item.id }}">₪{{ item.get_line_total }}</strong></td>
-                            <td data-label="">
-                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="item_id" value="{{ item.id }}">
-                                    <input type="hidden" name="action" value="remove">
-                                    <button type="submit" class="btn-remove">✕ הסר</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        <tr class="cart-total-row">
-                            <td colspan="6" style="text-align:left;">סה"כ (לא כולל מע"מ):</td>
-                            <td colspan="2" data-cart-total>₪{{ cart.get_total }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <!-- Mobile grouped view -->
-                <div class="mobile-cart">
-                    {% for group in grouped_items %}
-                    <div class="mobile-cart-card">
-                        <div class="mobile-cart-header">
-                            <div class="mobile-cart-title">{{ group.product_name }}</div>
-                            <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז</div>
-                        </div>
-                        <table class="mobile-sizes-table">
-                            <thead>
-                                <tr>
-                                    <th>מידה</th>
-                                    <th>כמות</th>
-                                    <th>סה"כ</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in group.items %}
-                                <tr>
-                                    <td>{{ item.variant.size_type.name }}</td>
-                                    <td>
-                                        <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="item_id" value="{{ item.id }}">
-                                            <input type="hidden" name="action" value="update">
-                                            <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)">
-                                        </form>
-                                    </td>
-                                    <td><strong data-line-total="{{ item.id }}">₪{{ item.get_line_total }}</strong></td>
-                                    <td>
-                                        <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="item_id" value="{{ item.id }}">
-                                            <input type="hidden" name="action" value="remove">
-                                            <button type="submit" class="btn-remove">✕</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        <div class="mobile-group-total">
-                            <span>סה"כ קבוצה:</span>
-                            <strong data-group-total>₪{{ group.group_total }}</strong>
-                        </div>
-                    </div>
-                    {% endfor %}
-
-                    <div class="mobile-cart-total">
-                        <span>סה"כ (לא כולל מע"מ):</span>
-                        <strong data-cart-total>₪{{ cart.get_total }}</strong>
-                    </div>
-                </div>
-
-                <p class="vat-note">* המחירים אינם כוללים מע"מ</p>
-
-                <form method="post" action="{% url 'white_catalog:checkout' %}">
-                    {% csrf_token %}
-                    <div class="notes-box">
-                        <h2>הערות להזמנה (אופציונלי)</h2>
-                        <textarea name="notes" class="notes-textarea" placeholder="הערות מיוחדות, בקשות, כתובת למשלוח..."></textarea>
-                    </div>
-                    <div class="order-actions">
-                        <button type="submit" class="btn-submit">שלח הזמנה ✓</button>
-                        <a href="{% url 'white_catalog:home' %}" class="btn-add-more">
-                            <span class="btn-add-more-lines">
-                                <span class="btn-add-more-line-a">← המשך להוסיף</span><span class="btn-add-more-line-b">מוצרים להזמנה</span>
-                            </span>
-                        </a>
-                    </div>
-                </form>
-
-            {% else %}
-                <div class="cart-empty">
-                    <p style="font-size:3rem;">🛒</p>
-                    <p style="font-size:1.2rem;">דף ההזמנה ריק</p>
-                    <a href="{% url 'white_catalog:home' %}">חזור לקטלוג</a>
-                </div>
-            {% endif %}
+            {% include 'white_catalog/partials/cart_order_fragment.html' %}
         </div>
     </main>
 
@@ -335,6 +73,12 @@
                     document.querySelectorAll('[data-cart-total]').forEach(function(el) {
                         el.textContent = '₪' + data.cart_total;
                     });
+
+                    if (typeof data.cart_count === 'number') {
+                        document.querySelectorAll('.header-cart-count').forEach(function(el) {
+                            el.textContent = data.cart_count ? ' ' + data.cart_count : '';
+                        });
+                    }
 
                     var card = input.closest('.mobile-cart-card');
                     if (card) {

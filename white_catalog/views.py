@@ -43,6 +43,44 @@ def get_or_create_active_cart(user):
     return cart
 
 
+def _build_cart_page_context(request):
+    """Cart, grouped line items, and count for cart page / drawer."""
+    user = get_current_catalog_user(request)
+    if not user:
+        return {"cart": None, "grouped_items": [], "cart_count": 0}
+    try:
+        cart = WhiteCart.objects.prefetch_related(
+            "items__product", "items__variant__fabric_type", "items__variant__size_type", "items__pack_type"
+        ).get(user=user, status=WhiteCart.STATUS_ACTIVE)
+    except WhiteCart.DoesNotExist:
+        cart = None
+
+    grouped_items = []
+    if cart:
+        groups_map = {}
+        for item in cart.items.all():
+            key = (item.product_id, item.variant.fabric_type_id, item.pack_type_id)
+            if key not in groups_map:
+                group = {
+                    "product_name": item.product.name,
+                    "fabric_type": item.variant.fabric_type.name,
+                    "pack_type": item.pack_type.name,
+                    "price_at_add": item.price_at_add,
+                    "items": [],
+                    "group_total": Decimal("0"),
+                }
+                groups_map[key] = group
+                grouped_items.append(group)
+            groups_map[key]["items"].append(item)
+            groups_map[key]["group_total"] += item.price_at_add * item.quantity
+
+    return {
+        "cart": cart,
+        "grouped_items": grouped_items,
+        "cart_count": cart.get_item_count() if cart else 0,
+    }
+
+
 def _nav_context():
     """Common navigation context shared by all views."""
     return {
@@ -223,10 +261,13 @@ def cart_add(request):
     cart = get_or_create_active_cart(user)
 
     # Pack type is submitted once per form (one pack type per order submission)
+    want_json = request.POST.get("format") == "json"
     pack_type_id = request.POST.get("pack_type_id")
     try:
         pack_type = WhitePackType.objects.get(pk=pack_type_id, is_active=True)
     except (WhitePackType.DoesNotExist, TypeError, ValueError):
+        if want_json:
+            return JsonResponse({"ok": False, "error": "נא לבחור סוג אריזה"}, status=400)
         messages.error(request, "נא לבחור סוג אריזה")
         return redirect(request.POST.get("next") or "white_catalog:cart")
 
@@ -273,6 +314,20 @@ def cart_add(request):
             )
             added += 1
 
+    if want_json:
+        return JsonResponse(
+            {
+                "ok": True,
+                "added": added,
+                "cart_count": cart.get_item_count(),
+                "message": (
+                    f"דף ההזמנה עודכן — {added} פריטים נוספו"
+                    if added
+                    else "לא נוספו פריטים להזמנה"
+                ),
+            }
+        )
+
     if added:
         messages.success(request, f"דף ההזמנה עודכן — {added} פריטים נוספו")
     else:
@@ -284,41 +339,19 @@ def cart_add(request):
 @require_catalog_login
 def cart_view(request):
     """Display the current cart contents."""
-    user = get_current_catalog_user(request)
-    try:
-        cart = WhiteCart.objects.prefetch_related(
-            "items__product", "items__variant__fabric_type", "items__variant__size_type", "items__pack_type"
-        ).get(user=user, status=WhiteCart.STATUS_ACTIVE)
-    except WhiteCart.DoesNotExist:
-        cart = None
+    context = {**_nav_context(), **_build_cart_page_context(request)}
+    return render(request, "white_catalog/cart.html", context)
 
-    # Group items for mobile: (product, fabric_type, pack_type) → one card with size rows
-    grouped_items = []
-    if cart:
-        groups_map = {}
-        for item in cart.items.all():
-            key = (item.product_id, item.variant.fabric_type_id, item.pack_type_id)
-            if key not in groups_map:
-                group = {
-                    "product_name": item.product.name,
-                    "fabric_type": item.variant.fabric_type.name,
-                    "pack_type": item.pack_type.name,
-                    "price_at_add": item.price_at_add,
-                    "items": [],
-                    "group_total": Decimal("0"),
-                }
-                groups_map[key] = group
-                grouped_items.append(group)
-            groups_map[key]["items"].append(item)
-            groups_map[key]["group_total"] += item.price_at_add * item.quantity
 
+@require_catalog_login
+def cart_drawer(request):
+    """HTML fragment for the cart side panel (AJAX)."""
     context = {
         **_nav_context(),
-        "cart": cart,
-        "grouped_items": grouped_items,
-        "cart_count": cart.get_item_count() if cart else 0,
+        **_build_cart_page_context(request),
+        "drawer_mode": True,
     }
-    return render(request, "white_catalog/cart.html", context)
+    return render(request, "white_catalog/cart_drawer_ajax.html", context)
 
 
 @require_POST
@@ -338,10 +371,18 @@ def cart_update(request):
     is_ajax = request.POST.get("format") == "json"
 
     if action == "remove":
+        cart_obj = item.cart
+        cart_pk = cart_obj.pk
         item.delete()
         if is_ajax:
-            cart = item.cart
-            return JsonResponse({"status": "removed", "cart_total": "{:.2f}".format(cart.get_total())})
+            try:
+                cart = WhiteCart.objects.get(pk=cart_pk)
+                ct = "{:.2f}".format(cart.get_total())
+                cc = cart.get_item_count()
+            except WhiteCart.DoesNotExist:
+                ct = "0.00"
+                cc = 0
+            return JsonResponse({"status": "removed", "cart_total": ct, "cart_count": cc})
         messages.success(request, "הפריט הוסר מההזמנה")
     elif action == "update":
         try:
@@ -349,10 +390,18 @@ def cart_update(request):
         except ValueError:
             qty = 0
         if qty <= 0:
+            cart_obj = item.cart
+            cart_pk = cart_obj.pk
             item.delete()
             if is_ajax:
-                cart = item.cart
-                return JsonResponse({"status": "removed", "cart_total": "{:.2f}".format(cart.get_total())})
+                try:
+                    cart = WhiteCart.objects.get(pk=cart_pk)
+                    ct = "{:.2f}".format(cart.get_total())
+                    cc = cart.get_item_count()
+                except WhiteCart.DoesNotExist:
+                    ct = "0.00"
+                    cc = 0
+                return JsonResponse({"status": "removed", "cart_total": ct, "cart_count": cc})
             messages.success(request, "הפריט הוסר מההזמנה")
         else:
             item.quantity = qty
@@ -364,6 +413,7 @@ def cart_update(request):
                     "item_id": item.id,
                     "line_total": "{:.2f}".format(line_total),
                     "cart_total": "{:.2f}".format(item.cart.get_total()),
+                    "cart_count": item.cart.get_item_count(),
                 })
 
     return redirect("white_catalog:cart")

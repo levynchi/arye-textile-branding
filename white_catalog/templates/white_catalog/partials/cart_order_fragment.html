@@ -1,0 +1,128 @@
+            {% if cart and cart.items.exists %}
+
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>מוצר</th>
+                            <th>סוג בד</th>
+                            <th>מידה</th>
+                            <th>מארז</th>
+                            <th>מחיר למארז</th>
+                            <th>כמות</th>
+                            <th>סה"כ</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in cart.items.all %}
+                        <tr>
+                            <td data-label="מוצר"><strong>{{ item.product.name }}</strong></td>
+                            <td data-label="סוג בד">{{ item.variant.fabric_type.name }}</td>
+                            <td data-label="מידה">{{ item.variant.size_type.name }}</td>
+                            <td data-label="מארז">{{ item.pack_type.name }}</td>
+                            <td data-label="מחיר למארז">₪{{ item.price_at_add }}</td>
+                            <td data-label="כמות">
+                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <input type="hidden" name="action" value="update">
+                                    <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)">
+                                </form>
+                            </td>
+                            <td data-label='סה"כ'><strong data-line-total="{{ item.id }}">₪{{ item.get_line_total }}</strong></td>
+                            <td data-label="">
+                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <input type="hidden" name="action" value="remove">
+                                    <button type="submit" class="btn-remove">✕ הסר</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="cart-total-row">
+                            <td colspan="6" style="text-align:left;">סה"כ (לא כולל מע"מ):</td>
+                            <td colspan="2" data-cart-total>₪{{ cart.get_total }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="mobile-cart">
+                    {% for group in grouped_items %}
+                    <div class="mobile-cart-card">
+                        <div class="mobile-cart-header">
+                            <div class="mobile-cart-title">{{ group.product_name }}</div>
+                            <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז</div>
+                        </div>
+                        <table class="mobile-sizes-table">
+                            <thead>
+                                <tr>
+                                    <th>מידה</th>
+                                    <th>כמות</th>
+                                    <th>סה"כ</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in group.items %}
+                                <tr>
+                                    <td>{{ item.variant.size_type.name }}</td>
+                                    <td>
+                                        <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="update">
+                                            <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)">
+                                        </form>
+                                    </td>
+                                    <td><strong data-line-total="{{ item.id }}">₪{{ item.get_line_total }}</strong></td>
+                                    <td>
+                                        <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="action" value="remove">
+                                            <button type="submit" class="btn-remove">✕</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="mobile-group-total">
+                            <span>סה"כ למוצר {{ group.product_name }}</span>
+                            <strong data-group-total>₪{{ group.group_total }}</strong>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="mobile-cart-total">
+                        <span>סה"כ (לא כולל מע"מ):</span>
+                        <strong data-cart-total>₪{{ cart.get_total }}</strong>
+                    </div>
+                </div>
+
+                <p class="vat-note">* המחירים אינם כוללים מע"מ</p>
+
+                <form method="post" action="{% url 'white_catalog:checkout' %}">
+                    {% csrf_token %}
+                    <div class="notes-box">
+                        <h2>הערות להזמנה (אופציונלי)</h2>
+                        <textarea name="notes" class="notes-textarea" placeholder="הערות מיוחדות, בקשות, כתובת למשלוח..."></textarea>
+                    </div>
+                    <div class="order-actions">
+                        <button type="submit" class="btn-submit">שלח הזמנה ✓</button>
+                        <a href="{% url 'white_catalog:home' %}" class="btn-add-more{% if drawer_mode %} cart-drawer-dismiss-link{% endif %}">
+                            <span class="btn-add-more-lines">
+                                <span class="btn-add-more-line-a">← המשך להוסיף</span><span class="btn-add-more-line-b">מוצרים להזמנה</span>
+                            </span>
+                        </a>
+                    </div>
+                </form>
+
+            {% else %}
+                <div class="cart-empty">
+                    <p style="font-size:3rem;">🛒</p>
+                    <p style="font-size:1.2rem;">דף ההזמנה ריק</p>
+                    <a href="{% url 'white_catalog:home' %}">חזור לקטלוג</a>
+                </div>
+            {% endif %}
