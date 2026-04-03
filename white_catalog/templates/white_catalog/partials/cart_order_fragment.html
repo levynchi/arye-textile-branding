@@ -22,7 +22,7 @@
                             <td data-label="מארז">{{ item.pack_type.name }}</td>
                             <td data-label="מחיר למארז">₪{{ item.price_at_add }}</td>
                             <td data-label="כמות">
-                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">
                                     {% csrf_token %}
                                     <input type="hidden" name="item_id" value="{{ item.id }}">
                                     <input type="hidden" name="action" value="update">
@@ -51,8 +51,15 @@
                     {% for group in grouped_items %}
                     <div class="mobile-cart-card">
                         <div class="mobile-cart-header">
-                            <div class="mobile-cart-title">{{ group.product_name }}</div>
-                            <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז</div>
+                            {% if group.product_image %}
+                            <img src="{{ group.product_image }}" alt="{{ group.product_name }}" class="mobile-cart-img">
+                            {% else %}
+                            <div class="mobile-cart-img-placeholder"></div>
+                            {% endif %}
+                            <div class="mobile-cart-header-text">
+                                <div class="mobile-cart-title">{{ group.product_name }}</div>
+                                <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז</div>
+                            </div>
                         </div>
                         <table class="mobile-sizes-table">
                             <thead>
@@ -68,7 +75,7 @@
                                 <tr>
                                     <td>{{ item.variant.size_type.name }}</td>
                                     <td>
-                                        <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
+                                        <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">
                                             {% csrf_token %}
                                             <input type="hidden" name="item_id" value="{{ item.id }}">
                                             <input type="hidden" name="action" value="update">

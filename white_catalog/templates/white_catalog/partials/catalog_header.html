@@ -29,29 +29,11 @@
         background: rgba(255,255,255,0.3);
     }
     
-    /* עגלה נפרדת — נראית רק במובייל בצד ימין */
-    .catalog-cart-mobile {
-        display: none;
-    }
-
     @media (max-width: 768px) {
         .catalog-auth-section {
             margin-right: 0;
             left: 16px;
             right: auto;
-        }
-
-        /* הסתר עגלה מתוך auth-section במובייל */
-        .catalog-auth-section .catalog-cart-link {
-            display: none;
-        }
-
-        /* הצג עגלה נפרדת בצד ימין פיזי */
-        .catalog-cart-mobile {
-            display: flex;
-            align-items: center;
-            position: absolute;
-            right: 16px;
         }
 
         .catalog-welcome {
@@ -70,6 +52,9 @@
         }
     }
 </style>
+{% if request.session.white_catalog_user_id %}
+<link rel="stylesheet" href="{% static 'white_catalog/cart_order.css' %}">
+{% endif %}
 <!-- Catalog Header with Blue Bar, Icons and Logo -->
 <header class="catalog-header">
     <!-- Top blue bar with social icons -->
@@ -77,9 +62,6 @@
         <div class="catalog-top-inner">
             <div class="catalog-auth-section">
                 {% if request.session.white_catalog_user_id %}
-                    <a href="{% url 'white_catalog:cart' %}" class="catalog-auth-link catalog-cart-link" style="margin-left:6px;">
-                        🛒<span class="header-cart-count">{% if cart_count %} {{ cart_count }}{% endif %}</span>
-                    </a>
                     <a href="{% url 'white_catalog:logout' %}" class="catalog-auth-link">התנתק</a>
                 {% else %}
                     <a href="{% url 'white_catalog:login' %}" class="catalog-auth-link">התחבר</a>
@@ -91,13 +73,6 @@
                     <span class="catalog-user-info"> | {{ request.session.white_catalog_company_name }}</span>
                 {% endif %}
             </div>
-            {% if request.session.white_catalog_user_id %}
-            <div class="catalog-cart-mobile">
-                <a href="{% url 'white_catalog:cart' %}" class="catalog-auth-link">
-                    🛒<span class="header-cart-count">{% if cart_count %} {{ cart_count }}{% endif %}</span>
-                </a>
-            </div>
-            {% endif %}
             <div class="catalog-social-icons">
                 <a href="https://www.facebook.com/people/%D7%90%D7%A8%D7%99%D7%94-%D7%98%D7%A7%D7%A1%D7%98%D7%99%D7%9C-%D7%99%D7%99%D7%A6%D7%95%D7%A8-%D7%9E%D7%99%D7%AA%D7%95%D7%92-%D7%95%D7%94%D7%93%D7%A4%D7%A1%D7%94/61578984857533/?locale=he_IL" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                     <img src="{% static 'icons_logo/ARTBOARD_FACEBOOK WHITE.svg' %}" alt="Facebook" />
@@ -118,7 +93,7 @@
     <!-- Logo Section with Navigation -->
     <div class="catalog-logo-section">
         <div class="catalog-logo-inner">
-            <!-- Hamburger Button (Right Side) -->
+            <!-- Hamburger Button (Left Side) -->
             <button class="catalog-menu-toggle" type="button" aria-label="פתח תפריט" aria-controls="catalog-nav-menu" aria-expanded="false">
                 <span class="hamburger" aria-hidden="true"></span>
             </button>
@@ -127,6 +102,12 @@
             <a href="{% url 'white_catalog:home' %}" aria-label="דף הבית של הקטלוג">
                 <img src="{% static 'icons_logo/LOGO-21.png' %}" alt="לוגו אריה" class="catalog-main-logo" />
             </a>
+
+            {% if request.session.white_catalog_user_id %}
+            <a href="{% url 'white_catalog:cart' %}" class="catalog-logo-cart" aria-label="דף הזמנה">
+                🛒<span class="header-cart-count">{% if cart_count %} {{ cart_count }}{% endif %}</span>
+            </a>
+            {% endif %}
             
             <!-- Sidebar Menu -->
             <nav class="catalog-sidebar-menu" aria-label="תפריט קטגוריות">
@@ -151,6 +132,275 @@
     </div>
 </header>
 
+{% if request.session.white_catalog_user_id %}
+<div id="cartDrawer" class="cart-drawer" aria-hidden="true">
+    <div class="cart-drawer-backdrop" data-cart-drawer-close tabindex="-1"></div>
+    <div class="cart-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle">
+        <div class="cart-drawer-header">
+            <h2 id="cartDrawerTitle">דף הזמנה</h2>
+            <button type="button" class="cart-drawer-close" data-cart-drawer-close aria-label="סגור">×</button>
+        </div>
+        <div id="cartDrawerBody" class="cart-drawer-body"></div>
+        <div class="cart-drawer-footer">
+            <a href="{% url 'white_catalog:cart' %}">פתח דף הזמנה מלא</a>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    var drawer = document.getElementById('cartDrawer');
+    var drawerBody = document.getElementById('cartDrawerBody');
+    if (!drawer || !drawerBody) return;
+    var cartDrawerUrl = '{% url "white_catalog:cart_drawer" %}';
+    var cartDebugEnabled = true;
+
+    function cartDebug(stage, payload) {
+        if (!cartDebugEnabled || !window.console || !console.debug) return;
+        console.debug('[cart-drawer]', stage, payload || {});
+    }
+
+    function cartDebugError(stage, payload) {
+        if (!window.console || !console.error) return;
+        console.error('[cart-drawer]', stage, payload || {});
+    }
+
+    function parseCartJson(response, context) {
+        var contentType = response.headers.get('content-type') || '';
+        cartDebug('response', {
+            context: context,
+            status: response.status,
+            redirected: response.redirected,
+            url: response.url,
+            contentType: contentType
+        });
+        if (!response.ok) {
+            return response.text().then(function(text) {
+                cartDebugError('http-error', { context: context, status: response.status, body: text.slice(0, 300) });
+                throw new Error('Cart HTTP error ' + response.status);
+            });
+        }
+        if (contentType.indexOf('application/json') === -1) {
+            return response.text().then(function(text) {
+                cartDebugError('non-json-response', { context: context, body: text.slice(0, 300) });
+                throw new Error('Cart response is not JSON');
+            });
+        }
+        return response.json();
+    }
+
+    function fetchCartJson(url, formData, context) {
+        cartDebug('request', {
+            context: context,
+            url: url,
+            itemId: formData.get('item_id'),
+            action: formData.get('action'),
+            quantity: formData.get('quantity')
+        });
+        return fetch(url, { method: 'POST', body: formData, credentials: 'same-origin' })
+            .then(function(response) { return parseCartJson(response, context); })
+            .then(function(data) {
+                cartDebug('payload', { context: context, data: data });
+                return data;
+            });
+    }
+
+    function setHeaderCartCount(n) {
+        document.querySelectorAll('.header-cart-count').forEach(function(el) {
+            el.textContent = (n && n > 0) ? (' ' + n) : '';
+        });
+    }
+    window.setHeaderCartCount = setHeaderCartCount;
+
+    window.closeCartDrawer = function() {
+        drawer.classList.remove('is-open');
+        drawer.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    };
+
+    function closeNavMenuIfOpen() {
+        var hdr = document.querySelector('.catalog-header');
+        if (!hdr || !hdr.classList.contains('menu-open')) return;
+        hdr.classList.remove('menu-open');
+        var tb = hdr.querySelector('.catalog-menu-toggle');
+        if (tb) {
+            tb.setAttribute('aria-expanded', 'false');
+            tb.setAttribute('aria-label', 'פתח תפריט');
+        }
+    }
+
+    window.openCartDrawer = function() {
+        closeNavMenuIfOpen();
+        drawer.classList.add('is-open');
+        drawer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.refreshCartDrawer = function() {
+        if (!drawer.classList.contains('is-open')) return;
+        cartDebug('refresh-start');
+        fetch(cartDrawerUrl, { credentials: 'same-origin' })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                drawerBody.innerHTML = html;
+                cartDebug('refresh-done', { htmlLength: html.length });
+            })
+            .catch(function(error) {
+                cartDebugError('refresh-failed', { message: error.message });
+            });
+    };
+
+    document.querySelectorAll('a.catalog-logo-cart').forEach(function(a) {
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            fetch(cartDrawerUrl, { credentials: 'same-origin' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    drawerBody.innerHTML = html;
+                    window.openCartDrawer();
+                });
+        });
+    });
+
+    drawer.querySelectorAll('[data-cart-drawer-close]').forEach(function(el) {
+        el.addEventListener('click', function() { window.closeCartDrawer(); });
+    });
+
+    drawer.addEventListener('submit', function(e) {
+        var formEl = e.target;
+        var formActionUrl = formEl.getAttribute('action') || formEl.action || '';
+        if (formEl.tagName !== 'FORM' || formActionUrl.indexOf('cart/update') === -1) return;
+        var act = formEl.querySelector('input[name="action"]');
+        e.preventDefault();
+        if (!act) return;
+        if (act.value === 'update') {
+            var qtyInput = formEl.querySelector('input[name="quantity"]');
+            cartDebug('submit-update', {
+                itemId: formEl.querySelector('input[name="item_id"]') ? formEl.querySelector('input[name="item_id"]').value : null,
+                quantity: qtyInput ? qtyInput.value : null
+            });
+            if (qtyInput && typeof window.updateCartQtyNow === 'function') {
+                window.updateCartQtyNow(qtyInput);
+            }
+            return;
+        }
+        if (act.value !== 'remove') return;
+        var fd = new FormData(formEl);
+        fd.append('format', 'json');
+        fetchCartJson(formActionUrl, fd, 'remove-submit')
+            .then(function(data) {
+                if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
+                window.refreshCartDrawer();
+            })
+            .catch(function(error) {
+                cartDebugError('remove-submit-failed', { message: error.message });
+            });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.cart-drawer-dismiss-link')) window.closeCartDrawer();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && drawer.classList.contains('is-open')) {
+            e.preventDefault();
+            window.closeCartDrawer();
+        }
+        if (e.key === 'Enter' && e.target.matches('input[name="quantity"].qty-input-small')) {
+            e.preventDefault();
+            cartDebug('enter-pressed', {
+                itemId: e.target.closest('form') && e.target.closest('form').querySelector('input[name="item_id"]')
+                    ? e.target.closest('form').querySelector('input[name="item_id"]').value
+                    : null,
+                quantity: e.target.value
+            });
+            if (typeof window.updateCartQtyNow === 'function') window.updateCartQtyNow(e.target);
+        }
+    });
+
+    document.addEventListener('input', function(e) {
+        if (e.target.matches('input[name="quantity"].qty-input-small')) {
+            cartDebug('input-changed', {
+                itemId: e.target.closest('form') && e.target.closest('form').querySelector('input[name="item_id"]')
+                    ? e.target.closest('form').querySelector('input[name="item_id"]').value
+                    : null,
+                quantity: e.target.value
+            });
+            if (typeof window.updateCartQty === 'function') window.updateCartQty(e.target);
+        }
+    });
+
+    var _cartQtyTimer;
+    var _doCartUpdate = function(input) {
+        var f = input.closest('form');
+        var formActionUrl = f ? (f.getAttribute('action') || f.action || '') : '';
+        if (!f || formActionUrl.indexOf('cart/update') === -1) return;
+        var formData = new FormData(f);
+        formData.append('format', 'json');
+        fetchCartJson(formActionUrl, formData, 'quantity-update')
+            .then(function(data) {
+                if (data.status === 'removed') {
+                    if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
+                    if (drawer.classList.contains('is-open')) {
+                        window.refreshCartDrawer();
+                    } else {
+                        window.location.reload();
+                    }
+                    return;
+                }
+                if (data.status !== 'ok') return;
+                if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
+                var itemId = formData.get('item_id');
+                var scope = drawer.classList.contains('is-open') ? drawerBody : document;
+                scope.querySelectorAll('[data-line-total="' + itemId + '"]').forEach(function(el) {
+                    el.textContent = '₪' + data.line_total;
+                });
+                scope.querySelectorAll('[data-cart-total]').forEach(function(el) {
+                    el.textContent = '₪' + data.cart_total;
+                });
+                var card = input.closest('.mobile-cart-card');
+                if (card) {
+                    var groupTotalEl = card.querySelector('[data-group-total]');
+                    if (groupTotalEl) {
+                        var sum = 0;
+                        card.querySelectorAll('[data-line-total]').forEach(function(el) {
+                            sum += parseFloat(el.textContent.replace('₪', '')) || 0;
+                        });
+                        groupTotalEl.textContent = '₪' + sum.toFixed(2);
+                    }
+                }
+            })
+            .catch(function(error) {
+                cartDebugError('quantity-update-failed', {
+                    message: error.message,
+                    itemId: formData.get('item_id'),
+                    quantity: formData.get('quantity')
+                });
+            });
+    };
+    window.updateCartQty = function(input) {
+        clearTimeout(_cartQtyTimer);
+        cartDebug('schedule-update', {
+            itemId: input.closest('form') && input.closest('form').querySelector('input[name="item_id"]')
+                ? input.closest('form').querySelector('input[name="item_id"]').value
+                : null,
+            quantity: input.value
+        });
+        _cartQtyTimer = setTimeout(function() { _doCartUpdate(input); }, 700);
+    };
+    window.updateCartQtyNow = function(input) {
+        clearTimeout(_cartQtyTimer);
+        cartDebug('run-update-now', {
+            itemId: input.closest('form') && input.closest('form').querySelector('input[name="item_id"]')
+                ? input.closest('form').querySelector('input[name="item_id"]').value
+                : null,
+            quantity: input.value
+        });
+        _doCartUpdate(input);
+    };
+})();
+</script>
+{% endif %}
+
 <script>
 (function(){
     const header = document.querySelector('.catalog-header');
@@ -168,6 +418,7 @@
     // Toggle menu on hamburger button click
     btn.addEventListener('click', (e)=> {
         e.stopPropagation();
+        if (typeof window.closeCartDrawer === 'function') window.closeCartDrawer();
         open(!header.classList.contains('menu-open'));
     });
     
@@ -177,9 +428,12 @@
         open(false);
     });
     
-    // Close menu on Escape key
+    // Close menu on Escape key (cart drawer handles Escape first when open)
     document.addEventListener('keydown', (e)=>{ 
-        if(e.key==='Escape') open(false); 
+        if(e.key!=='Escape') return;
+        var d = document.getElementById('cartDrawer');
+        if (d && d.classList.contains('is-open')) return;
+        if(header.classList.contains('menu-open')) open(false);
     });
     
     // Close menu when clicking outside (overlay)
@@ -195,4 +449,3 @@
     });
 })();
 </script>
-

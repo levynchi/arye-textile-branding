@@ -1,5 +1,7 @@
 import json
+import logging
 from decimal import Decimal
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.http import JsonResponse
@@ -11,6 +13,9 @@ from .models import (
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
 )
 from .middleware import get_client_ip
+
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +55,7 @@ def _build_cart_page_context(request):
         return {"cart": None, "grouped_items": [], "cart_count": 0}
     try:
         cart = WhiteCart.objects.prefetch_related(
-            "items__product", "items__variant__fabric_type", "items__variant__size_type", "items__pack_type"
+            "items__product__images", "items__variant__fabric_type", "items__variant__size_type", "items__pack_type"
         ).get(user=user, status=WhiteCart.STATUS_ACTIVE)
     except WhiteCart.DoesNotExist:
         cart = None
@@ -63,6 +68,7 @@ def _build_cart_page_context(request):
             if key not in groups_map:
                 group = {
                     "product_name": item.product.name,
+                    "product_image": item.product.get_main_image(),
                     "fabric_type": item.variant.fabric_type.name,
                     "pack_type": item.pack_type.name,
                     "price_at_add": item.price_at_add,
@@ -278,8 +284,9 @@ def cart_add(request):
             continue
         try:
             variant_id = key[4:]  # strip "qty_"
-            quantity = int(value)
-        except (ValueError, AttributeError):
+            raw = (value or "").strip()
+            quantity = 0 if raw == "" else int(raw)
+        except (ValueError, TypeError, AttributeError):
             continue
 
         if quantity < 0:
@@ -361,14 +368,31 @@ def cart_update(request):
     user = get_current_catalog_user(request)
     item_id = request.POST.get("item_id")
     action = request.POST.get("action")  # "update" or "remove"
+    is_ajax = request.POST.get("format") == "json"
+
+    if settings.DEBUG:
+        logger.warning(
+            "cart_update start user=%s item_id=%s action=%s quantity=%s is_ajax=%s path=%s",
+            getattr(user, "username", None),
+            item_id,
+            action,
+            request.POST.get("quantity"),
+            is_ajax,
+            request.path,
+        )
 
     try:
         item = WhiteCartItem.objects.select_related("cart").get(pk=item_id, cart__user=user, cart__status=WhiteCart.STATUS_ACTIVE)
     except WhiteCartItem.DoesNotExist:
+        if settings.DEBUG:
+            logger.warning(
+                "cart_update missing item user=%s item_id=%s action=%s",
+                getattr(user, "username", None),
+                item_id,
+                action,
+            )
         messages.error(request, "הפריט לא נמצא")
         return redirect("white_catalog:cart")
-
-    is_ajax = request.POST.get("format") == "json"
 
     if action == "remove":
         cart_obj = item.cart
@@ -382,6 +406,13 @@ def cart_update(request):
             except WhiteCart.DoesNotExist:
                 ct = "0.00"
                 cc = 0
+            if settings.DEBUG:
+                logger.warning(
+                    "cart_update removed item_id=%s cart_total=%s cart_count=%s",
+                    item_id,
+                    ct,
+                    cc,
+                )
             return JsonResponse({"status": "removed", "cart_total": ct, "cart_count": cc})
         messages.success(request, "הפריט הוסר מההזמנה")
     elif action == "update":
@@ -401,6 +432,13 @@ def cart_update(request):
                 except WhiteCart.DoesNotExist:
                     ct = "0.00"
                     cc = 0
+                if settings.DEBUG:
+                    logger.warning(
+                        "cart_update qty<=0 removed item_id=%s cart_total=%s cart_count=%s",
+                        item_id,
+                        ct,
+                        cc,
+                    )
                 return JsonResponse({"status": "removed", "cart_total": ct, "cart_count": cc})
             messages.success(request, "הפריט הוסר מההזמנה")
         else:
@@ -408,12 +446,23 @@ def cart_update(request):
             item.save(update_fields=["quantity", "updated"])
             if is_ajax:
                 line_total = item.price_at_add * qty
+                cart_total = "{:.2f}".format(item.cart.get_total())
+                cart_count = item.cart.get_item_count()
+                if settings.DEBUG:
+                    logger.warning(
+                        "cart_update saved item_id=%s qty=%s line_total=%s cart_total=%s cart_count=%s",
+                        item.id,
+                        qty,
+                        "{:.2f}".format(line_total),
+                        cart_total,
+                        cart_count,
+                    )
                 return JsonResponse({
                     "status": "ok",
                     "item_id": item.id,
                     "line_total": "{:.2f}".format(line_total),
-                    "cart_total": "{:.2f}".format(item.cart.get_total()),
-                    "cart_count": item.cart.get_item_count(),
+                    "cart_total": cart_total,
+                    "cart_count": cart_count,
                 })
 
     return redirect("white_catalog:cart")
