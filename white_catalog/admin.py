@@ -115,7 +115,7 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable", "has_order_variants")
 		}),
 		("מחירים (למוצרים ללא גרסאות)", {
-			"fields": ("unit_price", "online_price"),
+			"fields": ("unit_price", "simple_price_label", "online_price"),
 		}),
 		("פרטים נוספים", {
 			"fields": ("marketing_description", "information", "pattern_and_branding", "fabric_production", "sizes"),

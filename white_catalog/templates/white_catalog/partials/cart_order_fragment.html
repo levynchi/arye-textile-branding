@@ -20,7 +20,7 @@
                             <td data-label="סוג בד">{{ item.display_fabric_name }}</td>
                             <td data-label="מידה">{{ item.display_size_name }}</td>
                             <td data-label="מארז">{{ item.display_pack_name }}</td>
-                            <td data-label="מחיר">{% if item.is_simple_item %}₪{{ item.price_at_add }} ליחידה{% else %}₪{{ item.price_at_add }} למארז{% endif %}</td>
+                            <td data-label="מחיר">{% if item.is_simple_item %}₪{{ item.price_at_add }} ל{{ item.display_pack_name }}{% else %}₪{{ item.price_at_add }} למארז{% endif %}</td>
                             <td data-label="כמות">
                                 <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">
                                     {% csrf_token %}
@@ -64,7 +64,7 @@
                             {% endif %}
                             <div class="mobile-cart-header-text">
                                 <div class="mobile-cart-title">{{ group.product_name }}</div>
-                                <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} {% if group.is_simple %}ליחידה{% else %}למארז{% endif %}</div>
+                                <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} {% if group.is_simple %}ל{{ group.pack_type }}{% else %}למארז{% endif %}</div>
                             </div>
                         </div>
                         <table class="mobile-sizes-table">

@@ -58,6 +58,13 @@ class WhiteSubcategory(models.Model):
 	fabric_production = HTMLField("אפשרות ייצור בדים", blank=True, help_text="אפשרויות ייצור בדים")
 	sizes = HTMLField("מידות", blank=True, help_text="מידות זמינות למוצר")
 	unit_price = models.DecimalField("מחיר סיטונאי (לא כולל מע\"מ)", max_digits=10, decimal_places=2, blank=True, null=True, help_text="מחיר סיטונאי בשקלים - לא כולל מע\"מ")
+	simple_price_label = models.CharField(
+		"סוג מחיר למוצר פשוט",
+		max_length=50,
+		default="יחידה",
+		blank=True,
+		help_text="למשל: יחידה, מארז, סט"
+	)
 	online_price = models.DecimalField("מחיר קמעונאי מומלץ (לא כולל מע\"מ)", max_digits=10, decimal_places=2, blank=True, null=True, help_text="מחיר מומלץ למכירה באתר החנות ללקוח הסופי - לא כולל מע\"מ")
 	image = models.ImageField("תמונה ראשית", upload_to="white_catalog/subcategories/", blank=True, null=True, help_text="תמונה ראשית - מוצגת בכרטיס התת-קטגוריה")
 	order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
@@ -116,6 +123,13 @@ class WhiteSubcategory(models.Model):
 		
 		price_values = [p.price for p in prices]
 		return (min(price_values), max(price_values))
+
+	@property
+	def simple_price_label_display(self):
+		label = (self.simple_price_label or "").strip() or "יחידה"
+		if label.startswith("ל") and len(label) > 1:
+			return label[1:]
+		return label
 
 
 class WhiteSubcategoryImage(models.Model):
@@ -451,7 +465,7 @@ class WhiteCartItem(models.Model):
 	def display_pack_name(self):
 		if self.pack_type_id and self.pack_type:
 			return self.pack_type.name
-		return "יחידה"
+		return self.product.simple_price_label_display
 
 	@property
 	def display_variant_name(self):
