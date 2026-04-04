@@ -1,4 +1,40 @@
 {% load static %}
+<style>
+    .catalog-header {
+        position: static !important;
+    }
+
+    .catalog-top-bar {
+        position: static !important;
+    }
+
+    .catalog-logo-section {
+        position: relative !important;
+    }
+
+    .catalog-logo-section.is-sticky {
+        position: fixed !important;
+        top: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1100;
+    }
+
+    .catalog-header.has-sticky-logo {
+        padding-bottom: var(--catalog-sticky-logo-height, 0px);
+    }
+
+    @media (max-width: 768px) {
+        .catalog-welcome {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.78rem;
+            letter-spacing: 0.4px;
+        }
+    }
+</style>
 <!-- Catalog Header with Blue Bar, Icons and Logo -->
 <header class="catalog-header">
     <!-- Top blue bar with social icons -->
@@ -83,6 +119,31 @@
     menu.addEventListener('click', (e)=>{
         if(e.target.closest('a')) open(false);
     });
+})();
+</script>
+<script>
+(function() {
+    const header = document.querySelector('.catalog-header');
+    if (!header) return;
+
+    const logoSection = header.querySelector('.catalog-logo-section');
+    const topBar = header.querySelector('.catalog-top-bar');
+    if (!logoSection) return;
+
+    const syncStickyLogo = () => {
+        const topBarHeight = topBar ? topBar.offsetHeight : 0;
+        const logoHeight = logoSection.offsetHeight;
+        const shouldStick = window.scrollY > topBarHeight;
+
+        document.documentElement.style.setProperty('--catalog-sticky-logo-height', shouldStick ? `${logoHeight}px` : '0px');
+        header.classList.toggle('has-sticky-logo', shouldStick);
+        logoSection.classList.toggle('is-sticky', shouldStick);
+    };
+
+    window.addEventListener('scroll', syncStickyLogo, { passive: true });
+    window.addEventListener('resize', syncStickyLogo);
+    window.addEventListener('load', syncStickyLogo);
+    syncStickyLogo();
 })();
 </script>
 

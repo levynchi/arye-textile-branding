@@ -172,6 +172,58 @@
         .order-message-success { background: #d4edda; color: #155724; }
         .order-message-error { background: #f8d7da; color: #721c24; }
         .order-message-info { background: #d1ecf1; color: #0c5460; }
+        .order-toast {
+            position: fixed;
+            left: 24px;
+            bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: min(420px, calc(100vw - 32px));
+            padding: 14px 18px;
+            border-radius: 18px;
+            background: rgba(17, 19, 23, 0.94);
+            color: #f7f4ee;
+            box-shadow: 0 18px 45px rgba(17, 19, 23, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            transform: translateY(18px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.28s ease, transform 0.28s ease;
+            z-index: 1200;
+        }
+        .order-toast.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .order-toast-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #7594b1, #90adc8);
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .order-toast-text {
+            font-size: 0.98rem;
+            font-weight: 700;
+            line-height: 1.5;
+        }
+        @media (max-width: 640px) {
+            .order-toast {
+                left: 16px;
+                right: 16px;
+                bottom: 16px;
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body class="catalog-body">
@@ -249,6 +301,10 @@
                                 {% for message in messages %}
                                     <div class="order-message order-message-{{ message.tags }}">{{ message }}</div>
                                 {% endfor %}
+                                <div id="orderToast" class="order-toast" role="status" aria-live="polite" aria-atomic="true">
+                                    <span class="order-toast-badge">+</span>
+                                    <div id="orderToastText" class="order-toast-text"></div>
+                                </div>
 
                                 <!-- Step 1: Fabric type -->
                                 <div class="variant-selector-wrap">
@@ -305,6 +361,34 @@
                                 const packWrap = document.getElementById('packSelectWrap');
                                 const fabricBtns = document.getElementById('fabricBtns');
                                 const packBtns = document.getElementById('packBtns');
+                                const orderToast = document.getElementById('orderToast');
+                                const orderToastText = document.getElementById('orderToastText');
+                                const productDisplayName = '{{ subcategory.name|escapejs }}';
+                                let orderToastTimer = null;
+
+                                function showFirstAddToast() {
+                                    if (!orderToast || !orderToastText) return;
+                                    orderToastText.textContent = 'מעולה, ' + productDisplayName + ' כבר בפנים. אפשר להמשיך עם עוד מידות או לעבור לדף ההזמנה.';
+                                    orderToast.classList.add('is-visible');
+                                    clearTimeout(orderToastTimer);
+                                    orderToastTimer = setTimeout(function() {
+                                        orderToast.classList.remove('is-visible');
+                                    }, 3200);
+                                }
+
+                                function getProductCartQuantityTotal() {
+                                    let total = 0;
+                                    fabrics.forEach(function(fabric) {
+                                        fabric.sizes.forEach(function(size) {
+                                            if (!size.cart_quantities) return;
+                                            Object.keys(size.cart_quantities).forEach(function(packId) {
+                                                const qty = parseInt(size.cart_quantities[packId], 10);
+                                                if (Number.isFinite(qty) && qty > 0) total += qty;
+                                            });
+                                        });
+                                    });
+                                    return total;
+                                }
 
                                 fabrics.forEach(function(f) {
                                     const opt = document.createElement('option');
@@ -415,6 +499,7 @@
                                         ? document.activeElement
                                         : null;
                                     if (!immediate && shouldDeferCartSync(activeQtyInput)) return;
+                                    const productQtyBeforeSync = getProductCartQuantityTotal();
                                     clearTimeout(cartSyncTimer);
                                     const runSync = function() {
                                         const fd = new FormData(document.getElementById('orderForm'));
@@ -430,10 +515,12 @@
                                                 if (!data.ok) return;
                                                 updateLocalCartQuantities(packId);
                                                 publishCurrentSelectionQuantities(packId);
+                                                const productQtyAfterSync = getProductCartQuantityTotal();
                                                 if (typeof window.setHeaderCartCount === 'function') window.setHeaderCartCount(data.cart_count);
                                                 var viewCartLink = document.querySelector('.btn-view-cart');
                                                 if (viewCartLink) viewCartLink.textContent = 'דף הזמנה (' + data.cart_count + ')';
                                                 if (typeof window.flashCartIndicator === 'function' && data.added > 0) window.flashCartIndicator();
+                                                if (productQtyBeforeSync === 0 && productQtyAfterSync > 0) showFirstAddToast();
                                                 var drawer = document.getElementById('cartDrawer');
                                                 if (drawer && drawer.classList.contains('is-open') && typeof window.refreshCartDrawer === 'function') {
                                                     window.refreshCartDrawer();

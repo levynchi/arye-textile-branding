@@ -1,5 +1,30 @@
 {% load static %}
 <style>
+    .catalog-header {
+        position: static !important;
+    }
+
+    .catalog-top-bar {
+        position: static !important;
+    }
+
+    .catalog-logo-section {
+        position: relative !important;
+    }
+
+    .catalog-logo-section.is-sticky {
+        position: fixed !important;
+        top: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1100;
+    }
+
+    .catalog-header.has-sticky-logo {
+        padding-bottom: var(--catalog-sticky-logo-height, 0px);
+    }
+
     .catalog-user-info {
         font-weight: 600;
         color: rgba(255,255,255,0.9);
@@ -40,6 +65,11 @@
             padding: 0 96px;
             box-sizing: border-box;
             max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.78rem;
+            letter-spacing: 0.4px;
         }
 
         .catalog-auth-link {
@@ -482,8 +512,34 @@
         _doCartUpdate(input);
     };
 })();
-</script>
+ </script>
 {% endif %}
+
+<script>
+(function() {
+    var header = document.querySelector('.catalog-header');
+    if (!header) return;
+
+    var logoSection = header.querySelector('.catalog-logo-section');
+    var topBar = header.querySelector('.catalog-top-bar');
+    if (!logoSection) return;
+
+    function syncStickyLogo() {
+        var topBarHeight = topBar ? topBar.offsetHeight : 0;
+        var logoHeight = logoSection.offsetHeight;
+        var shouldStick = window.scrollY > topBarHeight;
+
+        document.documentElement.style.setProperty('--catalog-sticky-logo-height', shouldStick ? (logoHeight + 'px') : '0px');
+        header.classList.toggle('has-sticky-logo', shouldStick);
+        logoSection.classList.toggle('is-sticky', shouldStick);
+    }
+
+    window.addEventListener('scroll', syncStickyLogo, { passive: true });
+    window.addEventListener('resize', syncStickyLogo);
+    window.addEventListener('load', syncStickyLogo);
+    syncStickyLogo();
+})();
+</script>
 
 <script>
 (function(){

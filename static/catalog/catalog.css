@@ -11,10 +11,15 @@
 
 /* ===== HEADER STYLES ===== */
 
+.catalog-header {
+    position: static;
+}
+
 /* Top Blue Bar */
 .catalog-top-bar {
     background: #7594B1;
     padding: 5px 0;
+    position: static;
 }
 
 .catalog-top-inner {
@@ -62,7 +67,9 @@
 .catalog-logo-section {
     background:#F8F8F8;
     padding: 10px 0;
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 1100;
 }
 
 .catalog-logo-inner {
@@ -486,6 +493,14 @@
 
 /* Mobile (< 768px) */
 @media (max-width: 768px) {
+    .catalog-header {
+        position: fixed;
+        top: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+    }
+
     .catalog-top-inner {
         padding: 0 16px;
     }
@@ -499,19 +514,33 @@
     }
 
     .catalog-logo-section {
-        padding: 15px 0;
+        padding: 4px 0;
     }
 
     .catalog-logo-inner {
-        padding: 0 16px;
+        padding: 0 14px;
+        min-height: 56px;
+    }
+
+    .catalog-main {
+        padding-top: 116px;
     }
 
     .catalog-main-logo {
-        height: 60px;
+        height: 48px;
     }
 
     .catalog-menu-toggle {
         right: 16px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .catalog-logo-cart {
+        min-width: 40px;
+        height: 40px;
+        padding: 0 8px;
+        font-size: 0.95rem;
     }
 
     .catalog-sidebar-menu {
