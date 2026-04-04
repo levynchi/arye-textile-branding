@@ -854,22 +854,19 @@
         max-height: 350px;
     }
 
-    .product-main-image {
-        max-width: 350px;
-        margin: 0 auto;
-    }
-
     .product-thumbnails {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        width: min(100%, 350px);
-        margin: 0 auto;
-        gap: 6px;
-        justify-items: stretch;
+        grid-template-columns: repeat(3, 88px);
+        width: 100%;
+        margin: 0;
+        row-gap: 8px;
+        column-gap: 0;
+        justify-content: space-between;
+        justify-items: center;
     }
 
     .thumbnail {
-        width: 100%;
+        width: 88px;
         height: auto;
         aspect-ratio: 1 / 1;
         box-sizing: border-box;
