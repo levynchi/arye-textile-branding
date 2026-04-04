@@ -18,7 +18,7 @@ urlpatterns = [
     path("orders/", views.order_list, name="order_list"),
     path("orders/<str:order_number>/", views.order_confirm, name="order_confirm"),
     # Standalone subcategory — must come before category_detail
-    path("product/<slug:subcategory_slug>/", views.standalone_subcategory_detail, name="standalone_subcategory_detail"),
+    re_path(r"^product/(?P<subcategory_slug>[\w\-]+)/$", views.standalone_subcategory_detail, name="standalone_subcategory_detail"),
     re_path(r"^(?P<category_slug>[\w\-]+)/$", views.category_detail, name="category_detail"),
     re_path(r"^(?P<category_slug>[\w\-]+)/(?P<subcategory_slug>[\w\-]+)/$", views.subcategory_detail, name="subcategory_detail"),
 ]

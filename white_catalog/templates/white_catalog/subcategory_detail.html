@@ -201,9 +201,13 @@
         }
         .btn-add-to-cart:hover { background: #5a7a98; }
         .btn-view-cart {
+            appearance: none;
+            background: white;
             padding: 11px 20px; border: 2px solid #7594b1; border-radius: 6px;
             color: #7594b1; font-weight: 700; text-decoration: none; font-size: 0.95rem;
             transition: all 0.2s;
+            cursor: pointer;
+            font-family: inherit;
         }
         .btn-view-cart:hover { background: #7594b1; color: white; }
         .login-to-order { margin: 16px 0; color: #666; font-size: 1rem; }
@@ -382,7 +386,7 @@
                                         </table>
                                         <div id="totalSummary" style="font-weight:700; margin:10px 0; color:#333;"></div>
                                         <div class="order-actions">
-                                            <a href="{% url 'white_catalog:cart' %}" class="btn-view-cart">דף הזמנה ({{ cart_count }})</a>
+                                            <button type="button" class="btn-view-cart js-open-cart-drawer">דף הזמנה ({{ cart_count }})</button>
                                         </div>
                                     </div>
                                 </form>
@@ -755,7 +759,7 @@
                                             <div class="order-message order-message-error">לא ניתן להזמין את המוצר כרגע כי אין לו מחיר סיטונאי מוגדר.</div>
                                         {% endif %}
                                         <div class="order-actions">
-                                            <a href="{% url 'white_catalog:cart' %}" class="btn-view-cart">דף הזמנה ({{ cart_count }})</a>
+                                            <button type="button" class="btn-view-cart js-open-cart-drawer">דף הזמנה ({{ cart_count }})</button>
                                         </div>
                                     </div>
                                 </form>
@@ -769,6 +773,7 @@
                                 const totalSummary = document.getElementById('simpleTotalSummary');
                                 const unitPrice = parseFloat('{{ subcategory.unit_price|default_if_none:"" }}');
                                 const productDisplayName = '{{ subcategory.name|escapejs }}';
+                                const simpleProductId = parseInt('{{ subcategory.id }}', 10);
                                 let orderToastTimer = null;
                                 let simpleSyncTimer = null;
                                 let currentSimpleCartQty = parseInt('{{ simple_cart_quantity|default:0 }}', 10) || 0;
@@ -812,6 +817,15 @@
                                         return;
                                     }
                                     totalSummary.textContent = 'סה"כ: ' + qtyNum + ' יחידות | ₪' + (qtyNum * unitPrice).toFixed(2) + ' (לא כולל מע"מ)';
+                                }
+
+                                function readStoredSimpleQuantity() {
+                                    if (typeof window.readCartQtySyncMap !== 'function' || !Number.isFinite(simpleProductId)) return null;
+                                    const syncMap = window.readCartQtySyncMap();
+                                    const entry = syncMap['product:' + String(simpleProductId)];
+                                    if (!entry) return null;
+                                    const qty = parseInt(entry.quantity, 10);
+                                    return Number.isFinite(qty) && qty > 0 ? qty : 0;
                                 }
 
                                 function syncSimpleOrder(immediate) {
@@ -864,6 +878,29 @@
                                     syncSimpleOrder(true);
                                 };
 
+                                window.addEventListener('white-catalog-cart-quantity-sync', function(event) {
+                                    const detail = event.detail || {};
+                                    const productId = parseInt(detail.productId, 10);
+                                    if (!Number.isFinite(productId) || productId !== simpleProductId) return;
+                                    const quantity = parseInt(detail.quantity, 10);
+                                    currentSimpleCartQty = Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+                                    qtyInput.value = currentSimpleCartQty > 0 ? String(currentSimpleCartQty) : '';
+                                    updateSimpleSummary();
+                                });
+
+                                window.addEventListener('pageshow', function() {
+                                    const storedQty = readStoredSimpleQuantity();
+                                    if (storedQty === null) return;
+                                    currentSimpleCartQty = storedQty;
+                                    qtyInput.value = currentSimpleCartQty > 0 ? String(currentSimpleCartQty) : '';
+                                    updateSimpleSummary();
+                                });
+
+                                const storedQty = readStoredSimpleQuantity();
+                                if (storedQty !== null) {
+                                    currentSimpleCartQty = storedQty;
+                                    qtyInput.value = currentSimpleCartQty > 0 ? String(currentSimpleCartQty) : '';
+                                }
                                 updateSimpleSummary();
                             })();
                             </script>
@@ -1019,6 +1056,17 @@
     })();
     </script>
     {% endif %}
+    <script>
+    (function() {
+        document.querySelectorAll('.js-open-cart-drawer').forEach(function(button) {
+            button.addEventListener('click', function() {
+                if (typeof window.openCartDrawerWithRefresh === 'function') {
+                    window.openCartDrawerWithRefresh();
+                }
+            });
+        });
+    })();
+    </script>
 </body>
 </html>
 

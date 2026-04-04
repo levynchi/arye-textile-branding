@@ -171,9 +171,6 @@
             <button type="button" class="cart-drawer-close" data-cart-drawer-close aria-label="סגור">×</button>
         </div>
         <div id="cartDrawerBody" class="cart-drawer-body"></div>
-        <div class="cart-drawer-footer">
-            <a href="{% url 'white_catalog:cart' %}">פתח דף הזמנה מלא</a>
-        </div>
     </div>
 </div>
 <script>
@@ -249,19 +246,27 @@
         }
     }
     function publishCartQuantitySync(payload) {
+        var productId = parseInt(payload && payload.productId, 10);
         var variantId = parseInt(payload && payload.variantId, 10);
         var packTypeId = parseInt(payload && payload.packTypeId, 10);
         var quantity = parseInt(payload && payload.quantity, 10);
-        if (!Number.isFinite(variantId) || !Number.isFinite(packTypeId)) return;
         if (!Number.isFinite(quantity) || quantity < 0) quantity = 0;
-        var key = String(variantId) + ':' + String(packTypeId);
+        var isSimpleProduct = Number.isFinite(productId) && (!Number.isFinite(variantId) || !Number.isFinite(packTypeId));
+        if (!isSimpleProduct && (!Number.isFinite(variantId) || !Number.isFinite(packTypeId))) return;
+        var key = isSimpleProduct ? ('product:' + String(productId)) : (String(variantId) + ':' + String(packTypeId));
         var syncMap = readCartQtySyncMap();
-        syncMap[key] = {
-            variantId: variantId,
-            packTypeId: packTypeId,
-            quantity: quantity,
-            updatedAt: Date.now()
-        };
+        syncMap[key] = isSimpleProduct
+            ? {
+                productId: productId,
+                quantity: quantity,
+                updatedAt: Date.now()
+            }
+            : {
+                variantId: variantId,
+                packTypeId: packTypeId,
+                quantity: quantity,
+                updatedAt: Date.now()
+            };
         try {
             localStorage.setItem(CART_QTY_SYNC_STORAGE_KEY, JSON.stringify(syncMap));
         } catch (e) {}
@@ -323,15 +328,19 @@
             });
     };
 
+    window.openCartDrawerWithRefresh = function() {
+        return fetch(cartDrawerUrl, { credentials: 'same-origin' })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                drawerBody.innerHTML = html;
+                window.openCartDrawer();
+            });
+    };
+
     document.querySelectorAll('a.catalog-logo-cart').forEach(function(a) {
         a.addEventListener('click', function(e) {
             e.preventDefault();
-            fetch(cartDrawerUrl, { credentials: 'same-origin' })
-                .then(function(r) { return r.text(); })
-                .then(function(html) {
-                    drawerBody.innerHTML = html;
-                    window.openCartDrawer();
-                });
+            window.openCartDrawerWithRefresh();
         });
     });
 
@@ -364,6 +373,7 @@
             .then(function(data) {
                 if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
                 publishCartQuantitySync({
+                    productId: fd.get('product_id'),
                     variantId: fd.get('variant_id'),
                     packTypeId: fd.get('pack_type_id'),
                     quantity: 0
@@ -429,6 +439,7 @@
                 if (data.status === 'removed') {
                     if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
                     publishCartQuantitySync({
+                        productId: formData.get('product_id'),
                         variantId: formData.get('variant_id'),
                         packTypeId: formData.get('pack_type_id'),
                         quantity: 0
@@ -443,6 +454,7 @@
                 if (data.status !== 'ok') return;
                 if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
                 publishCartQuantitySync({
+                    productId: formData.get('product_id'),
                     variantId: formData.get('variant_id'),
                     packTypeId: formData.get('pack_type_id'),
                     quantity: formData.get('quantity')

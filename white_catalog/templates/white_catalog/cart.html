@@ -100,6 +100,7 @@
                 if (data.status === 'removed') {
                     if (typeof window.publishCartQuantitySync === 'function') {
                         window.publishCartQuantitySync({
+                            productId: formData.get('product_id'),
                             variantId: formData.get('variant_id'),
                             packTypeId: formData.get('pack_type_id'),
                             quantity: 0
@@ -117,6 +118,7 @@
                 if (data.status !== 'ok') return;
                 if (typeof window.publishCartQuantitySync === 'function') {
                     window.publishCartQuantitySync({
+                        productId: formData.get('product_id'),
                         variantId: formData.get('variant_id'),
                         packTypeId: formData.get('pack_type_id'),
                         quantity: formData.get('quantity')

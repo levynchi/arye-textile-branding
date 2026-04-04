@@ -246,7 +246,7 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: min(100%, 520px);
+    width: min(100%, 760px);
     min-width: 280px;
     height: 100%;
     max-height: 100dvh;
@@ -309,6 +309,11 @@
     margin: 0;
     padding: 12px 10px 24px;
 }
+@media (min-width: 1025px) {
+    .cart-drawer-body .cart-page {
+        padding: 18px 24px 28px;
+    }
+}
 
 /* במגירה: תמיד פריסת מובייל (כרטיסים) — מתאים לרוחב צר */
 .cart-drawer .cart-table {
@@ -362,19 +367,3 @@
     content: none;
 }
 
-.cart-drawer-footer {
-    flex-shrink: 0;
-    padding: 12px 16px;
-    border-top: 1px solid #ddd;
-    background: #fff;
-    text-align: center;
-}
-.cart-drawer-footer a {
-    color: #7594b1;
-    font-weight: 700;
-    text-decoration: none;
-    font-size: 0.95rem;
-}
-.cart-drawer-footer a:hover {
-    text-decoration: underline;
-}
