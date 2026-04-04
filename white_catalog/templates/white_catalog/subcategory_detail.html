@@ -286,7 +286,6 @@
                                         </table>
                                         <div id="totalSummary" style="font-weight:700; margin:10px 0; color:#333;"></div>
                                         <div class="order-actions">
-                                            <button type="submit" class="btn-add-to-cart">הוסף להזמנה 🛒</button>
                                             <a href="{% url 'white_catalog:cart' %}" class="btn-view-cart">דף הזמנה ({{ cart_count }})</a>
                                         </div>
                                     </div>
@@ -360,6 +359,105 @@
                                     if (typeof window.updateTotal === "function") window.updateTotal();
                                 };
 
+                                let cartSyncTimer = null;
+                                function shouldDeferCartSync(input) {
+                                    return !!input && input.value === '' && document.activeElement === input;
+                                }
+                                function updateLocalCartQuantities(packId) {
+                                    const activeFabricId = parseInt(fabricSelect.value);
+                                    const activeFabric = fabrics.find(function(f) { return f.fabric_id === activeFabricId; });
+                                    if (!activeFabric) return;
+                                    activeFabric.sizes.forEach(function(size) {
+                                        const input = document.querySelector('input[name="qty_' + size.variant_id + '"]');
+                                        if (!input) return;
+                                        if (!size.cart_quantities) size.cart_quantities = {};
+                                        const qty = parseInt(input.value, 10);
+                                        size.cart_quantities[String(packId)] = Number.isFinite(qty) && qty > 0 ? qty : 0;
+                                    });
+                                }
+                                function mergeStoredCartQuantities() {
+                                    if (typeof window.readCartQtySyncMap !== 'function') return;
+                                    const syncMap = window.readCartQtySyncMap();
+                                    fabrics.forEach(function(fabric) {
+                                        fabric.sizes.forEach(function(size) {
+                                            if (!size.cart_quantities) size.cart_quantities = {};
+                                            Object.keys(syncMap).forEach(function(key) {
+                                                const entry = syncMap[key];
+                                                if (entry && entry.variantId === size.variant_id) {
+                                                    size.cart_quantities[String(entry.packTypeId)] = entry.quantity;
+                                                }
+                                            });
+                                        });
+                                    });
+                                }
+                                function publishCurrentSelectionQuantities(packId) {
+                                    if (typeof window.publishCartQuantitySync !== 'function') return;
+                                    const activeFabricId = parseInt(fabricSelect.value);
+                                    const activeFabric = fabrics.find(function(f) { return f.fabric_id === activeFabricId; });
+                                    if (!activeFabric) return;
+                                    activeFabric.sizes.forEach(function(size) {
+                                        const qty = size.cart_quantities && Number.isFinite(parseInt(size.cart_quantities[String(packId)], 10))
+                                            ? parseInt(size.cart_quantities[String(packId)], 10)
+                                            : 0;
+                                        window.publishCartQuantitySync({
+                                            variantId: size.variant_id,
+                                            packTypeId: packId,
+                                            quantity: qty,
+                                            silent: true
+                                        });
+                                    });
+                                }
+                                function syncOrderFormToCart(immediate) {
+                                    const packId = parseInt(packSelect.value);
+                                    const wrap = document.getElementById('orderTableWrap');
+                                    if (!packId || !wrap || wrap.style.display === 'none') return;
+                                    const activeQtyInput = document.activeElement && document.activeElement.matches('input.qty-input')
+                                        ? document.activeElement
+                                        : null;
+                                    if (!immediate && shouldDeferCartSync(activeQtyInput)) return;
+                                    clearTimeout(cartSyncTimer);
+                                    const runSync = function() {
+                                        const fd = new FormData(document.getElementById('orderForm'));
+                                        fd.append('format', 'json');
+                                        fetch(document.getElementById('orderForm').getAttribute('action') || document.getElementById('orderForm').action, {
+                                            method: 'POST',
+                                            body: fd,
+                                            credentials: 'same-origin',
+                                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                                        })
+                                            .then(function(r) { return r.json(); })
+                                            .then(function(data) {
+                                                if (!data.ok) return;
+                                                updateLocalCartQuantities(packId);
+                                                publishCurrentSelectionQuantities(packId);
+                                                if (typeof window.setHeaderCartCount === 'function') window.setHeaderCartCount(data.cart_count);
+                                                var viewCartLink = document.querySelector('.btn-view-cart');
+                                                if (viewCartLink) viewCartLink.textContent = 'דף הזמנה (' + data.cart_count + ')';
+                                                if (typeof window.flashCartIndicator === 'function' && data.added > 0) window.flashCartIndicator();
+                                                var drawer = document.getElementById('cartDrawer');
+                                                if (drawer && drawer.classList.contains('is-open') && typeof window.refreshCartDrawer === 'function') {
+                                                    window.refreshCartDrawer();
+                                                }
+                                            })
+                                            .catch(function(error) {
+                                                console.error('order-form-cart-sync-failed', error);
+                                            });
+                                    };
+                                    if (immediate) {
+                                        runSync();
+                                    } else {
+                                        cartSyncTimer = setTimeout(runSync, 500);
+                                    }
+                                }
+                                window.syncProductQtyChange = function(input) {
+                                    if (typeof window.updateTotal === "function") window.updateTotal();
+                                    syncOrderFormToCart(false);
+                                };
+                                window.syncProductQtyBlur = function(input) {
+                                    window.qtyInputBlur(input);
+                                    syncOrderFormToCart(true);
+                                };
+
                                 window.onFabricChange = function() {
                                     const fabricId = parseInt(fabricSelect.value);
                                     if (!fabricId) {
@@ -381,6 +479,7 @@
                                     const packId = parseInt(packSelect.value);
                                     const wrap = document.getElementById('orderTableWrap');
                                     if (!fabricId || !packId) { wrap.style.display = 'none'; return; }
+                                    mergeStoredCartQuantities();
 
                                     const fabric = fabrics.find(function(f) { return f.fabric_id === fabricId; });
                                     const packType = packTypes.find(function(pt) { return pt.pack_id === packId; });
@@ -395,14 +494,18 @@
                                         const pricePerPack = unitPrice !== null
                                             ? '&#x20AA;' + (unitPrice * packType.pack_qty).toFixed(2)
                                             : '&mdash;';
+                                        const savedQty = size.cart_quantities
+                                            ? parseInt(size.cart_quantities[String(packId)] || 0, 10)
+                                            : 0;
+                                        const qtyValue = savedQty > 0 ? String(savedQty) : '';
                                         const row = document.createElement('tr');
                                         row.innerHTML =
                                             '<td class="col-size"><strong>' + size.size_name + '</strong></td>' +
                                             '<td>' + pricePerPack + '</td>' +
                                             '<td><input type="number" name="qty_' + size.variant_id + '" ' +
-                                            'min="0" step="1" value="" class="qty-input" placeholder="0" ' +
-                                            'inputmode="numeric" oninput="updateTotal()" ' +
-                                            'onblur="qtyInputBlur(this)"></td>';
+                                            'min="0" step="1" value="' + qtyValue + '" class="qty-input" placeholder="0" ' +
+                                            'inputmode="numeric" oninput="syncProductQtyChange(this)" ' +
+                                            'onblur="syncProductQtyBlur(this)"></td>';
                                         tbody.appendChild(row);
                                     });
 
@@ -431,6 +534,38 @@
                                         ? 'סה"כ: ' + totalPacks + ' מארזים | ' + totalUnits + ' יחידות | ₪' + totalPrice.toFixed(2) + ' (לא כולל מע"מ)'
                                         : '';
                                 };
+
+                                window.addEventListener('white-catalog-cart-quantity-sync', function(event) {
+                                    const detail = event.detail || {};
+                                    const variantId = parseInt(detail.variantId, 10);
+                                    const packTypeId = parseInt(detail.packTypeId, 10);
+                                    const quantity = parseInt(detail.quantity, 10);
+                                    if (!Number.isFinite(variantId) || !Number.isFinite(packTypeId)) return;
+                                    fabrics.forEach(function(fabric) {
+                                        fabric.sizes.forEach(function(size) {
+                                            if (size.variant_id !== variantId) return;
+                                            if (!size.cart_quantities) size.cart_quantities = {};
+                                            size.cart_quantities[String(packTypeId)] = Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+                                        });
+                                    });
+                                    const activePackId = parseInt(packSelect.value, 10);
+                                    const activeFabricId = parseInt(fabricSelect.value, 10);
+                                    const shouldRefresh = Number.isFinite(activePackId) && activePackId === packTypeId
+                                        && fabrics.some(function(fabric) {
+                                            return fabric.fabric_id === activeFabricId && fabric.sizes.some(function(size) {
+                                                return size.variant_id === variantId;
+                                            });
+                                        });
+                                    if (shouldRefresh) window.renderOrderTable();
+                                });
+                                window.addEventListener('pageshow', function() {
+                                    mergeStoredCartQuantities();
+                                    const activePackId = parseInt(packSelect.value, 10);
+                                    const activeFabricId = parseInt(fabricSelect.value, 10);
+                                    if (Number.isFinite(activePackId) && Number.isFinite(activeFabricId)) {
+                                        window.renderOrderTable();
+                                    }
+                                });
 
                                 if (fabrics.length === 1) {
                                     fabricSelect.value = fabrics[0].fabric_id;
@@ -586,29 +721,8 @@
     (function() {
         var form = document.getElementById('orderForm');
         if (!form) return;
-        var cartDrawerUrl = '{% url "white_catalog:cart_drawer" %}';
-
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            var fd = new FormData(form);
-            fd.append('format', 'json');
-            fetch(form.action, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (!data.ok) {
-                        alert(data.error || 'שגיאה');
-                        return;
-                    }
-                    if (typeof window.setHeaderCartCount === 'function') window.setHeaderCartCount(data.cart_count);
-                    fetch(cartDrawerUrl, { credentials: 'same-origin' })
-                        .then(function(r) { return r.text(); })
-                        .then(function(html) {
-                            var drawerBody = document.getElementById('cartDrawerBody');
-                            if (drawerBody) drawerBody.innerHTML = html;
-                            if (typeof window.openCartDrawer === 'function') window.openCartDrawer();
-                        });
-                })
-                .catch(function() { alert('שגיאת רשת'); });
         });
     })();
     </script>

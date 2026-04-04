@@ -132,6 +132,13 @@
     background: #f5f6f7;
 }
 
+.catalog-logo-cart.is-updated {
+    background: #e6f1e3;
+    border-color: #5a7a52;
+    color: #355230;
+    box-shadow: 0 0 0 4px rgba(90, 122, 82, 0.18);
+}
+
 /* Hide hamburger button when menu is open */
 .catalog-header.menu-open .catalog-menu-toggle {
     opacity: 0;

@@ -79,9 +79,13 @@
         }
         return response.json();
     }
+    function shouldDeferEmptyQtyUpdate(input) {
+        return !!input && input.value === '' && document.activeElement === input;
+    }
     function _doCartPageUpdate(input) {
         var form = input.closest('form');
         var formActionUrl = form ? (form.getAttribute('action') || form.action || '') : '';
+        if (shouldDeferEmptyQtyUpdate(input)) return;
         var formData = new FormData(form);
         formData.append('format', 'json');
         cartPageDebug('request', {
@@ -94,6 +98,13 @@
             .then(function(r) { return parseCartPageJson(r, 'quantity-update'); })
             .then(function(data) {
                 if (data.status === 'removed') {
+                    if (typeof window.publishCartQuantitySync === 'function') {
+                        window.publishCartQuantitySync({
+                            variantId: formData.get('variant_id'),
+                            packTypeId: formData.get('pack_type_id'),
+                            quantity: 0
+                        });
+                    }
                     var inDrawer = !!input.closest('#cartDrawer');
                     if (inDrawer && typeof window.refreshCartDrawer === 'function') {
                         if (typeof window.setHeaderCartCount === 'function' && typeof data.cart_count !== 'undefined') window.setHeaderCartCount(data.cart_count);
@@ -104,7 +115,18 @@
                     return;
                 }
                 if (data.status !== 'ok') return;
+                if (typeof window.publishCartQuantitySync === 'function') {
+                    window.publishCartQuantitySync({
+                        variantId: formData.get('variant_id'),
+                        packTypeId: formData.get('pack_type_id'),
+                        quantity: formData.get('quantity')
+                    });
+                }
                 var itemId = formData.get('item_id');
+                if (!itemId) {
+                    window.location.reload();
+                    return;
+                }
                 document.querySelectorAll('[data-line-total="' + itemId + '"]').forEach(function(el) {
                     el.textContent = '₪' + data.line_total;
                 });
@@ -138,6 +160,7 @@
     }
     function updateCartQty(input) {
         clearTimeout(_cartQtyTimer);
+        if (shouldDeferEmptyQtyUpdate(input)) return;
         _cartQtyTimer = setTimeout(function() { _doCartPageUpdate(input); }, 700);
     }
     function updateCartQtyNow(input) {

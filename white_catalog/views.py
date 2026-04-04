@@ -67,6 +67,9 @@ def _build_cart_page_context(request):
             key = (item.product_id, item.variant.fabric_type_id, item.pack_type_id)
             if key not in groups_map:
                 group = {
+                    "product": item.product,
+                    "pack_type_obj": item.pack_type,
+                    "fabric_type_id": item.variant.fabric_type_id,
                     "product_name": item.product.name,
                     "product_image": item.product.get_main_image(),
                     "fabric_type": item.variant.fabric_type.name,
@@ -74,11 +77,41 @@ def _build_cart_page_context(request):
                     "price_at_add": item.price_at_add,
                     "items": [],
                     "group_total": Decimal("0"),
+                    "items_by_variant_id": {},
                 }
                 groups_map[key] = group
                 grouped_items.append(group)
-            groups_map[key]["items"].append(item)
+            groups_map[key]["items_by_variant_id"][item.variant_id] = item
             groups_map[key]["group_total"] += item.price_at_add * item.quantity
+
+        for group in grouped_items:
+            variants = (
+                group["product"].variants.filter(
+                    is_active=True,
+                    fabric_type_id=group["fabric_type_id"],
+                )
+                .select_related("size_type")
+                .order_by("size_type_id", "id")
+            )
+            for variant in variants:
+                existing_item = group["items_by_variant_id"].get(variant.id)
+                quantity = existing_item.quantity if existing_item else 0
+                line_total = existing_item.get_line_total() if existing_item else Decimal("0")
+                group["items"].append(
+                    {
+                        "item_id": existing_item.id if existing_item else "",
+                        "variant_id": variant.id,
+                        "pack_type_id": group["pack_type_obj"].id,
+                        "size_name": variant.size_type.name,
+                        "quantity": quantity,
+                        "line_total": "{:.2f}".format(line_total),
+                        "has_item": bool(existing_item),
+                    }
+                )
+            del group["items_by_variant_id"]
+            del group["product"]
+            del group["pack_type_obj"]
+            del group["fabric_type_id"]
 
     return {
         "cart": cart,
@@ -139,6 +172,19 @@ def _subcategory_detail_context(request, subcategory, category=None):
     variants_data = []
     pack_types_data = []
     if subcategory.is_orderable and catalog_user:
+        cart_qty_map = {}
+        try:
+            active_cart = WhiteCart.objects.prefetch_related("items").get(
+                user=catalog_user,
+                status=WhiteCart.STATUS_ACTIVE,
+            )
+            cart_qty_map = {
+                (item.variant_id, item.pack_type_id): item.quantity
+                for item in active_cart.items.filter(product=subcategory)
+            }
+        except WhiteCart.DoesNotExist:
+            cart_qty_map = {}
+
         # Pack types are global — send all active ones
         pack_types_data = [
             {"pack_id": pt.pk, "pack_name": pt.name, "pack_qty": pt.quantity}
@@ -161,6 +207,10 @@ def _subcategory_detail_context(request, subcategory, category=None):
                 "variant_id": variant.id,
                 "size_name": variant.size_type.name,
                 "unit_price": str(effective_price) if effective_price is not None else None,
+                "cart_quantities": {
+                    str(pt["pack_id"]): cart_qty_map.get((variant.id, pt["pack_id"]), 0)
+                    for pt in pack_types_data
+                },
             })
         variants_data = list(fabric_map.values())
 
@@ -300,7 +350,7 @@ def cart_add(request):
             continue
 
         effective_price = variant.unit_price if variant.unit_price is not None else variant.product.unit_price
-        if not effective_price:
+        if effective_price is None:
             continue
 
         # Price per pack = unit_price × units in pack
@@ -368,6 +418,8 @@ def cart_update(request):
     user = get_current_catalog_user(request)
     item_id = request.POST.get("item_id")
     action = request.POST.get("action")  # "update" or "remove"
+    variant_id = request.POST.get("variant_id")
+    pack_type_id = request.POST.get("pack_type_id")
     is_ajax = request.POST.get("format") == "json"
 
     if settings.DEBUG:
@@ -381,16 +433,42 @@ def cart_update(request):
             request.path,
         )
 
-    try:
-        item = WhiteCartItem.objects.select_related("cart").get(pk=item_id, cart__user=user, cart__status=WhiteCart.STATUS_ACTIVE)
-    except WhiteCartItem.DoesNotExist:
-        if settings.DEBUG:
-            logger.warning(
-                "cart_update missing item user=%s item_id=%s action=%s",
-                getattr(user, "username", None),
-                item_id,
-                action,
+    item = None
+    pack_type = None
+    if item_id:
+        try:
+            item = WhiteCartItem.objects.select_related("cart").get(pk=item_id, cart__user=user, cart__status=WhiteCart.STATUS_ACTIVE)
+        except WhiteCartItem.DoesNotExist:
+            if settings.DEBUG:
+                logger.warning(
+                    "cart_update missing item user=%s item_id=%s action=%s",
+                    getattr(user, "username", None),
+                    item_id,
+                    action,
+                )
+            messages.error(request, "הפריט לא נמצא")
+            return redirect("white_catalog:cart")
+    elif action == "update" and variant_id and pack_type_id:
+        cart = get_or_create_active_cart(user)
+        try:
+            variant = WhiteProductVariant.objects.select_related("product").get(
+                pk=variant_id,
+                is_active=True,
             )
+            pack_type = WhitePackType.objects.get(pk=pack_type_id, is_active=True)
+        except (WhiteProductVariant.DoesNotExist, WhitePackType.DoesNotExist, TypeError, ValueError):
+            if is_ajax:
+                return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
+            messages.error(request, "הפריט לא נמצא")
+            return redirect("white_catalog:cart")
+        item = (
+            WhiteCartItem.objects.select_related("cart")
+            .filter(cart=cart, variant=variant, pack_type=pack_type)
+            .first()
+        )
+    else:
+        if is_ajax:
+            return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
         messages.error(request, "הפריט לא נמצא")
         return redirect("white_catalog:cart")
 
@@ -421,6 +499,16 @@ def cart_update(request):
         except ValueError:
             qty = 0
         if qty <= 0:
+            if not item:
+                cart_obj = get_or_create_active_cart(user)
+                cart_pk = cart_obj.pk
+                if is_ajax:
+                    return JsonResponse({
+                        "status": "noop",
+                        "cart_total": "{:.2f}".format(cart_obj.get_total()),
+                        "cart_count": cart_obj.get_item_count(),
+                    })
+                return redirect("white_catalog:cart")
             cart_obj = item.cart
             cart_pk = cart_obj.pk
             item.delete()
@@ -442,8 +530,26 @@ def cart_update(request):
                 return JsonResponse({"status": "removed", "cart_total": ct, "cart_count": cc})
             messages.success(request, "הפריט הוסר מההזמנה")
         else:
-            item.quantity = qty
-            item.save(update_fields=["quantity", "updated"])
+            if not item:
+                effective_price = variant.unit_price if variant.unit_price is not None else variant.product.unit_price
+                if effective_price is None:
+                    if is_ajax:
+                        return JsonResponse({"status": "error", "error": "מחיר לא זמין"}, status=400)
+                    messages.error(request, "מחיר לא זמין")
+                    return redirect("white_catalog:cart")
+                item, _ = WhiteCartItem.objects.update_or_create(
+                    cart=cart,
+                    variant=variant,
+                    pack_type=pack_type,
+                    defaults={
+                        "product": variant.product,
+                        "quantity": qty,
+                        "price_at_add": effective_price * pack_type.quantity,
+                    },
+                )
+            else:
+                item.quantity = qty
+                item.save(update_fields=["quantity", "updated"])
             if is_ajax:
                 line_total = item.price_at_add * qty
                 cart_total = "{:.2f}".format(item.cart.get_total())
