@@ -71,9 +71,9 @@
                         {% for item in cart.items.all %}
                         <tr>
                             <td>{{ item.product.name }}</td>
-                            <td>{{ item.variant.fabric_type.name }}</td>
-                            <td>{{ item.variant.size_type.name }}</td>
-                            <td>{{ item.pack_type.name }}</td>
+                            <td>{{ item.display_variant_name }}</td>
+                            <td>{{ item.display_size_name }}</td>
+                            <td>{{ item.display_pack_name }}</td>
                             <td>₪{{ item.price_at_add }}</td>
                             <td>{{ item.quantity }}</td>
                             <td><strong>₪{{ item.get_line_total }}</strong></td>

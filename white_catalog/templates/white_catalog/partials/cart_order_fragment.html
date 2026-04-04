@@ -7,7 +7,7 @@
                             <th>סוג בד</th>
                             <th>מידה</th>
                             <th>מארז</th>
-                            <th>מחיר למארז</th>
+                            <th>מחיר</th>
                             <th>כמות</th>
                             <th>סה"כ</th>
                             <th></th>
@@ -17,16 +17,17 @@
                         {% for item in cart.items.all %}
                         <tr>
                             <td data-label="מוצר"><strong>{{ item.product.name }}</strong></td>
-                            <td data-label="סוג בד">{{ item.variant.fabric_type.name }}</td>
-                            <td data-label="מידה">{{ item.variant.size_type.name }}</td>
-                            <td data-label="מארז">{{ item.pack_type.name }}</td>
-                            <td data-label="מחיר למארז">₪{{ item.price_at_add }}</td>
+                            <td data-label="סוג בד">{{ item.display_fabric_name }}</td>
+                            <td data-label="מידה">{{ item.display_size_name }}</td>
+                            <td data-label="מארז">{{ item.display_pack_name }}</td>
+                            <td data-label="מחיר">{% if item.is_simple_item %}₪{{ item.price_at_add }} ליחידה{% else %}₪{{ item.price_at_add }} למארז{% endif %}</td>
                             <td data-label="כמות">
                                 <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">
                                     {% csrf_token %}
                                     <input type="hidden" name="item_id" value="{{ item.id }}">
-                                    <input type="hidden" name="variant_id" value="{{ item.variant_id }}">
-                                    <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id }}">
+                                    <input type="hidden" name="product_id" value="{{ item.product_id }}">
+                                    <input type="hidden" name="variant_id" value="{{ item.variant_id|default_if_none:'' }}">
+                                    <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id|default_if_none:'' }}">
                                     <input type="hidden" name="action" value="update">
                                     <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)" onblur="updateCartQtyNow(this)">
                                 </form>
@@ -36,8 +37,9 @@
                                 <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="item_id" value="{{ item.id }}">
-                                    <input type="hidden" name="variant_id" value="{{ item.variant_id }}">
-                                    <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id }}">
+                                    <input type="hidden" name="product_id" value="{{ item.product_id }}">
+                                    <input type="hidden" name="variant_id" value="{{ item.variant_id|default_if_none:'' }}">
+                                    <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id|default_if_none:'' }}">
                                     <input type="hidden" name="action" value="remove">
                                     <button type="submit" class="btn-remove">✕ הסר</button>
                                 </form>
@@ -62,13 +64,13 @@
                             {% endif %}
                             <div class="mobile-cart-header-text">
                                 <div class="mobile-cart-title">{{ group.product_name }}</div>
-                                <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז</div>
+                                <div class="mobile-cart-meta">{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} {% if group.is_simple %}ליחידה{% else %}למארז{% endif %}</div>
                             </div>
                         </div>
                         <table class="mobile-sizes-table">
                             <thead>
                                 <tr>
-                                    <th>מידה</th>
+                                    <th>{% if group.is_simple %}סוג{% else %}מידה{% endif %}</th>
                                     <th>כמות</th>
                                     <th>סה"כ</th>
                                     <th></th>
@@ -82,8 +84,9 @@
                                         <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">
                                             {% csrf_token %}
                                             <input type="hidden" name="item_id" value="{{ item.item_id }}">
-                                            <input type="hidden" name="variant_id" value="{{ item.variant_id }}">
-                                            <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id }}">
+                                            <input type="hidden" name="product_id" value="{{ group.product_id|default:'' }}">
+                                            <input type="hidden" name="variant_id" value="{{ item.variant_id|default_if_none:'' }}">
+                                            <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id|default_if_none:'' }}">
                                             <input type="hidden" name="action" value="update">
                                             <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)" onblur="updateCartQtyNow(this)">
                                         </form>
@@ -94,8 +97,9 @@
                                         <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;">
                                             {% csrf_token %}
                                             <input type="hidden" name="item_id" value="{{ item.item_id }}">
-                                            <input type="hidden" name="variant_id" value="{{ item.variant_id }}">
-                                            <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id }}">
+                                            <input type="hidden" name="product_id" value="{{ group.product_id|default:'' }}">
+                                            <input type="hidden" name="variant_id" value="{{ item.variant_id|default_if_none:'' }}">
+                                            <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id|default_if_none:'' }}">
                                             <input type="hidden" name="action" value="remove">
                                             <button type="submit" class="btn-remove">✕</button>
                                         </form>

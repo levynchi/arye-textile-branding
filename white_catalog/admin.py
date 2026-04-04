@@ -14,7 +14,7 @@ class WhiteSubcategoryInline(admin.TabularInline):
 	"""Inline admin for WhiteSubcategory within WhiteCategory."""
 	model = WhiteSubcategory
 	extra = 1
-	fields = ("name", "description", "image", "order", "slug", "is_orderable")
+	fields = ("name", "description", "image", "order", "slug", "is_orderable", "has_order_variants")
 	prepopulated_fields = {"slug": ("name",)}
 
 
@@ -92,9 +92,9 @@ class WhiteProductVariantInline(admin.TabularInline):
 @admin.register(WhiteSubcategory)
 class WhiteSubcategoryAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteSubcategory model."""
-	list_display = ("name", "category", "unit_price", "online_price", "order", "created", "updated")
+	list_display = ("name", "category", "is_orderable", "has_order_variants", "unit_price", "online_price", "order", "created", "updated")
 	list_editable = ("order",)
-	list_filter = ("category",)
+	list_filter = ("category", "is_orderable", "has_order_variants")
 	search_fields = ("name", "description", "category__name")
 	prepopulated_fields = {"slug": ("name",)}
 	readonly_fields = ("created", "updated")
@@ -112,7 +112,7 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 
 	fieldsets = (
 		(None, {
-			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable")
+			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable", "has_order_variants")
 		}),
 		("מחירים (למוצרים ללא גרסאות)", {
 			"fields": ("unit_price", "online_price"),

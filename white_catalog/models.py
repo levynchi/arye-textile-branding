@@ -34,7 +34,12 @@ class WhiteSubcategory(models.Model):
 	is_orderable = models.BooleanField(
 		"זמין להזמנה",
 		default=False,
-		help_text="האם מוצר זה נכלל במערכת ההזמנות (גרסאות + מארזים)"
+		help_text="האם מוצר זה זמין להזמנה בקטלוג הלבן"
+	)
+	has_order_variants = models.BooleanField(
+		"יש לו גרסאות + מארזים",
+		default=False,
+		help_text="סמן אם המוצר מוזמן דרך גרסאות, מידות וסוגי מארזים"
 	)
 	category = models.ForeignKey(
 		WhiteCategory,
@@ -399,12 +404,12 @@ class WhiteCart(models.Model):
 
 
 class WhiteCartItem(models.Model):
-	"""One line in the cart: variant (product+fabric+size) + pack-type + quantity."""
+	"""One line in the cart: either a simple product or a variant + pack combination."""
 	cart = models.ForeignKey(WhiteCart, on_delete=models.CASCADE, related_name="items", verbose_name="עגלה")
 	product = models.ForeignKey(WhiteSubcategory, on_delete=models.CASCADE, related_name="cart_items", verbose_name="מוצר")
-	variant = models.ForeignKey(WhiteProductVariant, on_delete=models.CASCADE, related_name="cart_items", verbose_name="גרסה")
-	pack_type = models.ForeignKey(WhitePackType, on_delete=models.CASCADE, related_name="cart_items", verbose_name="סוג מארז")
-	quantity = models.PositiveIntegerField("כמות מארזים", default=1)
+	variant = models.ForeignKey(WhiteProductVariant, on_delete=models.CASCADE, related_name="cart_items", verbose_name="גרסה", null=True, blank=True)
+	pack_type = models.ForeignKey(WhitePackType, on_delete=models.CASCADE, related_name="cart_items", verbose_name="סוג מארז", null=True, blank=True)
+	quantity = models.PositiveIntegerField("כמות", default=1)
 	price_at_add = models.DecimalField("מחיר בעת הוספה", max_digits=10, decimal_places=2)
 	created = models.DateTimeField(auto_now_add=True)
 	updated = models.DateTimeField(auto_now=True)
@@ -416,13 +421,43 @@ class WhiteCartItem(models.Model):
 		unique_together = ("cart", "variant", "pack_type")
 
 	def __str__(self):
-		return (
-			f"{self.product.name} | {self.variant.fabric_type.name} | "
-			f"{self.variant.size_type.name} | {self.pack_type.name} x{self.quantity}"
-		)
+		if self.variant and self.pack_type:
+			return (
+				f"{self.product.name} | {self.variant.fabric_type.name} | "
+				f"{self.variant.size_type.name} | {self.pack_type.name} x{self.quantity}"
+			)
+		return f"{self.product.name} | הזמנה פשוטה x{self.quantity}"
 
 	def get_line_total(self):
 		return self.price_at_add * self.quantity
+
+	@property
+	def is_simple_item(self):
+		return not self.variant_id and not self.pack_type_id
+
+	@property
+	def display_fabric_name(self):
+		if self.variant_id and self.variant and self.variant.fabric_type_id:
+			return self.variant.fabric_type.name
+		return "ללא גרסאות"
+
+	@property
+	def display_size_name(self):
+		if self.variant_id and self.variant and self.variant.size_type_id:
+			return self.variant.size_type.name
+		return "-"
+
+	@property
+	def display_pack_name(self):
+		if self.pack_type_id and self.pack_type:
+			return self.pack_type.name
+		return "יחידה"
+
+	@property
+	def display_variant_name(self):
+		if self.variant_id and self.variant:
+			return self.variant.name
+		return "הזמנה פשוטה"
 
 
 class WhiteOrder(models.Model):

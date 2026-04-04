@@ -153,6 +153,46 @@
         .qty-input:focus { border-color: #7594b1; outline: none; box-shadow: 0 0 0 2px rgba(117,148,177,0.2); }
         .qty-input::placeholder { color: #888; opacity: 1; }
         .order-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+        .simple-order-panel {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+        .simple-order-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .simple-order-label {
+            font-weight: 700;
+            color: #333;
+        }
+        .simple-order-price {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #7594b1;
+        }
+        .simple-order-hint {
+            color: #666;
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+        .simple-order-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .simple-order-total {
+            font-weight: 700;
+            color: #333;
+            min-height: 24px;
+        }
         .btn-add-to-cart {
             background: #7594b1; color: white; border: none;
             padding: 12px 24px; border-radius: 6px; font-size: 1rem;
@@ -295,7 +335,7 @@
                     <h1 class="product-title">{{ subcategory.name }}</h1>
 
                     {% if catalog_user %}
-                        {% if subcategory.is_orderable %}
+                        {% if show_variant_ordering %}
                             <!-- ===== Ordering Widget ===== -->
                             <div class="ordering-widget">
                                 {% for message in messages %}
@@ -662,6 +702,172 @@
                             })();
                             </script>
 
+                        {% elif show_simple_ordering %}
+                            <div class="ordering-widget">
+                                {% for message in messages %}
+                                    <div class="order-message order-message-{{ message.tags }}">{{ message }}</div>
+                                {% endfor %}
+                                <div id="orderToast" class="order-toast" role="status" aria-live="polite" aria-atomic="true">
+                                    <span class="order-toast-badge">+</span>
+                                    <div id="orderToastText" class="order-toast-text"></div>
+                                </div>
+
+                                <form id="simpleOrderForm" method="post" action="{% url 'white_catalog:cart_add' %}" novalidate>
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <input type="hidden" name="product_id" value="{{ subcategory.id }}">
+                                    <div class="simple-order-panel">
+                                        <div class="simple-order-row">
+                                            <div>
+                                                <div class="simple-order-label">הזמנה פשוטה</div>
+                                                <div class="simple-order-hint">למוצר הזה אין גרסאות או מארזים. פשוט מזינים כמות ומעדכנים.</div>
+                                            </div>
+                                            <div>
+                                                <div class="simple-order-label">מחיר ליחידה</div>
+                                                <div class="simple-order-price">
+                                                    {% if subcategory.unit_price %}
+                                                        ₪{{ subcategory.unit_price }}
+                                                    {% else %}
+                                                        לא זמין
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="simple-order-row">
+                                            <div class="simple-order-input-wrap">
+                                                <label class="simple-order-label" for="simpleQuantityInput">כמות</label>
+                                                <input
+                                                    type="number"
+                                                    id="simpleQuantityInput"
+                                                    name="simple_quantity"
+                                                    min="0"
+                                                    step="1"
+                                                    value="{% if simple_cart_quantity %}{{ simple_cart_quantity }}{% endif %}"
+                                                    class="qty-input"
+                                                    placeholder="0"
+                                                    inputmode="numeric"
+                                                    {% if not subcategory.unit_price %}disabled{% endif %}
+                                                    oninput="syncSimpleProductQtyChange(this)"
+                                                    onblur="syncSimpleProductQtyBlur(this)">
+                                            </div>
+                                            <div id="simpleTotalSummary" class="simple-order-total"></div>
+                                        </div>
+                                        {% if not subcategory.unit_price %}
+                                            <div class="order-message order-message-error">לא ניתן להזמין את המוצר כרגע כי אין לו מחיר סיטונאי מוגדר.</div>
+                                        {% endif %}
+                                        <div class="order-actions">
+                                            <a href="{% url 'white_catalog:cart' %}" class="btn-view-cart">דף הזמנה ({{ cart_count }})</a>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <script>
+                            (function() {
+                                const form = document.getElementById('simpleOrderForm');
+                                const qtyInput = document.getElementById('simpleQuantityInput');
+                                const orderToast = document.getElementById('orderToast');
+                                const orderToastText = document.getElementById('orderToastText');
+                                const totalSummary = document.getElementById('simpleTotalSummary');
+                                const unitPrice = parseFloat('{{ subcategory.unit_price|default_if_none:"" }}');
+                                const productDisplayName = '{{ subcategory.name|escapejs }}';
+                                let orderToastTimer = null;
+                                let simpleSyncTimer = null;
+                                let currentSimpleCartQty = parseInt('{{ simple_cart_quantity|default:0 }}', 10) || 0;
+
+                                if (!form || !qtyInput) return;
+
+                                function showFirstAddToast() {
+                                    if (!orderToast || !orderToastText) return;
+                                    orderToastText.textContent = 'מעולה, ' + productDisplayName + ' כבר בפנים. אפשר להמשיך לעדכן כמות או לעבור לדף ההזמנה.';
+                                    orderToast.classList.add('is-visible');
+                                    clearTimeout(orderToastTimer);
+                                    orderToastTimer = setTimeout(function() {
+                                        orderToast.classList.remove('is-visible');
+                                    }, 3200);
+                                }
+
+                                function normalizeSimpleQtyInput(input) {
+                                    var v = (input.value || '').trim();
+                                    if (v === '') {
+                                        input.value = '';
+                                        return 0;
+                                    }
+                                    var n = parseInt(v, 10);
+                                    if (isNaN(n) || n < 0) {
+                                        input.value = '';
+                                        return 0;
+                                    }
+                                    input.value = String(n);
+                                    return n;
+                                }
+
+                                function updateSimpleSummary() {
+                                    var qty = parseInt(qtyInput.value, 10);
+                                    var qtyNum = Number.isFinite(qty) && qty > 0 ? qty : 0;
+                                    if (!qtyNum) {
+                                        totalSummary.textContent = '';
+                                        return;
+                                    }
+                                    if (!Number.isFinite(unitPrice)) {
+                                        totalSummary.textContent = qtyNum + ' יחידות';
+                                        return;
+                                    }
+                                    totalSummary.textContent = 'סה"כ: ' + qtyNum + ' יחידות | ₪' + (qtyNum * unitPrice).toFixed(2) + ' (לא כולל מע"מ)';
+                                }
+
+                                function syncSimpleOrder(immediate) {
+                                    if (!immediate && qtyInput.value === '' && document.activeElement === qtyInput) return;
+                                    clearTimeout(simpleSyncTimer);
+                                    const productQtyBeforeSync = currentSimpleCartQty;
+                                    const runSync = function() {
+                                        const fd = new FormData(form);
+                                        fd.append('format', 'json');
+                                        fetch(form.getAttribute('action') || form.action, {
+                                            method: 'POST',
+                                            body: fd,
+                                            credentials: 'same-origin',
+                                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                                        })
+                                            .then(function(r) { return r.json(); })
+                                            .then(function(data) {
+                                                if (!data.ok) return;
+                                                currentSimpleCartQty = normalizeSimpleQtyInput(qtyInput);
+                                                updateSimpleSummary();
+                                                if (typeof window.setHeaderCartCount === 'function') window.setHeaderCartCount(data.cart_count);
+                                                var viewCartLink = document.querySelector('.btn-view-cart');
+                                                if (viewCartLink) viewCartLink.textContent = 'דף הזמנה (' + data.cart_count + ')';
+                                                if (typeof window.flashCartIndicator === 'function' && data.added > 0) window.flashCartIndicator();
+                                                if (productQtyBeforeSync === 0 && currentSimpleCartQty > 0) showFirstAddToast();
+                                                var drawer = document.getElementById('cartDrawer');
+                                                if (drawer && drawer.classList.contains('is-open') && typeof window.refreshCartDrawer === 'function') {
+                                                    window.refreshCartDrawer();
+                                                }
+                                            })
+                                            .catch(function(error) {
+                                                console.error('simple-order-cart-sync-failed', error);
+                                            });
+                                    };
+
+                                    if (immediate) {
+                                        runSync();
+                                    } else {
+                                        simpleSyncTimer = setTimeout(runSync, 500);
+                                    }
+                                }
+
+                                window.syncSimpleProductQtyChange = function(input) {
+                                    updateSimpleSummary();
+                                    syncSimpleOrder(false);
+                                };
+                                window.syncSimpleProductQtyBlur = function(input) {
+                                    normalizeSimpleQtyInput(input);
+                                    updateSimpleSummary();
+                                    syncSimpleOrder(true);
+                                };
+
+                                updateSimpleSummary();
+                            })();
+                            </script>
                         {% else %}
                             <!-- Old pricing display for non-orderable products -->
                             {% if subcategory.has_size_prices %}
@@ -806,7 +1012,7 @@
     {% if catalog_user and subcategory.is_orderable %}
     <script>
     (function() {
-        var form = document.getElementById('orderForm');
+        var form = document.getElementById('orderForm') || document.getElementById('simpleOrderForm');
         if (!form) return;
         form.addEventListener('submit', function(e) {
             e.preventDefault();
