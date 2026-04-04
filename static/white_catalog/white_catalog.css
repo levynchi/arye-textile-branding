@@ -975,10 +975,25 @@
         max-width: 100%;
         max-height: 350px;
     }
-    
+
+    .product-main-image {
+        max-width: 350px;
+        margin: 0 auto;
+    }
+
+    .product-thumbnails {
+        width: min(100%, 350px);
+        margin: 0 auto;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        justify-items: stretch;
+    }
+
     .thumbnail {
-        width: 80px;
-        height: 80px;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1;
+        box-sizing: border-box;
     }
     
     .product-cta {
@@ -1023,12 +1038,7 @@
         max-width: 100%;
         max-height: 280px;
     }
-    
-    .thumbnail {
-        width: 70px;
-        height: 70px;
-    }
-    
+
     .product-cta-text {
         font-size: 1rem;
     }
