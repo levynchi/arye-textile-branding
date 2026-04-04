@@ -979,7 +979,7 @@
     .product-thumbnails {
         width: 100%;
         margin: 0;
-        grid-template-columns: repeat(3, 88px);
+        grid-template-columns: repeat(3, 96px);
         row-gap: 8px;
         column-gap: 0;
         justify-content: space-between;
@@ -987,7 +987,7 @@
     }
 
     .thumbnail {
-        width: 88px;
+        width: 96px;
         height: auto;
         aspect-ratio: 1 / 1;
         box-sizing: border-box;
