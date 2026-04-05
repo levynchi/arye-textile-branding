@@ -283,7 +283,7 @@ def catalog_home(request):
     context = {
         "categories": categories,
         "standalone_subcategories": standalone_subcategories,
-        "homepage_subcategories": list(standalone_subcategories) + list(category_homepage_subcategories),
+        "homepage_subcategories": list(category_homepage_subcategories) + list(standalone_subcategories),
         "all_categories": WhiteCategory.objects.all(),
         "cart_count": _cart_count(request),
     }

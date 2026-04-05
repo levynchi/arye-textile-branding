@@ -91,26 +91,6 @@
         <!-- Categories Gallery (4 per row) -->
         <section class="catalog-gallery" aria-label="קטגוריות מוצרים">
             <div class="catalog-grid">
-                {% for category in categories %}
-                    <article class="catalog-card">
-                        <a href="{% url 'white_catalog:category_detail' category.slug %}" class="catalog-card-link">
-                            <div class="catalog-card-image">
-                                {% if category.image %}
-                                    <img src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy">
-                                {% else %}
-                                    <div class="catalog-placeholder">{{ category.name }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="catalog-card-content">
-                                <h2 class="catalog-card-title">{{ category.name }}</h2>
-                                {% if category.description %}
-                                    <p class="catalog-card-description">{{ category.description|truncatewords:15 }}</p>
-                                {% endif %}
-                            </div>
-                        </a>
-                    </article>
-                {% endfor %}
-                
                 {% for subcategory in homepage_subcategories %}
                     <article class="catalog-card">
                         <a href="{% if subcategory.category %}{% url 'white_catalog:subcategory_detail' subcategory.category.slug subcategory.slug %}{% else %}{% url 'white_catalog:standalone_subcategory_detail' subcategory.slug %}{% endif %}" class="catalog-card-link">
@@ -136,6 +116,26 @@
                                             <p class="catalog-card-price">₪{{ subcategory.unit_price }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
                                         {% endif %}
                                     {% endwith %}
+                                {% endif %}
+                            </div>
+                        </a>
+                    </article>
+                {% endfor %}
+
+                {% for category in categories %}
+                    <article class="catalog-card">
+                        <a href="{% url 'white_catalog:category_detail' category.slug %}" class="catalog-card-link">
+                            <div class="catalog-card-image">
+                                {% if category.image %}
+                                    <img src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy">
+                                {% else %}
+                                    <div class="catalog-placeholder">{{ category.name }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="catalog-card-content">
+                                <h2 class="catalog-card-title">{{ category.name }}</h2>
+                                {% if category.description %}
+                                    <p class="catalog-card-description">{{ category.description|truncatewords:15 }}</p>
                                 {% endif %}
                             </div>
                         </a>
