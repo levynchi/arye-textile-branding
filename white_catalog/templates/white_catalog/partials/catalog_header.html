@@ -422,6 +422,20 @@
     function shouldDeferEmptyQtyUpdate(input) {
         return !!input && input.value === '' && document.activeElement === input;
     }
+    function rememberCartQtyOriginalValue(input) {
+        if (!input) return;
+        if (!input.hasAttribute('data-original-quantity')) {
+            input.setAttribute('data-original-quantity', input.value || '0');
+        }
+    }
+    function restoreCartQtyOriginalValue(input) {
+        if (!input) return false;
+        if (input.value !== '') return false;
+        var originalValue = input.getAttribute('data-original-quantity');
+        if (originalValue === null) return false;
+        input.value = originalValue;
+        return true;
+    }
     var _doCartUpdate = function(input) {
         var f = input.closest('form');
         var formActionUrl = f ? (f.getAttribute('action') || f.action || '') : '';
@@ -437,6 +451,7 @@
         fetchCartJson(formActionUrl, formData, 'quantity-update')
             .then(function(data) {
                 if (data.status === 'removed') {
+                    input.removeAttribute('data-original-quantity');
                     if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
                     publishCartQuantitySync({
                         productId: formData.get('product_id'),
@@ -452,6 +467,7 @@
                     return;
                 }
                 if (data.status !== 'ok') return;
+                input.setAttribute('data-original-quantity', String(formData.get('quantity') || '0'));
                 if (typeof data.cart_count !== 'undefined') setHeaderCartCount(data.cart_count);
                 publishCartQuantitySync({
                     productId: formData.get('product_id'),
@@ -515,6 +531,7 @@
     };
     window.updateCartQtyNow = function(input) {
         clearTimeout(_cartQtyTimer);
+        restoreCartQtyOriginalValue(input);
         cartDebug('run-update-now', {
             itemId: input.closest('form') && input.closest('form').querySelector('input[name="item_id"]')
                 ? input.closest('form').querySelector('input[name="item_id"]').value
@@ -523,6 +540,12 @@
         });
         _doCartUpdate(input);
     };
+    document.addEventListener('focusin', function(e) {
+        if (!e.target.matches('input[name="quantity"].qty-input-small')) return;
+        rememberCartQtyOriginalValue(e.target);
+        if (document.activeElement !== e.target) return;
+        e.target.value = '';
+    });
 })();
  </script>
 {% endif %}
