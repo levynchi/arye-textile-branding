@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'main.css' %}">
     <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
+    <link rel="stylesheet" href="{% static 'white_catalog/cart_order.css' %}">
     <style>
         .confirm-page { max-width: 800px; margin: 30px auto; padding: 0 20px; }
         .confirm-banner { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px;
@@ -30,6 +31,26 @@
         .btn-home { color: #7594b1; font-weight: 700; text-decoration: underline; padding: 12px 0; }
         .notes-box { background: #fff8e1; padding: 14px; border-radius: 6px; border-right: 4px solid #f9a825; }
         .vat-note { color: #888; font-size: 0.85rem; margin-top: 8px; }
+        .order-items-mobile { display: none; }
+        .order-items-mobile .mobile-cart { display: block; }
+        .order-items-mobile .mobile-sizes-table th:last-child,
+        .order-items-mobile .mobile-sizes-table td:last-child { display: none; }
+        .order-items-mobile .mobile-cart-total {
+            margin-top: 4px;
+            border-bottom: none;
+        }
+        @media (max-width: 640px) {
+            .confirm-page {
+                padding: 0 16px;
+            }
+            .confirm-box {
+                padding: 16px;
+            }
+            .order-items-table {
+                display: none;
+            }
+            .order-items-mobile { display: block; }
+        }
     </style>
 </head>
 <body class="catalog-body">
@@ -61,21 +82,68 @@
                     <tbody>
                         {% for item in order.items.all %}
                         <tr>
-                            <td>{{ item.product_name }}</td>
-                            <td>{{ item.variant_name }}</td>
-                            <td>{{ item.size_name }}</td>
-                            <td>{{ item.pack_type_name }}</td>
-                            <td>₪{{ item.unit_price }}</td>
-                            <td>{{ item.quantity }}</td>
-                            <td><strong>₪{{ item.get_line_total }}</strong></td>
+                            <td data-label="מוצר">{{ item.product_name }}</td>
+                            <td data-label="גרסה">{{ item.variant_name }}</td>
+                            <td data-label="מידה">{{ item.size_name }}</td>
+                            <td data-label="מארז">{{ item.pack_type_name }}</td>
+                            <td data-label="מחיר">₪{{ item.unit_price }}</td>
+                            <td data-label="כמות">{{ item.quantity }}</td>
+                            <td data-label="סה&quot;כ"><strong>₪{{ item.get_line_total }}</strong></td>
                         </tr>
                         {% endfor %}
                         <tr class="total-row">
-                            <td colspan="6">סה"כ (לא כולל מע"מ):</td>
-                            <td>₪{{ order.total_amount }}</td>
+                            <td data-label='סה"כ' colspan="6">סה"כ (לא כולל מע"מ):</td>
+                            <td data-label='לתשלום'>₪{{ order.total_amount }}</td>
                         </tr>
                     </tbody>
                 </table>
+                <div class="order-items-mobile">
+                    <div class="mobile-cart">
+                        {% for group in grouped_items %}
+                        <div class="mobile-cart-card">
+                            <div class="mobile-cart-header">
+                                {% if group.product_image %}
+                                <img src="{{ group.product_image }}" alt="{{ group.product_name }}" class="mobile-cart-img">
+                                {% else %}
+                                <div class="mobile-cart-img-placeholder"></div>
+                                {% endif %}
+                                <div class="mobile-cart-header-text">
+                                    <div class="mobile-cart-title">{{ group.product_name }}</div>
+                                    <div class="mobile-cart-meta">{% if group.is_simple %}{{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} ל{{ group.pack_type }}{% else %}{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז{% endif %}</div>
+                                </div>
+                            </div>
+                            <table class="mobile-sizes-table">
+                                <thead>
+                                    <tr>
+                                        <th>{% if group.is_simple %}סוג{% else %}מידה{% endif %}</th>
+                                        <th>כמות</th>
+                                        <th>סה"כ</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in group.items %}
+                                    <tr>
+                                        <td>{{ item.size_name }}</td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td><strong>₪{{ item.line_total }}</strong></td>
+                                        <td></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            <div class="mobile-group-total">
+                                <span>סה"כ למוצר {{ group.product_name }}</span>
+                                <strong>₪{{ group.group_total }}</strong>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="mobile-cart-total">
+                            <span>סה"כ (לא כולל מע"מ):</span>
+                            <strong>₪{{ order.total_amount }}</strong>
+                        </div>
+                    </div>
+                </div>
                 <p class="vat-note">* המחירים אינם כוללים מע"מ</p>
             </div>
 

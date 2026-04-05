@@ -208,6 +208,50 @@ def _build_cart_page_context(request):
     }
 
 
+def _build_order_grouped_items(order):
+    """Group submitted order items like the cart drawer summary."""
+    grouped_items = []
+    groups_map = {}
+
+    for item in order.items.all():
+        is_simple = not item.variant_id
+        if is_simple:
+            key = ("simple", item.product_id or item.product_name)
+        else:
+            fabric_name = item.variant.fabric_type.name if item.variant_id and item.variant and item.variant.fabric_type_id else item.variant_name
+            key = (item.product_id or item.product_name, fabric_name, item.pack_type_name)
+
+        if key not in groups_map:
+            product_image = item.product.get_main_image() if item.product_id and item.product else None
+            group = {
+                "product_name": item.product_name,
+                "product_image": product_image,
+                "fabric_type": (
+                    "ללא גרסאות"
+                    if is_simple
+                    else (item.variant.fabric_type.name if item.variant_id and item.variant and item.variant.fabric_type_id else item.variant_name)
+                ),
+                "pack_type": item.pack_type_name,
+                "price_at_add": item.unit_price,
+                "items": [],
+                "group_total": Decimal("0"),
+                "is_simple": is_simple,
+            }
+            groups_map[key] = group
+            grouped_items.append(group)
+
+        groups_map[key]["items"].append(
+            {
+                "size_name": "יחידות" if is_simple else item.size_name,
+                "quantity": item.quantity,
+                "line_total": "{:.2f}".format(item.get_line_total()),
+            }
+        )
+        groups_map[key]["group_total"] += item.get_line_total()
+
+    return grouped_items
+
+
 def _nav_context():
     """Common navigation context shared by all views."""
     return {
@@ -868,10 +912,19 @@ def checkout(request):
 def order_confirm(request, order_number):
     """Order confirmation page."""
     user = get_current_catalog_user(request)
-    order = get_object_or_404(WhiteOrder, order_number=order_number, user=user)
+    order = get_object_or_404(
+        WhiteOrder.objects.prefetch_related(
+            "items__product__images",
+            "items__variant__fabric_type",
+            "items__variant__size_type",
+        ),
+        order_number=order_number,
+        user=user,
+    )
     context = {
         **_nav_context(),
         "order": order,
+        "grouped_items": _build_order_grouped_items(order),
         "cart_count": _cart_count(request),
     }
     return render(request, "white_catalog/order_confirm.html", context)
