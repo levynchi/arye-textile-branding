@@ -273,12 +273,18 @@ def _cart_count(request):
 
 def catalog_home(request):
     """Main white catalog page showing all categories and standalone subcategories."""
-    categories = WhiteCategory.objects.all()
-    standalone_subcategories = WhiteSubcategory.objects.filter(category__isnull=True)
+    categories = WhiteCategory.objects.filter(show_products_on_homepage=False)
+    standalone_subcategories = WhiteSubcategory.objects.filter(category__isnull=True).prefetch_related("images")
+    category_homepage_subcategories = WhiteSubcategory.objects.filter(
+        category__show_products_on_homepage=True
+    ).select_related("category").prefetch_related("images").order_by(
+        "category__order", "category__name", "order", "name"
+    )
     context = {
         "categories": categories,
         "standalone_subcategories": standalone_subcategories,
-        "all_categories": categories,
+        "homepage_subcategories": list(standalone_subcategories) + list(category_homepage_subcategories),
+        "all_categories": WhiteCategory.objects.all(),
         "cart_count": _cart_count(request),
     }
     return render(request, "white_catalog/catalog_home.html", context)

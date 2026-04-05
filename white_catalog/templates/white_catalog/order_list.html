@@ -30,6 +30,81 @@
         .btn-view { color: #7594b1; font-weight: 700; text-decoration: underline; font-size: 0.9rem; }
         .no-orders { text-align: center; padding: 60px; color: #666; }
         .order-items-preview { font-size: 0.85rem; color: #666; margin-top: 4px; }
+        .orders-mobile-list { display: none; }
+        .order-mobile-card {
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+        .order-mobile-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .order-mobile-number {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #111317;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+        .order-mobile-date {
+            color: #555;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+        .order-mobile-meta {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .order-mobile-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .order-mobile-label {
+            color: #6b7c93;
+            font-size: 0.85rem;
+            font-weight: 700;
+            min-width: 72px;
+        }
+        .order-mobile-value {
+            flex: 1;
+            text-align: right;
+            color: #111317;
+            font-size: 0.98rem;
+            line-height: 1.45;
+        }
+        .order-mobile-total {
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+        .order-mobile-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eeeeee;
+        }
+        @media (max-width: 640px) {
+            .orders-page {
+                padding: 0 16px;
+            }
+            .orders-table {
+                display: none;
+            }
+            .orders-mobile-list {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body class="catalog-body">
@@ -84,6 +159,42 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                <div class="orders-mobile-list">
+                    {% for order in orders %}
+                    <div class="order-mobile-card">
+                        <div class="order-mobile-top">
+                            <div>
+                                <div class="order-mobile-number">{{ order.order_number }}</div>
+                                <div class="order-mobile-date">{{ order.created|date:"d/m/Y H:i" }}</div>
+                            </div>
+                            <span class="status-badge status-{{ order.status }}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="order-mobile-meta">
+                            <div class="order-mobile-row">
+                                <div class="order-mobile-label">מוצרים</div>
+                                <div class="order-mobile-value">
+                                    {{ order.items.count }} פריטים
+                                    <div class="order-items-preview">
+                                        {% for item in order.items.all|slice:":2" %}
+                                            {{ item.product_name }} ({{ item.variant_name }}){% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                        {% if order.items.count > 2 %}...{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="order-mobile-row">
+                                <div class="order-mobile-label">סה"כ</div>
+                                <div class="order-mobile-value order-mobile-total">₪{{ order.total_amount }}</div>
+                            </div>
+                        </div>
+                        <div class="order-mobile-actions">
+                            <a href="{% url 'white_catalog:order_confirm' order.order_number %}" class="btn-view">צפה בהזמנה</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             {% else %}
                 <div class="no-orders">
                     <p style="font-size:3rem;">📋</p>

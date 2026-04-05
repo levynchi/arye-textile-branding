@@ -11,6 +11,34 @@
     <link rel="stylesheet" href="{% static 'main.css' %}">
     <link rel="stylesheet" href="{% static 'white_catalog/white_catalog.css' %}">
     <style>
+        .catalog-orders-link-wrap {
+            display: none;
+        }
+
+        .catalog-orders-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 8px 18px;
+            border: 1px solid #cfd3d9;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #355230;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 700;
+            line-height: 1;
+            box-shadow: 0 1px 3px rgba(17, 19, 23, 0.06);
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .catalog-orders-link:hover {
+            background: #f5f8fb;
+            border-color: #7594b1;
+            transform: translateY(-1px);
+        }
+
         .catalog-card-price {
             margin-top: 10px;
             font-size: 1.2rem;
@@ -24,6 +52,24 @@
             font-weight: 400;
             color: #666;
         }
+
+        @media (max-width: 640px) {
+            .catalog-orders-link-wrap {
+                display: flex;
+                justify-content: center;
+                padding: 2px 16px 0;
+                margin-top: -96px;
+                margin-bottom: 18px;
+            }
+
+            .catalog-orders-link {
+                width: 100%;
+                max-width: 220px;
+                min-height: 36px;
+                padding: 8px 14px;
+                font-size: 0.9rem;
+            }
+        }
     </style>
 </head>
 <body class="catalog-body">
@@ -32,6 +78,13 @@
     <main class="catalog-main" id="main-content">
         <!-- Page Title -->
         <div class="catalog-title-section">
+            {% if request.session.white_catalog_user_id %}
+            <div class="catalog-orders-link-wrap">
+                <a href="{% url 'white_catalog:order_list' %}" class="catalog-orders-link" aria-label="ההזמנות שלי">
+                    ההזמנות הישנות שלי
+                </a>
+            </div>
+            {% endif %}
             <h1 class="catalog-main-title">קטלוג מוצרים - אריה טקסטיל</h1>
         </div>
         
@@ -58,9 +111,9 @@
                     </article>
                 {% endfor %}
                 
-                {% for subcategory in standalone_subcategories %}
+                {% for subcategory in homepage_subcategories %}
                     <article class="catalog-card">
-                        <a href="{% url 'white_catalog:standalone_subcategory_detail' subcategory.slug %}" class="catalog-card-link">
+                        <a href="{% if subcategory.category %}{% url 'white_catalog:subcategory_detail' subcategory.category.slug subcategory.slug %}{% else %}{% url 'white_catalog:standalone_subcategory_detail' subcategory.slug %}{% endif %}" class="catalog-card-link">
                             <div class="catalog-card-image">
                                 {% if subcategory.image %}
                                     <img src="{{ subcategory.image.url }}" alt="{{ subcategory.name }}" loading="lazy">
@@ -89,7 +142,7 @@
                     </article>
                 {% endfor %}
                 
-                {% if not categories and not standalone_subcategories %}
+                {% if not categories and not homepage_subcategories %}
                     <div class="catalog-empty">
                         <p>אין קטגוריות זמינות כרגע.</p>
                     </div>

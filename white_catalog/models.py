@@ -10,6 +10,11 @@ class WhiteCategory(models.Model):
 	description = models.TextField("תיאור", blank=True)
 	image = models.ImageField("תמונה", upload_to="white_catalog/categories/", blank=True, null=True)
 	order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
+	show_products_on_homepage = models.BooleanField(
+		"הצג מוצרים בדף הבית",
+		default=False,
+		help_text="אם מסומן, בדף הבית יוצגו המוצרים של הקטגוריה במקום כרטיס הקטגוריה עצמה",
+	)
 	slug = models.SlugField("Slug", max_length=200, unique=True, blank=True, help_text="יוצר אוטומטית מהשם")
 	created = models.DateTimeField(auto_now_add=True)
 	updated = models.DateTimeField(auto_now=True)

@@ -63,8 +63,9 @@ class WhiteCatalogUserActivityInline(admin.TabularInline):
 @admin.register(WhiteCategory)
 class WhiteCategoryAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteCategory model."""
-	list_display = ("name", "order", "created", "updated")
-	list_editable = ("order",)
+	list_display = ("name", "show_products_on_homepage", "order", "created", "updated")
+	list_editable = ("show_products_on_homepage", "order",)
+	list_filter = ("show_products_on_homepage",)
 	search_fields = ("name", "description")
 	prepopulated_fields = {"slug": ("name",)}
 	readonly_fields = ("created", "updated")
@@ -72,7 +73,7 @@ class WhiteCategoryAdmin(admin.ModelAdmin):
 	
 	fieldsets = (
 		(None, {
-			"fields": ("name", "slug", "description", "image", "order")
+			"fields": ("name", "slug", "description", "image", "order", "show_products_on_homepage")
 		}),
 		("מידע נוסף", {
 			"fields": ("created", "updated"),
