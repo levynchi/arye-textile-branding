@@ -1117,6 +1117,34 @@
     {% endif %}
     <script>
     (function() {
+    function getSyncedCartItemCount() {
+        if (typeof window.readCartQtySyncMap !== 'function') return null;
+        var syncMap = window.readCartQtySyncMap();
+        return Object.keys(syncMap).reduce(function(total, key) {
+            var entry = syncMap[key];
+            var quantity = parseInt(entry && entry.quantity, 10);
+            return total + ((Number.isFinite(quantity) && quantity > 0) ? 1 : 0);
+        }, 0);
+    }
+
+    function setProductViewCartCount(count) {
+        document.querySelectorAll('.btn-view-cart').forEach(function(button) {
+            button.textContent = 'דף הזמנה (' + count + ')';
+        });
+    }
+
+    function syncProductViewCartCount() {
+        var count = getSyncedCartItemCount();
+        if (count === null) return;
+        setProductViewCartCount(count);
+    }
+
+    syncProductViewCartCount();
+    window.addEventListener('white-catalog-cart-quantity-sync', syncProductViewCartCount);
+    window.addEventListener('storage', function(event) {
+        if (event.key === 'whiteCatalogCartQtySync') syncProductViewCartCount();
+    });
+
         document.querySelectorAll('.js-open-cart-drawer').forEach(function(button) {
             button.addEventListener('click', function() {
                 if (typeof window.openCartDrawerWithRefresh === 'function') {
