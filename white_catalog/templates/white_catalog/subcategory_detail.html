@@ -173,7 +173,7 @@
             color: #333;
         }
         .simple-order-price {
-            font-size: 1.35rem;
+            font-size: 1.2rem;
             font-weight: 800;
             color: #7594b1;
         }
@@ -210,6 +210,57 @@
             font-family: inherit;
         }
         .btn-view-cart:hover { background: #7594b1; color: white; }
+        .product-order-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: nowrap;
+            align-items: stretch;
+        }
+        .product-order-actions .btn-view-cart,
+        .product-order-actions .btn-add-more {
+            flex: 1 1 0;
+            min-width: 0;
+            min-height: 48px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .btn-add-more {
+            background: none;
+            border: 2px solid #7594b1;
+            color: #7594b1;
+            padding: 11px 20px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            text-decoration: none;
+            line-height: 1;
+        }
+        .btn-add-more:hover {
+            background: #7594b1;
+            color: white;
+        }
+        .btn-add-more-lines {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        .btn-add-more-line-a::after { content: none; }
+        @media (max-width: 640px) {
+            .product-order-actions {
+                gap: 8px;
+            }
+            .product-order-actions .btn-view-cart,
+            .product-order-actions .btn-add-more {
+                padding-inline: 10px;
+            }
+        }
         .login-to-order { margin: 16px 0; color: #666; font-size: 1rem; }
         .login-to-order a { color: #7594b1; font-weight: 700; text-decoration: underline; }
         .order-message { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-weight: 600; }
@@ -218,20 +269,23 @@
         .order-message-info { background: #d1ecf1; color: #0c5460; }
         .order-toast {
             position: fixed;
-            left: 24px;
-            bottom: 24px;
+            top: 24px;
+            left: 50%;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 12px;
-            max-width: min(420px, calc(100vw - 32px));
-            padding: 14px 18px;
+            justify-content: center;
+            gap: 10px;
+            min-width: 180px;
+            max-width: min(240px, calc(100vw - 32px));
+            padding: 18px 20px;
             border-radius: 18px;
             background: rgba(17, 19, 23, 0.94);
             color: #f7f4ee;
             box-shadow: 0 18px 45px rgba(17, 19, 23, 0.22);
             border: 1px solid rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(10px);
-            transform: translateY(18px);
+            transform: translateX(-50%) translateY(-18px);
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.28s ease, transform 0.28s ease;
@@ -239,33 +293,35 @@
         }
         .order-toast.is-visible {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateX(-50%) translateY(0);
             pointer-events: auto;
         }
         .order-toast-badge {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 36px;
-            height: 36px;
+            width: 44px;
+            height: 44px;
             border-radius: 999px;
             background: linear-gradient(135deg, #7594b1, #90adc8);
             color: white;
-            font-size: 0.95rem;
+            font-size: 1.35rem;
             font-weight: 800;
             flex-shrink: 0;
         }
         .order-toast-text {
-            font-size: 0.98rem;
+            font-size: 1rem;
             font-weight: 700;
-            line-height: 1.5;
+            line-height: 1.2;
+            text-align: center;
         }
         @media (max-width: 640px) {
             .order-toast {
-                left: 16px;
-                right: 16px;
-                bottom: 16px;
+                top: 16px;
+                left: 50%;
+                right: auto;
                 max-width: none;
+                width: calc(100vw - 32px);
             }
         }
     </style>
@@ -346,7 +402,7 @@
                                     <div class="order-message order-message-{{ message.tags }}">{{ message }}</div>
                                 {% endfor %}
                                 <div id="orderToast" class="order-toast" role="status" aria-live="polite" aria-atomic="true">
-                                    <span class="order-toast-badge">+</span>
+                                    <span class="order-toast-badge">✓</span>
                                     <div id="orderToastText" class="order-toast-text"></div>
                                 </div>
 
@@ -385,8 +441,11 @@
                                             <tbody id="orderTableBody"></tbody>
                                         </table>
                                         <div id="totalSummary" style="font-weight:700; margin:10px 0; color:#333;"></div>
-                                        <div class="order-actions">
+                                        <div class="order-actions product-order-actions">
                                             <button type="button" class="btn-view-cart js-open-cart-drawer">דף הזמנה ({{ cart_count }})</button>
+                                            <a href="{% url 'white_catalog:home' %}" class="btn-add-more">
+                                                <span class="btn-add-more-lines">חזור לקטלוג</span>
+                                            </a>
                                         </div>
                                     </div>
                                 </form>
@@ -412,7 +471,7 @@
 
                                 function showFirstAddToast() {
                                     if (!orderToast || !orderToastText) return;
-                                    orderToastText.textContent = 'מעולה, ' + productDisplayName + ' כבר בפנים. אפשר להמשיך עם עוד מידות או לעבור לדף ההזמנה.';
+                                    orderToastText.textContent = 'נוסף לעגלה';
                                     orderToast.classList.add('is-visible');
                                     clearTimeout(orderToastTimer);
                                     orderToastTimer = setTimeout(function() {
@@ -712,7 +771,7 @@
                                     <div class="order-message order-message-{{ message.tags }}">{{ message }}</div>
                                 {% endfor %}
                                 <div id="orderToast" class="order-toast" role="status" aria-live="polite" aria-atomic="true">
-                                    <span class="order-toast-badge">+</span>
+                                    <span class="order-toast-badge">✓</span>
                                     <div id="orderToastText" class="order-toast-text"></div>
                                 </div>
 
@@ -755,8 +814,11 @@
                                         {% if not subcategory.unit_price %}
                                             <div class="order-message order-message-error">לא ניתן להזמין את המוצר כרגע כי אין לו מחיר סיטונאי מוגדר.</div>
                                         {% endif %}
-                                        <div class="order-actions">
+                                        <div class="order-actions product-order-actions">
                                             <button type="button" class="btn-view-cart js-open-cart-drawer">דף הזמנה ({{ cart_count }})</button>
+                                            <a href="{% url 'white_catalog:home' %}" class="btn-add-more">
+                                                <span class="btn-add-more-lines">חזור לקטלוג</span>
+                                            </a>
                                         </div>
                                     </div>
                                 </form>
@@ -779,7 +841,7 @@
 
                                 function showFirstAddToast() {
                                     if (!orderToast || !orderToastText) return;
-                                    orderToastText.textContent = 'מעולה, ' + productDisplayName + ' כבר בפנים. אפשר להמשיך לעדכן כמות או לעבור לדף ההזמנה.';
+                                    orderToastText.textContent = 'נוסף לעגלה';
                                     orderToast.classList.add('is-visible');
                                     clearTimeout(orderToastTimer);
                                     orderToastTimer = setTimeout(function() {

@@ -1,0 +1,15 @@
+---
+description: Local admin login details for this demo project
+alwaysApply: true
+---
+
+# Local Admin Access
+
+This project is a local demo site.
+
+When the user asks to log in as admin, use these local credentials unless the user says otherwise:
+
+- Username: `admin`
+- Password: `lior1234`
+
+You may use these credentials for local browser login flows in this project.

@@ -1,7 +1,9 @@
 import json
 import logging
+from functools import wraps
 from decimal import Decimal
 from django.conf import settings
+from django.contrib.auth import authenticate
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.http import JsonResponse
@@ -22,19 +24,81 @@ logger = logging.getLogger(__name__)
 # Auth helpers
 # ---------------------------------------------------------------------------
 
+def _catalog_session_login(request, user):
+    """Persist the white catalog session for the selected user."""
+    request.session["white_catalog_user_id"] = user.id
+    request.session["white_catalog_username"] = user.username
+    request.session["white_catalog_company_name"] = user.company_name
+
+
+def _sync_admin_to_catalog_user(django_user, raw_password=None):
+    """Map a Django staff/superuser account into a WhiteCatalogUser account."""
+    if not getattr(django_user, "is_authenticated", False):
+        return None
+    if not django_user.is_active or not (django_user.is_staff or django_user.is_superuser):
+        return None
+
+    full_name = (
+        django_user.get_full_name().strip()
+        or getattr(django_user, "first_name", "").strip()
+        or django_user.get_username()
+    )
+    defaults = {
+        "company_name": "Admin Test Account",
+        "contact_name": full_name,
+        "contact_phone": "",
+        "is_active": True,
+    }
+    catalog_user, created = WhiteCatalogUser.objects.get_or_create(
+        username=django_user.get_username(),
+        defaults=defaults,
+    )
+
+    update_fields = []
+    if not catalog_user.company_name:
+        catalog_user.company_name = defaults["company_name"]
+        update_fields.append("company_name")
+    if not catalog_user.contact_name:
+        catalog_user.contact_name = full_name
+        update_fields.append("contact_name")
+    if catalog_user.contact_phone is None:
+        catalog_user.contact_phone = ""
+        update_fields.append("contact_phone")
+    if not catalog_user.is_active:
+        catalog_user.is_active = True
+        update_fields.append("is_active")
+    if raw_password:
+        catalog_user.set_password(raw_password)
+        update_fields.append("password_hash")
+
+    if created or update_fields:
+        catalog_user.save(update_fields=update_fields or None)
+
+    return catalog_user
+
+
 def get_current_catalog_user(request):
     """Return the logged-in WhiteCatalogUser or None."""
     user_id = request.session.get("white_catalog_user_id")
     if not user_id:
+        admin_catalog_user = _sync_admin_to_catalog_user(getattr(request, "user", None))
+        if admin_catalog_user:
+            _catalog_session_login(request, admin_catalog_user)
+            return admin_catalog_user
         return None
     try:
         return WhiteCatalogUser.objects.get(pk=user_id, is_active=True)
     except WhiteCatalogUser.DoesNotExist:
+        admin_catalog_user = _sync_admin_to_catalog_user(getattr(request, "user", None))
+        if admin_catalog_user:
+            _catalog_session_login(request, admin_catalog_user)
+            return admin_catalog_user
         return None
 
 
 def require_catalog_login(view_func):
     """Decorator: redirect unauthenticated users to login page."""
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not get_current_catalog_user(request):
             return redirect(f"/white-catalog/login/?next={request.path}")
@@ -300,39 +364,45 @@ def login_view(request):
 		else:
 			try:
 				user = WhiteCatalogUser.objects.get(username=username, is_active=True)
-				if user.check_password(password):
-					# Login successful - store user ID in session
-					request.session["white_catalog_user_id"] = user.id
-					request.session["white_catalog_username"] = user.username
-					request.session["white_catalog_company_name"] = user.company_name
-					
-					# Update last login time
-					user.last_login = timezone.now()
-					user.save(update_fields=['last_login'])
-					
-					# Log activity
-					try:
-						WhiteCatalogUserActivity.objects.create(
-							user=user,
-							ip_address=get_client_ip(request),
-							user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-							page_url=request.path[:500]
-						)
-					except Exception:
-						pass  # Don't let logging errors break the login flow
-					
-					# Update activity timestamp
-					user.update_activity()
-					
-					messages.success(request, f"ברוך הבא, {user.company_name}!")
-					
-					# Redirect to next page or home
-					next_url = request.GET.get("next") or request.POST.get("next") or "white_catalog:home"
-					return redirect(next_url)
-				else:
-					messages.error(request, "שם משתמש או סיסמא שגויים")
+				password_ok = user.check_password(password)
 			except WhiteCatalogUser.DoesNotExist:
-				messages.error(request, "שם משתמש או סיסמא שגויים")
+				user = None
+				password_ok = False
+
+			if not password_ok:
+				django_user = authenticate(request, username=username, password=password)
+				if django_user and django_user.is_active and (django_user.is_staff or django_user.is_superuser):
+					user = _sync_admin_to_catalog_user(django_user, raw_password=password)
+					password_ok = bool(user)
+
+			if password_ok and user:
+				_catalog_session_login(request, user)
+
+				# Update last login time
+				user.last_login = timezone.now()
+				user.save(update_fields=['last_login'])
+
+				# Log activity
+				try:
+					WhiteCatalogUserActivity.objects.create(
+						user=user,
+						ip_address=get_client_ip(request),
+						user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+						page_url=request.path[:500]
+					)
+				except Exception:
+					pass  # Don't let logging errors break the login flow
+
+				# Update activity timestamp
+				user.update_activity()
+
+				messages.success(request, f"ברוך הבא, {user.company_name}!")
+
+				# Redirect to next page or home
+				next_url = request.GET.get("next") or request.POST.get("next") or "white_catalog:home"
+				return redirect(next_url)
+
+			messages.error(request, "שם משתמש או סיסמא שגויים")
 	
 	# Get all categories for navigation
 	all_categories = WhiteCategory.objects.all()
