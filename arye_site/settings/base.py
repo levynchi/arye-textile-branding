@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'main',
     'catalog.apps.CatalogConfig',
     'white_catalog',
+    'molly_catalog',
 ]
 
 MIDDLEWARE = [

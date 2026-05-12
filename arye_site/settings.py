@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'main',  # main single-page app
     'catalog.apps.CatalogConfig',  # product catalog app
     'white_catalog',  # white catalog app
+    'molly_catalog',  # private order catalog for Molly
 ]
 
 MIDDLEWARE = [

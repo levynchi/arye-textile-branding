@@ -1,0 +1,25 @@
+{% load static %}
+<header class="molly-header">
+    <div class="molly-header-inner">
+        <a href="{% url 'molly_catalog:home' %}" class="molly-header-brand" aria-label="קטלוג מולי">
+            <div>
+                <div class="molly-header-brand-title">קטלוג מולי</div>
+                <div class="molly-header-brand-subtitle">דף הזמנות אישי</div>
+            </div>
+        </a>
+        <div class="molly-header-actions">
+            {% if request.session.molly_catalog_user_id %}
+                <a href="{% url 'molly_catalog:order_list' %}" class="molly-header-link" aria-label="ההזמנות שלי">
+                    ההזמנות שלי
+                </a>
+                <a href="{% url 'molly_catalog:cart' %}" class="molly-header-cart" aria-label="הסל שלי">
+                    🛒 הזמנה
+                    <span class="molly-cart-badge" data-empty="{% if not cart_count %}true{% else %}false{% endif %}">{{ cart_count|default:0 }}</span>
+                </a>
+                <a href="{% url 'molly_catalog:logout' %}" class="molly-header-link">התנתק</a>
+            {% else %}
+                <a href="{% url 'molly_catalog:login' %}" class="molly-header-link">התחברות</a>
+            {% endif %}
+        </div>
+    </div>
+</header>

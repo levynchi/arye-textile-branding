@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    {% include 'molly_catalog/partials/base_head.html' %}
+    <title>התחברות &mdash; קטלוג מולי</title>
+</head>
+<body class="molly-body">
+    {% include 'molly_catalog/partials/header.html' %}
+
+    <main class="molly-main">
+        <div class="molly-login-wrap">
+            <h1 class="molly-login-title">ברוכה הבאה</h1>
+            <p class="molly-login-subtitle">הזיני שם משתמש וסיסמא כדי להיכנס לדף ההזמנות האישי שלך</p>
+
+            {% include 'molly_catalog/partials/messages.html' %}
+
+            <form method="post" class="molly-form">
+                {% csrf_token %}
+                {% if request.GET.next %}
+                    <input type="hidden" name="next" value="{{ request.GET.next }}">
+                {% endif %}
+
+                <div class="molly-form-row">
+                    <label for="username" class="molly-field-label">שם משתמש</label>
+                    <input type="text" id="username" name="username" class="molly-input" required autofocus autocomplete="username">
+                </div>
+
+                <div class="molly-form-row">
+                    <label for="password" class="molly-field-label">סיסמא</label>
+                    <input type="password" id="password" name="password" class="molly-input" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="molly-button" style="margin-top:10px;">התחברות</button>
+            </form>
+        </div>
+    </main>
+
+    {% include 'molly_catalog/partials/footer.html' %}
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    {% include 'molly_catalog/partials/base_head.html' %}
+    <title>קטלוג מולי &mdash; דף הבית</title>
+</head>
+<body class="molly-body">
+    {% include 'molly_catalog/partials/header.html' %}
+
+    <main class="molly-main">
+        <h1 class="molly-page-title">ברוכה הבאה, {{ request.session.molly_catalog_display_name|default:"מולי" }}</h1>
+        <p class="molly-page-subtitle">בחרי קטגוריה או מוצר כדי להמשיך להזמנה</p>
+
+        {% include 'molly_catalog/partials/messages.html' %}
+
+        <div class="molly-grid">
+            {% for category in categories %}
+                <a href="{% url 'molly_catalog:category_detail' category.slug %}" class="molly-card">
+                    <div class="molly-card-image">
+                        {% if category.image %}
+                            <img src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy">
+                        {% else %}
+                            <div class="molly-card-placeholder">{{ category.name }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="molly-card-body">
+                        <h2 class="molly-card-title">{{ category.name }}</h2>
+                        {% if category.description %}
+                            <p class="molly-card-description">{{ category.description|truncatewords:18 }}</p>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endfor %}
+
+            {% for product in standalone_products %}
+                <a href="{% url 'molly_catalog:standalone_product_detail' product.slug %}" class="molly-card">
+                    <div class="molly-card-image">
+                        {% with img=product.get_main_image %}
+                            {% if img %}
+                                <img src="{{ img }}" alt="{{ product.name }}" loading="lazy">
+                            {% else %}
+                                <div class="molly-card-placeholder">{{ product.name }}</div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="molly-card-body">
+                        <h2 class="molly-card-title">{{ product.name }}</h2>
+                        {% if product.marketing_description %}
+                            <p class="molly-card-description">{{ product.marketing_description|truncatewords:18 }}</p>
+                        {% elif product.description %}
+                            <p class="molly-card-description">{{ product.description|truncatewords:18 }}</p>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endfor %}
+
+            {% if not categories and not standalone_products %}
+                <div class="molly-empty">
+                    <p>הקטלוג עדיין ריק. אריה יעלה לכאן את המוצרים בקרוב.</p>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    {% include 'molly_catalog/partials/footer.html' %}
+</body>
+</html>

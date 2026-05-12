@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    {% include 'molly_catalog/partials/base_head.html' %}
+    <title>{{ category.name }} &mdash; קטלוג מולי</title>
+</head>
+<body class="molly-body">
+    {% include 'molly_catalog/partials/header.html' %}
+
+    <main class="molly-main">
+        <div class="molly-breadcrumbs">
+            <a href="{% url 'molly_catalog:home' %}">דף הבית</a>
+            <span class="sep">›</span>
+            <span>{{ category.name }}</span>
+        </div>
+
+        <h1 class="molly-page-title">{{ category.name }}</h1>
+        {% if category.description %}
+            <p class="molly-page-subtitle">{{ category.description }}</p>
+        {% endif %}
+
+        {% include 'molly_catalog/partials/messages.html' %}
+
+        <div class="molly-grid">
+            {% for product in products %}
+                <a href="{% url 'molly_catalog:category_product_detail' category.slug product.slug %}" class="molly-card">
+                    <div class="molly-card-image">
+                        {% with img=product.get_main_image %}
+                            {% if img %}
+                                <img src="{{ img }}" alt="{{ product.name }}" loading="lazy">
+                            {% else %}
+                                <div class="molly-card-placeholder">{{ product.name }}</div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="molly-card-body">
+                        <h2 class="molly-card-title">{{ product.name }}</h2>
+                        {% if product.marketing_description %}
+                            <p class="molly-card-description">{{ product.marketing_description|truncatewords:18 }}</p>
+                        {% endif %}
+                    </div>
+                </a>
+            {% empty %}
+                <div class="molly-empty">
+                    <p>אין מוצרים בקטגוריה הזו כרגע.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    {% include 'molly_catalog/partials/footer.html' %}
+</body>
+</html>

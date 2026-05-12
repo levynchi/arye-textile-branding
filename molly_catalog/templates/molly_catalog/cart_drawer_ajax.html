@@ -1,0 +1,25 @@
+{% load static %}<div class="molly-cart-drawer-content">
+    {% if cart_items %}
+        <div class="molly-cart-list" style="box-shadow:none;">
+            {% for item in cart_items %}
+                <div class="molly-cart-row">
+                    <div class="molly-cart-image">
+                        {% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.product_name }}">{% endif %}
+                    </div>
+                    <div class="molly-cart-item-info">
+                        <p class="molly-cart-item-name">{{ item.product_name }}</p>
+                        {% if item.variant_id %}
+                            <p class="molly-cart-item-variant">{{ item.variant_name }}</p>
+                        {% endif %}
+                        <p class="molly-cart-item-variant">כמות: {{ item.quantity }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <div style="padding:16px;text-align:center;">
+            <a href="{% url 'molly_catalog:cart' %}" class="molly-button">לעמוד ההזמנה המלא</a>
+        </div>
+    {% else %}
+        <p style="padding:24px;text-align:center;color:var(--molly-text-soft);">ההזמנה ריקה</p>
+    {% endif %}
+</div>

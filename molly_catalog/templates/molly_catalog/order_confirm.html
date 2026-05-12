@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    {% include 'molly_catalog/partials/base_head.html' %}
+    <title>הזמנה {{ order.order_number }} &mdash; קטלוג מולי</title>
+</head>
+<body class="molly-body">
+    {% include 'molly_catalog/partials/header.html' %}
+
+    <main class="molly-main">
+        <div class="molly-breadcrumbs">
+            <a href="{% url 'molly_catalog:home' %}">דף הבית</a>
+            <span class="sep">›</span>
+            <a href="{% url 'molly_catalog:order_list' %}">ההזמנות שלי</a>
+            <span class="sep">›</span>
+            <span>{{ order.order_number }}</span>
+        </div>
+
+        {% include 'molly_catalog/partials/messages.html' %}
+
+        <article class="molly-order-detail">
+            <div class="molly-order-card-header">
+                <h1 class="molly-order-number" style="font-size:1.4rem;margin:0;">הזמנה {{ order.order_number }}</h1>
+                <span class="molly-order-status {{ order.status }}">{{ order.get_status_display }}</span>
+            </div>
+            <p class="molly-order-meta">
+                נשלחה ב־{{ order.created|date:"d/m/Y H:i" }}
+                &middot; סה"כ {{ order.get_total_quantity }} יחידות ב־{{ order.items.count }} פריטים
+            </p>
+
+            {% if order.notes %}
+                <div class="molly-product-meta" style="margin-top:16px;">
+                    <strong>הערות:</strong><br>
+                    {{ order.notes|linebreaksbr }}
+                </div>
+            {% endif %}
+
+            <div class="molly-order-items">
+                <h2 style="font-size:1.15rem;margin-bottom:10px;">פריטים בהזמנה</h2>
+                {% for item in order.items.all %}
+                    <div class="molly-order-item">
+                        <div class="molly-cart-image" style="flex:0 0 auto;">
+                            {% if item.product and item.product.get_main_image %}
+                                <img src="{{ item.product.get_main_image }}" alt="{{ item.product_name }}">
+                            {% endif %}
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                            <p class="molly-order-item-name">{{ item.product_name }}</p>
+                            <p class="molly-order-item-attrs">{{ item.display_variant_name }}</p>
+                            {% if item.variant_sku %}
+                                <p class="molly-order-item-attrs">מק"ט: {{ item.variant_sku }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="molly-order-item-qty">×{{ item.quantity }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="{% url 'molly_catalog:home' %}" class="molly-button molly-button-secondary">חזרה לקטלוג</a>
+                <a href="{% url 'molly_catalog:order_list' %}" class="molly-button molly-button-secondary">ההזמנות שלי</a>
+            </div>
+        </article>
+    </main>
+
+    {% include 'molly_catalog/partials/footer.html' %}
+</body>
+</html>

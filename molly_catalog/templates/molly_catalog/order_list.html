@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    {% include 'molly_catalog/partials/base_head.html' %}
+    <title>ההזמנות שלי &mdash; קטלוג מולי</title>
+</head>
+<body class="molly-body">
+    {% include 'molly_catalog/partials/header.html' %}
+
+    <main class="molly-main">
+        <div class="molly-breadcrumbs">
+            <a href="{% url 'molly_catalog:home' %}">דף הבית</a>
+            <span class="sep">›</span>
+            <span>ההזמנות שלי</span>
+        </div>
+
+        <h1 class="molly-page-title">ההזמנות שלי</h1>
+
+        {% include 'molly_catalog/partials/messages.html' %}
+
+        {% for order in orders %}
+            <a href="{% url 'molly_catalog:order_confirm' order.order_number %}" class="molly-order-card">
+                <div class="molly-order-card-header">
+                    <span class="molly-order-number">{{ order.order_number }}</span>
+                    <span class="molly-order-status {{ order.status }}">{{ order.get_status_display }}</span>
+                </div>
+                <div class="molly-order-meta">
+                    נשלחה ב־{{ order.created|date:"d/m/Y H:i" }}
+                    &middot; {{ order.get_total_quantity }} יחידות
+                    &middot; {{ order.items.count }} פריטים
+                </div>
+                {% if order.notes %}
+                    <p style="margin:8px 0 0;color:var(--molly-text-soft);font-size:0.9rem;">
+                        {{ order.notes|truncatewords:20 }}
+                    </p>
+                {% endif %}
+            </a>
+        {% empty %}
+            <div class="molly-empty" style="background:var(--molly-card-bg);border-radius:var(--molly-radius);box-shadow:var(--molly-shadow);">
+                <p>עוד לא ביצעת הזמנות.</p>
+                <a href="{% url 'molly_catalog:home' %}" class="molly-button" style="margin-top:16px;">לקטלוג</a>
+            </div>
+        {% endfor %}
+    </main>
+
+    {% include 'molly_catalog/partials/footer.html' %}
+</body>
+</html>

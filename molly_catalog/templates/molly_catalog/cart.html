@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    {% include 'molly_catalog/partials/base_head.html' %}
+    <title>ההזמנה שלי &mdash; קטלוג מולי</title>
+</head>
+<body class="molly-body">
+    {% include 'molly_catalog/partials/header.html' %}
+
+    <main class="molly-main">
+        <div class="molly-breadcrumbs">
+            <a href="{% url 'molly_catalog:home' %}">דף הבית</a>
+            <span class="sep">›</span>
+            <span>ההזמנה שלי</span>
+        </div>
+
+        <h1 class="molly-page-title">ההזמנה שלי</h1>
+
+        {% include 'molly_catalog/partials/messages.html' %}
+
+        {% if cart_items %}
+            <div class="molly-cart-list">
+                {% for item in cart_items %}
+                    <div class="molly-cart-row" data-item-id="{{ item.id }}">
+                        <div class="molly-cart-image">
+                            {% if item.image_url %}
+                                <img src="{{ item.image_url }}" alt="{{ item.product_name }}">
+                            {% endif %}
+                        </div>
+                        <div class="molly-cart-item-info">
+                            <p class="molly-cart-item-name">{{ item.product_name }}</p>
+                            {% if item.variant_id %}
+                                <div class="molly-cart-item-attrs">
+                                    {% if item.fabric_type %}<span class="molly-cart-attr">{{ item.fabric_type }}</span>{% endif %}
+                                    {% if item.background_color %}<span class="molly-cart-attr">{{ item.background_color }}</span>{% endif %}
+                                    {% if item.print_design %}<span class="molly-cart-attr">{{ item.print_design }}</span>{% endif %}
+                                </div>
+                                {% if item.sku %}
+                                    <p class="molly-cart-item-variant" style="margin-top:6px;">מק"ט: {{ item.sku }}</p>
+                                {% endif %}
+                            {% else %}
+                                <p class="molly-cart-item-variant">ללא ואריאנט</p>
+                            {% endif %}
+                        </div>
+                        <form method="post" action="{% url 'molly_catalog:cart_update' %}" class="molly-cart-qty-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                            <input type="hidden" name="action" value="update">
+                            <input type="number" name="quantity" min="0" value="{{ item.quantity }}" class="molly-cart-qty" data-item-id="{{ item.id }}">
+                        </form>
+                        <form method="post" action="{% url 'molly_catalog:cart_update' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                            <input type="hidden" name="action" value="remove">
+                            <button type="submit" class="molly-cart-remove" aria-label="הסר פריט">×</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <form method="post" action="{% url 'molly_catalog:checkout' %}" class="molly-cart-summary">
+                {% csrf_token %}
+                <div class="molly-cart-summary-row">
+                    <span>סה"כ פריטים בהזמנה:</span>
+                    <strong>{{ cart_count }}</strong>
+                </div>
+                <div class="molly-cart-summary-row">
+                    <span>סה"כ יחידות:</span>
+                    <strong>{{ cart.get_total_quantity }}</strong>
+                </div>
+
+                <label for="orderNotes" class="molly-field-label" style="margin-top:8px;">הערות להזמנה (אופציונלי)</label>
+                <textarea id="orderNotes" name="notes" class="molly-cart-notes" placeholder="אם יש לך הערות מיוחדות, דחיפות, או הוראות שילוח - כתבי כאן..."></textarea>
+
+                <div class="molly-cart-actions">
+                    <form method="post" action="{% url 'molly_catalog:cart_clear' %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="molly-button molly-button-secondary" onclick="return confirm('האם למחוק את כל ההזמנה?');">ניקוי הזמנה</button>
+                    </form>
+                    <button type="submit" class="molly-button" style="font-size:1.1rem;">שליחת הזמנה</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="molly-empty" style="background:var(--molly-card-bg);border-radius:var(--molly-radius);box-shadow:var(--molly-shadow);">
+                <p style="font-size:1.1rem;margin-bottom:16px;">ההזמנה ריקה</p>
+                <a href="{% url 'molly_catalog:home' %}" class="molly-button">המשך לעיון בקטלוג</a>
+            </div>
+        {% endif %}
+    </main>
+
+    <script>
+    (function(){
+        let timer;
+        document.querySelectorAll('.molly-cart-qty').forEach(function(input){
+            input.addEventListener('input', function(){
+                clearTimeout(timer);
+                timer = setTimeout(function(){
+                    input.closest('form').submit();
+                }, 700);
+            });
+            input.addEventListener('change', function(){
+                clearTimeout(timer);
+                input.closest('form').submit();
+            });
+        });
+    })();
+    </script>
+
+    {% include 'molly_catalog/partials/footer.html' %}
+</body>
+</html>

@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div style="max-width:900px;">
+    <h1>{{ title }}</h1>
+
+    <p style="background:#f5f5f5;padding:12px;border-radius:6px;">
+        בחר/י אילו צבעי רקע, הדפסים וסוגי בדים יוצרו כקומבינציות עבור המוצרים הבאים.
+        קומבינציות שכבר קיימות לא ייווצרו מחדש.
+    </p>
+
+    <h3>מוצרים שייווצרו עבורם ואריאנטים ({{ products|length }})</h3>
+    <ul>
+        {% for product in products %}
+            <li>{{ product }}</li>
+        {% endfor %}
+    </ul>
+
+    <form method="post" style="margin-top:30px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="{{ action }}">
+        {% for pk in selected_action_pks %}
+            <input type="hidden" name="_selected_action" value="{{ pk }}">
+        {% endfor %}
+        <input type="hidden" name="apply" value="1">
+
+        <table style="width:100%;border-collapse:collapse;">
+            {{ form.as_table }}
+        </table>
+
+        <div style="margin-top:24px;display:flex;gap:10px;">
+            <button type="submit" class="default" style="padding:10px 24px;">
+                ייצר ואריאנטים
+            </button>
+            <a href="../" class="button" style="padding:10px 24px;background:#ccc;color:#333;text-decoration:none;border-radius:4px;">
+                ביטול
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

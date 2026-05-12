@@ -1,0 +1,246 @@
+{% load static %}<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    {% include 'molly_catalog/partials/base_head.html' %}
+    <title>{{ product.name }} &mdash; קטלוג מולי</title>
+</head>
+<body class="molly-body">
+    {% include 'molly_catalog/partials/header.html' %}
+
+    <main class="molly-main">
+        <div class="molly-breadcrumbs">
+            <a href="{% url 'molly_catalog:home' %}">דף הבית</a>
+            <span class="sep">›</span>
+            {% if category %}
+                <a href="{% url 'molly_catalog:category_detail' category.slug %}">{{ category.name }}</a>
+                <span class="sep">›</span>
+            {% endif %}
+            <span>{{ product.name }}</span>
+        </div>
+
+        {% include 'molly_catalog/partials/messages.html' %}
+
+        <article class="molly-product-detail">
+            <section class="molly-product-gallery">
+                <div class="molly-product-main-image">
+                    {% with img=product.get_main_image %}
+                        {% if img %}
+                            <img id="mollyProductMainImg" src="{{ img }}" alt="{{ product.name }}">
+                        {% else %}
+                            <div class="molly-card-placeholder">{{ product.name }}</div>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+                {% if product_images %}
+                    <div class="molly-product-thumbs">
+                        {% if product.main_image %}
+                            <div class="molly-product-thumb is-active" data-src="{{ product.main_image.url }}">
+                                <img src="{{ product.main_image.url }}" alt="{{ product.name }}">
+                            </div>
+                        {% endif %}
+                        {% for img in product_images %}
+                            <div class="molly-product-thumb" data-src="{{ img.image.url }}">
+                                <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.name }}">
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="molly-product-info">
+                <h1>{{ product.name }}</h1>
+                {% if product.marketing_description %}
+                    <p class="molly-product-description">{{ product.marketing_description }}</p>
+                {% elif product.description %}
+                    <p class="molly-product-description">{{ product.description }}</p>
+                {% endif %}
+
+                {% if product.information %}
+                    <div class="molly-product-meta">{{ product.information }}</div>
+                {% endif %}
+
+                {% if product.is_orderable %}
+                    {% if product.has_variants %}
+                        <form id="mollyVariantForm" method="post" action="{% url 'molly_catalog:cart_add' %}" class="molly-variant-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="variant_id" id="mollyVariantId" value="">
+                            <input type="hidden" name="next" value="{{ request.path }}">
+
+                            <div>
+                                <label class="molly-field-label" for="mollyFabricSelect">סוג בד</label>
+                                <select id="mollyFabricSelect" class="molly-select"></select>
+                            </div>
+                            <div>
+                                <label class="molly-field-label" for="mollyColorSelect">צבע רקע</label>
+                                <select id="mollyColorSelect" class="molly-select"></select>
+                            </div>
+                            <div>
+                                <label class="molly-field-label" for="mollyPrintSelect">הדפס</label>
+                                <select id="mollyPrintSelect" class="molly-select"></select>
+                            </div>
+
+                            <div class="molly-quantity-row">
+                                <label class="molly-field-label" for="mollyQuantity" style="margin:0;">כמות</label>
+                                <input type="number" id="mollyQuantity" name="quantity" class="molly-quantity-input" min="0" value="1">
+                                <button type="submit" class="molly-button" id="mollyAddBtn">הוספה להזמנה</button>
+                            </div>
+
+                            <div id="mollyVariantStatus" class="molly-variant-status"></div>
+                        </form>
+
+                        {{ variants_data|json_script:"mollyVariantsData" }}
+
+                        <script>
+                        (function(){
+                            const data = JSON.parse(document.getElementById('mollyVariantsData').textContent);
+                            const fabricSelect = document.getElementById('mollyFabricSelect');
+                            const colorSelect = document.getElementById('mollyColorSelect');
+                            const printSelect = document.getElementById('mollyPrintSelect');
+                            const variantIdInput = document.getElementById('mollyVariantId');
+                            const qtyInput = document.getElementById('mollyQuantity');
+                            const status = document.getElementById('mollyVariantStatus');
+                            const addBtn = document.getElementById('mollyAddBtn');
+                            const mainImg = document.getElementById('mollyProductMainImg');
+                            const form = document.getElementById('mollyVariantForm');
+
+                            function fillSelect(select, items, placeholder) {
+                                select.innerHTML = '';
+                                const opt = document.createElement('option');
+                                opt.value = '';
+                                opt.textContent = placeholder;
+                                select.appendChild(opt);
+                                items.forEach(function(item){
+                                    const o = document.createElement('option');
+                                    o.value = item.id;
+                                    o.textContent = item.name;
+                                    select.appendChild(o);
+                                });
+                            }
+
+                            function availableValues(axis, fabric, color, print) {
+                                const ids = new Set();
+                                data.variants.forEach(function(v){
+                                    if (fabric && v.fabric_type_id != fabric) return;
+                                    if (color && v.background_color_id != color) return;
+                                    if (print && v.print_design_id != print) return;
+                                    ids.add(v[axis]);
+                                });
+                                return ids;
+                            }
+
+                            function refreshOptionAvailability() {
+                                const fabric = fabricSelect.value;
+                                const color = colorSelect.value;
+                                const print = printSelect.value;
+
+                                Array.from(fabricSelect.options).forEach(function(opt){
+                                    if (!opt.value) return;
+                                    const ok = availableValues('fabric_type_id', null, color, print).has(parseInt(opt.value));
+                                    opt.disabled = !ok;
+                                });
+                                Array.from(colorSelect.options).forEach(function(opt){
+                                    if (!opt.value) return;
+                                    const ok = availableValues('background_color_id', fabric, null, print).has(parseInt(opt.value));
+                                    opt.disabled = !ok;
+                                });
+                                Array.from(printSelect.options).forEach(function(opt){
+                                    if (!opt.value) return;
+                                    const ok = availableValues('print_design_id', fabric, color, null).has(parseInt(opt.value));
+                                    opt.disabled = !ok;
+                                });
+                            }
+
+                            function findMatch() {
+                                const fabric = fabricSelect.value;
+                                const color = colorSelect.value;
+                                const print = printSelect.value;
+                                if (!fabric || !color || !print) return null;
+                                return data.variants.find(function(v){
+                                    return v.fabric_type_id == fabric &&
+                                           v.background_color_id == color &&
+                                           v.print_design_id == print;
+                                }) || null;
+                            }
+
+                            function update() {
+                                refreshOptionAvailability();
+                                const match = findMatch();
+                                if (match) {
+                                    variantIdInput.value = match.id;
+                                    addBtn.disabled = false;
+                                    if (match.image_url && mainImg) {
+                                        mainImg.src = match.image_url;
+                                    }
+                                    if (match.cart_quantity > 0) {
+                                        status.textContent = 'בעגלה: ' + match.cart_quantity + ' יחידות';
+                                        status.className = 'molly-variant-status in-cart';
+                                        qtyInput.value = match.cart_quantity;
+                                    } else {
+                                        status.textContent = 'הקומבינציה הזו זמינה להזמנה';
+                                        status.className = 'molly-variant-status';
+                                    }
+                                } else {
+                                    variantIdInput.value = '';
+                                    addBtn.disabled = true;
+                                    if (fabricSelect.value && colorSelect.value && printSelect.value) {
+                                        status.textContent = 'הקומבינציה הזו אינה זמינה';
+                                        status.className = 'molly-variant-status';
+                                    } else {
+                                        status.textContent = 'נא לבחור בד, צבע רקע והדפס';
+                                        status.className = 'molly-variant-status';
+                                    }
+                                }
+                            }
+
+                            fillSelect(fabricSelect, data.fabric_types, 'בחרי סוג בד');
+                            fillSelect(colorSelect, data.background_colors, 'בחרי צבע רקע');
+                            fillSelect(printSelect, data.print_designs, 'בחרי הדפס');
+
+                            fabricSelect.addEventListener('change', update);
+                            colorSelect.addEventListener('change', update);
+                            printSelect.addEventListener('change', update);
+
+                            update();
+                            addBtn.disabled = true;
+                        })();
+                        </script>
+                    {% else %}
+                        <form method="post" action="{% url 'molly_catalog:cart_add' %}" class="molly-variant-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <div class="molly-quantity-row">
+                                <label class="molly-field-label" for="simpleQty" style="margin:0;">כמות</label>
+                                <input type="number" id="simpleQty" name="quantity" class="molly-quantity-input" min="0" value="{{ simple_cart_quantity|default:1 }}">
+                                <button type="submit" class="molly-button">הוספה להזמנה</button>
+                            </div>
+                            {% if simple_cart_quantity %}
+                                <div class="molly-variant-status in-cart">בעגלה: {{ simple_cart_quantity }} יחידות</div>
+                            {% endif %}
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <p class="molly-variant-status">המוצר לא זמין להזמנה כרגע.</p>
+                {% endif %}
+            </section>
+        </article>
+    </main>
+
+    <script>
+    (function(){
+        document.querySelectorAll('.molly-product-thumb').forEach(function(thumb){
+            thumb.addEventListener('click', function(){
+                const src = thumb.getAttribute('data-src');
+                const main = document.getElementById('mollyProductMainImg');
+                if (main && src) main.src = src;
+                document.querySelectorAll('.molly-product-thumb').forEach(function(t){ t.classList.remove('is-active'); });
+                thumb.classList.add('is-active');
+            });
+        });
+    })();
+    </script>
+
+    {% include 'molly_catalog/partials/footer.html' %}
+</body>
+</html>
