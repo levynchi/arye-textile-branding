@@ -61,268 +61,157 @@
 
                 {% if product.is_orderable %}
                     {% if product.has_variants %}
-                        <form id="mollyVariantForm" method="post" action="{% url 'molly_catalog:cart_add' %}" class="molly-variant-form">
-                            {% csrf_token %}
-                            <input type="hidden" name="product_id" value="{{ product.id }}">
-                            <input type="hidden" name="variant_id" id="mollyVariantId" value="">
-                            <input type="hidden" name="label_color_id" id="mollyLabelColorId" value="">
-                            <input type="hidden" name="next" value="{{ request.path }}">
+                        {% if variants_data.variants %}
+                            <div class="molly-variant-list">
+                                {% for v in variants_data.variants %}
+                                    <form method="post" action="{% url 'molly_catalog:cart_add' %}" class="molly-variant-row">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                                        <input type="hidden" name="variant_id" value="{{ v.id }}">
+                                        <input type="hidden" name="next" value="{{ request.path }}">
 
-                            <div>
-                                <label class="molly-field-label" for="mollyFabricSelect">סוג בד</label>
-                                <select id="mollyFabricSelect" class="molly-select"></select>
+                                        <div class="molly-variant-row-image">
+                                            {% if v.image_url %}
+                                                <img src="{{ v.image_url }}" alt="{{ v.name }}" loading="lazy">
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="molly-variant-row-info">
+                                            <div class="molly-variant-row-name">{{ v.name }}</div>
+                                            {% if v.sku %}
+                                                <div class="molly-variant-row-sku">מק"ט: {{ v.sku }}</div>
+                                            {% endif %}
+                                            {% if v.cart_quantity %}
+                                                <div class="molly-variant-status in-cart">בעגלה: {{ v.cart_quantity }} יחידות</div>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if label_color_options or v.default_label_color_id %}
+                                            <div class="molly-label-picker"
+                                                 data-default-id="{{ v.default_label_color_id|default_if_none:'' }}"
+                                                 data-default-name="{{ v.default_label_color_name }}"
+                                                 data-default-hex="{{ v.default_label_color_hex }}">
+                                                <input type="hidden" name="label_color_id"
+                                                       class="molly-label-id"
+                                                       value="{{ v.default_label_color_id|default_if_none:'' }}">
+                                                <button type="button"
+                                                        class="molly-label-trigger"
+                                                        aria-expanded="false"
+                                                        aria-label="צבע תווית - לחצי לשינוי">
+                                                    <span class="molly-label-trigger-prefix">צבע תווית:</span>
+                                                    <span class="molly-label-swatch"></span>
+                                                    <span class="molly-label-color-name"></span>
+                                                    {% if label_color_options %}
+                                                        <span class="molly-label-change-hint" aria-hidden="true">&#9662;</span>
+                                                    {% endif %}
+                                                </button>
+                                                {% if label_color_options %}
+                                                    <div class="molly-label-options" hidden role="listbox" aria-label="צבעי תווית זמינים"></div>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+
+                                        <div class="molly-variant-row-control">
+                                            <label class="molly-field-label molly-sr-only">כמות</label>
+                                            <input type="number" name="quantity" min="0"
+                                                   value="{% if v.cart_quantity %}{{ v.cart_quantity }}{% else %}1{% endif %}"
+                                                   class="molly-quantity-input">
+                                            <button type="submit" class="molly-button">הוספה</button>
+                                        </div>
+                                    </form>
+                                {% endfor %}
                             </div>
-                            <div>
-                                <label class="molly-field-label" for="mollyColorSelect">צבע רקע</label>
-                                <select id="mollyColorSelect" class="molly-select"></select>
-                            </div>
-                            <div>
-                                <label class="molly-field-label" for="mollyPrintSelect">הדפס</label>
-                                <select id="mollyPrintSelect" class="molly-select"></select>
-                            </div>
 
-                            <div id="mollyLabelColorPicker" class="molly-label-picker" hidden>
-                                <button type="button"
-                                        id="mollyLabelColorTrigger"
-                                        class="molly-label-trigger"
-                                        aria-expanded="false"
-                                        aria-controls="mollyLabelColorOptions"
-                                        aria-label="צבע תווית - לחצי לשינוי">
-                                    <span class="molly-label-trigger-prefix">צבע תווית:</span>
-                                    <span id="mollyLabelColorSwatch" class="molly-label-swatch"></span>
-                                    <span id="mollyLabelColorName" class="molly-label-color-name"></span>
-                                    <span id="mollyLabelChangeable" class="molly-label-change-hint" hidden aria-hidden="true">&#9662;</span>
-                                </button>
-                                <div id="mollyLabelColorOptions" class="molly-label-options" hidden role="listbox" aria-label="צבעי תווית זמינים">
-                                    <!-- options injected by JS -->
-                                </div>
-                            </div>
+                            {{ label_color_options|json_script:"mollyLabelColorOptionsData" }}
 
-                            <div class="molly-quantity-row">
-                                <label class="molly-field-label" for="mollyQuantity" style="margin:0;">כמות</label>
-                                <input type="number" id="mollyQuantity" name="quantity" class="molly-quantity-input" min="0" value="1">
-                                <button type="submit" class="molly-button" id="mollyAddBtn">הוספה להזמנה</button>
-                            </div>
+                            <script>
+                            (function(){
+                                const labelOptionsRaw = document.getElementById('mollyLabelColorOptionsData');
+                                const labelOptions = labelOptionsRaw ? (JSON.parse(labelOptionsRaw.textContent) || []) : [];
+                                const hasChoices = labelOptions.length > 0;
 
-                            <div id="mollyVariantStatus" class="molly-variant-status"></div>
-                        </form>
+                                document.querySelectorAll('.molly-variant-row .molly-label-picker').forEach(function(picker){
+                                    const trigger = picker.querySelector('.molly-label-trigger');
+                                    const swatch = picker.querySelector('.molly-label-swatch');
+                                    const nameEl = picker.querySelector('.molly-label-color-name');
+                                    const hiddenInput = picker.querySelector('.molly-label-id');
+                                    const optionsBox = picker.querySelector('.molly-label-options');
 
-                        {{ variants_data|json_script:"mollyVariantsData" }}
-                        {{ label_color_options|json_script:"mollyLabelColorOptionsData" }}
+                                    function paint(hex) {
+                                        swatch.style.background = hex || 'transparent';
+                                        swatch.style.borderColor = hex ? 'transparent' : '#ccc';
+                                    }
 
-                        <script>
-                        (function(){
-                            const data = JSON.parse(document.getElementById('mollyVariantsData').textContent);
-                            const labelOptions = JSON.parse(document.getElementById('mollyLabelColorOptionsData').textContent) || [];
-                            const fabricSelect = document.getElementById('mollyFabricSelect');
-                            const colorSelect = document.getElementById('mollyColorSelect');
-                            const printSelect = document.getElementById('mollyPrintSelect');
-                            const variantIdInput = document.getElementById('mollyVariantId');
-                            const labelIdInput = document.getElementById('mollyLabelColorId');
-                            const qtyInput = document.getElementById('mollyQuantity');
-                            const status = document.getElementById('mollyVariantStatus');
-                            const addBtn = document.getElementById('mollyAddBtn');
-                            const mainImg = document.getElementById('mollyProductMainImg');
-                            const form = document.getElementById('mollyVariantForm');
-                            const labelPicker = document.getElementById('mollyLabelColorPicker');
-                            const labelTrigger = document.getElementById('mollyLabelColorTrigger');
-                            const labelSwatch = document.getElementById('mollyLabelColorSwatch');
-                            const labelName = document.getElementById('mollyLabelColorName');
-                            const labelChangeable = document.getElementById('mollyLabelChangeable');
-                            const labelOptionsBox = document.getElementById('mollyLabelColorOptions');
+                                    function setSelection(opt) {
+                                        if (!opt) {
+                                            nameEl.textContent = '';
+                                            paint('');
+                                            hiddenInput.value = '';
+                                            return;
+                                        }
+                                        nameEl.textContent = opt.name || '';
+                                        paint(opt.hex_color || '');
+                                        hiddenInput.value = opt.id || '';
+                                    }
 
-                            const hasChoices = labelOptions.length > 0;
-                            let userPickedLabelId = null;
+                                    // Initial selection comes from the row's data-default-* attributes.
+                                    const initial = {
+                                        id: picker.dataset.defaultId || '',
+                                        name: picker.dataset.defaultName || '',
+                                        hex_color: picker.dataset.defaultHex || '',
+                                    };
+                                    setSelection(initial.id ? initial : (hasChoices ? labelOptions[0] : null));
 
-                            function paintSwatch(hex) {
-                                labelSwatch.style.background = hex || 'transparent';
-                                labelSwatch.style.borderColor = hex ? 'transparent' : '#ccc';
-                            }
+                                    if (!optionsBox || !hasChoices) {
+                                        // Display-only: no clickable dropdown.
+                                        trigger.style.cursor = 'default';
+                                        trigger.addEventListener('click', function(e){ e.preventDefault(); });
+                                        return;
+                                    }
 
-                            function setLabel(option) {
-                                if (!option) {
-                                    labelName.textContent = '';
-                                    paintSwatch('');
-                                    labelIdInput.value = '';
-                                    labelPicker.hidden = true;
-                                    return;
-                                }
-                                labelName.textContent = option.name;
-                                paintSwatch(option.hex_color || '');
-                                labelIdInput.value = option.id || '';
-                                labelPicker.hidden = false;
-                                labelChangeable.hidden = !hasChoices;
-                                labelTrigger.style.cursor = hasChoices ? 'pointer' : 'default';
-                            }
-
-                            function buildOptionRows() {
-                                labelOptionsBox.innerHTML = '';
-                                labelOptions.forEach(function(opt){
-                                    const row = document.createElement('button');
-                                    row.type = 'button';
-                                    row.className = 'molly-label-option';
-                                    row.setAttribute('role', 'option');
-                                    row.setAttribute('data-id', opt.id);
-                                    const sw = document.createElement('span');
-                                    sw.className = 'molly-label-swatch';
-                                    sw.style.background = opt.hex_color || 'transparent';
-                                    sw.style.borderColor = opt.hex_color ? 'transparent' : '#ccc';
-                                    const nm = document.createElement('span');
-                                    nm.textContent = opt.name;
-                                    row.appendChild(sw);
-                                    row.appendChild(nm);
-                                    row.addEventListener('click', function(){
-                                        userPickedLabelId = opt.id;
-                                        setLabel(opt);
-                                        closeOptions();
+                                    // Build the option rows.
+                                    optionsBox.innerHTML = '';
+                                    labelOptions.forEach(function(opt){
+                                        const row = document.createElement('button');
+                                        row.type = 'button';
+                                        row.className = 'molly-label-option';
+                                        row.setAttribute('role', 'option');
+                                        row.setAttribute('data-id', opt.id);
+                                        const sw = document.createElement('span');
+                                        sw.className = 'molly-label-swatch';
+                                        sw.style.background = opt.hex_color || 'transparent';
+                                        sw.style.borderColor = opt.hex_color ? 'transparent' : '#ccc';
+                                        const nm = document.createElement('span');
+                                        nm.textContent = opt.name;
+                                        row.appendChild(sw);
+                                        row.appendChild(nm);
+                                        row.addEventListener('click', function(){
+                                            setSelection(opt);
+                                            close();
+                                        });
+                                        optionsBox.appendChild(row);
                                     });
-                                    labelOptionsBox.appendChild(row);
-                                });
-                            }
 
-                            function openOptions() {
-                                if (!hasChoices) return;
-                                labelOptionsBox.hidden = false;
-                                labelTrigger.setAttribute('aria-expanded', 'true');
-                            }
-                            function closeOptions() {
-                                labelOptionsBox.hidden = true;
-                                labelTrigger.setAttribute('aria-expanded', 'false');
-                            }
-                            function toggleOptions() {
-                                if (labelOptionsBox.hidden) openOptions();
-                                else closeOptions();
-                            }
-
-                            if (hasChoices) {
-                                buildOptionRows();
-                                labelTrigger.addEventListener('click', toggleOptions);
-                                document.addEventListener('click', function(e){
-                                    if (!labelPicker.contains(e.target)) closeOptions();
-                                });
-                            }
-
-                            function fillSelect(select, items, placeholder) {
-                                select.innerHTML = '';
-                                const opt = document.createElement('option');
-                                opt.value = '';
-                                opt.textContent = placeholder;
-                                select.appendChild(opt);
-                                items.forEach(function(item){
-                                    const o = document.createElement('option');
-                                    o.value = item.id;
-                                    o.textContent = item.name;
-                                    select.appendChild(o);
-                                });
-                            }
-
-                            function availableValues(axis, fabric, color, print) {
-                                const ids = new Set();
-                                data.variants.forEach(function(v){
-                                    if (fabric && v.fabric_type_id != fabric) return;
-                                    if (color && v.background_color_id != color) return;
-                                    if (print && v.print_design_id != print) return;
-                                    ids.add(v[axis]);
-                                });
-                                return ids;
-                            }
-
-                            function refreshOptionAvailability() {
-                                const fabric = fabricSelect.value;
-                                const color = colorSelect.value;
-                                const print = printSelect.value;
-
-                                Array.from(fabricSelect.options).forEach(function(opt){
-                                    if (!opt.value) return;
-                                    const ok = availableValues('fabric_type_id', null, color, print).has(parseInt(opt.value));
-                                    opt.disabled = !ok;
-                                });
-                                Array.from(colorSelect.options).forEach(function(opt){
-                                    if (!opt.value) return;
-                                    const ok = availableValues('background_color_id', fabric, null, print).has(parseInt(opt.value));
-                                    opt.disabled = !ok;
-                                });
-                                Array.from(printSelect.options).forEach(function(opt){
-                                    if (!opt.value) return;
-                                    const ok = availableValues('print_design_id', fabric, color, null).has(parseInt(opt.value));
-                                    opt.disabled = !ok;
-                                });
-                            }
-
-                            function findMatch() {
-                                const fabric = fabricSelect.value;
-                                const color = colorSelect.value;
-                                const print = printSelect.value;
-                                if (!fabric || !color || !print) return null;
-                                return data.variants.find(function(v){
-                                    return v.fabric_type_id == fabric &&
-                                           v.background_color_id == color &&
-                                           v.print_design_id == print;
-                                }) || null;
-                            }
-
-                            function update() {
-                                refreshOptionAvailability();
-                                const match = findMatch();
-                                if (match) {
-                                    variantIdInput.value = match.id;
-                                    addBtn.disabled = false;
-                                    if (match.image_url && mainImg) {
-                                        mainImg.src = match.image_url;
+                                    function open() {
+                                        optionsBox.hidden = false;
+                                        trigger.setAttribute('aria-expanded', 'true');
                                     }
-                                    // Decide which label color to show:
-                                    // 1) the user's explicit pick (if still in options)
-                                    // 2) the variant's default label color (if any)
-                                    // 3) hide if neither
-                                    let chosen = null;
-                                    if (userPickedLabelId) {
-                                        chosen = labelOptions.find(function(o){ return o.id == userPickedLabelId; }) || null;
+                                    function close() {
+                                        optionsBox.hidden = true;
+                                        trigger.setAttribute('aria-expanded', 'false');
                                     }
-                                    if (!chosen && match.default_label_color_id) {
-                                        chosen = labelOptions.find(function(o){ return o.id == match.default_label_color_id; }) || {
-                                            id: match.default_label_color_id,
-                                            name: match.default_label_color_name,
-                                            hex_color: match.default_label_color_hex,
-                                        };
-                                    }
-                                    if (!chosen && hasChoices) {
-                                        chosen = labelOptions[0];
-                                    }
-                                    setLabel(chosen);
-                                    if (match.cart_quantity > 0) {
-                                        status.textContent = 'בעגלה: ' + match.cart_quantity + ' יחידות';
-                                        status.className = 'molly-variant-status in-cart';
-                                        qtyInput.value = match.cart_quantity;
-                                    } else {
-                                        status.textContent = 'הקומבינציה הזו זמינה להזמנה';
-                                        status.className = 'molly-variant-status';
-                                    }
-                                } else {
-                                    variantIdInput.value = '';
-                                    addBtn.disabled = true;
-                                    setLabel(null);
-                                    if (fabricSelect.value && colorSelect.value && printSelect.value) {
-                                        status.textContent = 'הקומבינציה הזו אינה זמינה';
-                                        status.className = 'molly-variant-status';
-                                    } else {
-                                        status.textContent = 'נא לבחור בד, צבע רקע והדפס';
-                                        status.className = 'molly-variant-status';
-                                    }
-                                }
-                            }
-
-                            fillSelect(fabricSelect, data.fabric_types, 'בחרי סוג בד');
-                            fillSelect(colorSelect, data.background_colors, 'בחרי צבע רקע');
-                            fillSelect(printSelect, data.print_designs, 'בחרי הדפס');
-
-                            fabricSelect.addEventListener('change', update);
-                            colorSelect.addEventListener('change', update);
-                            printSelect.addEventListener('change', update);
-
-                            update();
-                            addBtn.disabled = true;
-                        })();
-                        </script>
+                                    trigger.addEventListener('click', function(){
+                                        if (optionsBox.hidden) open(); else close();
+                                    });
+                                    document.addEventListener('click', function(e){
+                                        if (!picker.contains(e.target)) close();
+                                    });
+                                });
+                            })();
+                            </script>
+                        {% else %}
+                            <p class="molly-variant-status">לא הוגדרו ואריאנטים למוצר זה.</p>
+                        {% endif %}
                     {% else %}
                         <form method="post" action="{% url 'molly_catalog:cart_add' %}" class="molly-variant-form">
                             {% csrf_token %}

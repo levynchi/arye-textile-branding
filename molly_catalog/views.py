@@ -217,13 +217,17 @@ def _build_variants_data(product, cart=None):
         })
         variants.append({
             "id": v.id,
+            "name": v.display_name,
             "background_color_id": v.background_color_id,
+            "background_color_name": v.background_color.name,
             "print_design_id": v.print_design_id,
+            "print_design_name": v.print_design.name,
             "fabric_type_id": v.fabric_type_id,
+            "fabric_type_name": v.fabric_type.name,
             "default_label_color_id": v.default_label_color_id,
             "default_label_color_name": v.default_label_color.name if v.default_label_color_id else "",
             "default_label_color_hex": v.default_label_color.hex_color if v.default_label_color_id else "",
-            "image_url": v.get_image_url() or "",
+            "image_url": v.get_image_url() or (product.get_main_image() or ""),
             "sku": v.sku,
             "cart_quantity": cart_qty_map.get(v.id, 0),
         })

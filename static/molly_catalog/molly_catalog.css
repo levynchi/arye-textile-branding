@@ -596,6 +596,7 @@ body.molly-body {
     padding: 6px;
     max-height: 240px;
     overflow-y: auto;
+    min-width: 180px;
 }
 
 .molly-label-option {
@@ -617,6 +618,134 @@ body.molly-body {
 
 .molly-label-option:hover {
     background: var(--molly-primary-light);
+}
+
+/* ---------- Vertical variant list (product detail page) ---------- */
+
+.molly-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.molly-variant-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.molly-variant-row {
+    display: grid;
+    grid-template-columns: 64px 1fr auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--molly-card-bg);
+    border: 1px solid var(--molly-border);
+    border-radius: var(--molly-radius);
+    box-shadow: var(--molly-shadow);
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.molly-variant-row:hover {
+    border-color: var(--molly-primary);
+    box-shadow: var(--molly-shadow-hover);
+}
+
+.molly-variant-row-image {
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--molly-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.molly-variant-row-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.molly-variant-row-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.molly-variant-row-name {
+    font-weight: 600;
+    color: var(--molly-text);
+    font-size: 0.98rem;
+    overflow-wrap: anywhere;
+}
+
+.molly-variant-row-sku {
+    font-size: 0.82rem;
+    color: var(--molly-text-soft);
+}
+
+.molly-variant-row .molly-label-picker {
+    margin: 0;
+    min-width: 170px;
+    max-width: 220px;
+}
+
+.molly-variant-row .molly-label-trigger {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    gap: 8px;
+}
+
+.molly-variant-row .molly-label-swatch {
+    width: 18px;
+    height: 18px;
+}
+
+.molly-variant-row-control {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.molly-variant-row-control .molly-quantity-input {
+    width: 72px;
+}
+
+.molly-variant-row-control .molly-button {
+    padding: 8px 16px;
+    font-size: 0.92rem;
+}
+
+.molly-variant-row .molly-variant-status {
+    margin-top: 2px;
+    min-height: 0;
+}
+
+@media (max-width: 720px) {
+    .molly-variant-row {
+        grid-template-columns: 64px 1fr;
+        row-gap: 10px;
+    }
+    .molly-variant-row .molly-label-picker {
+        grid-column: 1 / -1;
+        min-width: 0;
+        max-width: none;
+    }
+    .molly-variant-row-control {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
 }
 
 /* ---------- Cart page ---------- */

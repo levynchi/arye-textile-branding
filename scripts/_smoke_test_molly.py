@@ -143,19 +143,24 @@ def http_flow(user, prod, cat, lc_black, lc_white):
     assert prod.slug in body, f"product slug {prod.slug} not in category page"
     print("  OK: category page lists the product")
 
-    # 4. GET product detail
+    # 4. GET product detail - now displays each admin-created variant as its own row,
+    #    not three orthogonal dropdowns the customer composes from.
     path = f"/molly/{cat.slug}/{prod.slug}/"
     code, url, body = fetch(path)
     print(f"  GET {path} -> {code}")
     assert code == 200
-    assert "mollyFabricSelect" in body
-    assert "mollyColorSelect" in body
-    assert "mollyPrintSelect" in body
-    assert "mollyVariantsData" in body
-    assert "default_label_color_name" in body
+    assert "molly-variant-list" in body, "product page must render the vertical variant list"
+    assert "molly-variant-row" in body, "product page must render at least one variant row"
+    # No leftover composing UI:
+    assert "mollyFabricSelect" not in body, "dropdown composer should have been removed"
+    assert "mollyColorSelect" not in body, "dropdown composer should have been removed"
+    assert "mollyPrintSelect" not in body, "dropdown composer should have been removed"
+    # Each variant row carries a hidden variant_id input + the composite name.
+    for v in prod.variants.all():
+        assert f'value="{v.id}"' in body, f"variant_id {v.id} must appear as a row in the page"
     assert "mollyLabelColorOptionsData" in body, "product page must expose label-color options"
-    assert "mollyLabelColorTrigger" in body, "product page must render the clickable label picker"
-    print("  OK: product page has variant selectors, JSON data, and clickable label-color picker")
+    assert "molly-label-trigger" in body, "product page must render the clickable label picker"
+    print("  OK: product page lists each admin-created variant as a row")
 
     # 5. POST cart_add with first variant. Pick the NON-default label so we
     #    can confirm Molly's choice is what gets stored, not the variant default.
