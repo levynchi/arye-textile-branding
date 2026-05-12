@@ -65,6 +65,7 @@
                             {% csrf_token %}
                             <input type="hidden" name="product_id" value="{{ product.id }}">
                             <input type="hidden" name="variant_id" id="mollyVariantId" value="">
+                            <input type="hidden" name="label_color_id" id="mollyLabelColorId" value="">
                             <input type="hidden" name="next" value="{{ request.path }}">
 
                             <div>
@@ -80,10 +81,20 @@
                                 <select id="mollyPrintSelect" class="molly-select"></select>
                             </div>
 
-                            <div id="mollyLabelColorBox" class="molly-label-color-box" hidden>
-                                <span class="molly-field-label" style="margin:0;">צבע תווית ברירת מחדל:</span>
-                                <span id="mollyLabelColorSwatch" class="molly-label-swatch"></span>
-                                <span id="mollyLabelColorName" class="molly-label-color-name"></span>
+                            <div id="mollyLabelColorPicker" class="molly-label-picker" hidden>
+                                <button type="button"
+                                        id="mollyLabelColorTrigger"
+                                        class="molly-label-trigger"
+                                        aria-expanded="false"
+                                        aria-controls="mollyLabelColorOptions">
+                                    <span class="molly-label-trigger-prefix">צבע תווית:</span>
+                                    <span id="mollyLabelColorSwatch" class="molly-label-swatch"></span>
+                                    <span id="mollyLabelColorName" class="molly-label-color-name"></span>
+                                    <span id="mollyLabelChangeable" class="molly-label-change-hint" hidden>שני</span>
+                                </button>
+                                <div id="mollyLabelColorOptions" class="molly-label-options" hidden role="listbox" aria-label="צבעי תווית זמינים">
+                                    <!-- options injected by JS -->
+                                </div>
                             </div>
 
                             <div class="molly-quantity-row">
@@ -96,22 +107,99 @@
                         </form>
 
                         {{ variants_data|json_script:"mollyVariantsData" }}
+                        {{ label_color_options|json_script:"mollyLabelColorOptionsData" }}
 
                         <script>
                         (function(){
                             const data = JSON.parse(document.getElementById('mollyVariantsData').textContent);
+                            const labelOptions = JSON.parse(document.getElementById('mollyLabelColorOptionsData').textContent) || [];
                             const fabricSelect = document.getElementById('mollyFabricSelect');
                             const colorSelect = document.getElementById('mollyColorSelect');
                             const printSelect = document.getElementById('mollyPrintSelect');
                             const variantIdInput = document.getElementById('mollyVariantId');
+                            const labelIdInput = document.getElementById('mollyLabelColorId');
                             const qtyInput = document.getElementById('mollyQuantity');
                             const status = document.getElementById('mollyVariantStatus');
                             const addBtn = document.getElementById('mollyAddBtn');
                             const mainImg = document.getElementById('mollyProductMainImg');
                             const form = document.getElementById('mollyVariantForm');
-                            const labelBox = document.getElementById('mollyLabelColorBox');
+                            const labelPicker = document.getElementById('mollyLabelColorPicker');
+                            const labelTrigger = document.getElementById('mollyLabelColorTrigger');
                             const labelSwatch = document.getElementById('mollyLabelColorSwatch');
                             const labelName = document.getElementById('mollyLabelColorName');
+                            const labelChangeable = document.getElementById('mollyLabelChangeable');
+                            const labelOptionsBox = document.getElementById('mollyLabelColorOptions');
+
+                            const hasChoices = labelOptions.length > 0;
+                            let userPickedLabelId = null;
+
+                            function paintSwatch(hex) {
+                                labelSwatch.style.background = hex || 'transparent';
+                                labelSwatch.style.borderColor = hex ? 'transparent' : '#ccc';
+                            }
+
+                            function setLabel(option) {
+                                if (!option) {
+                                    labelName.textContent = '';
+                                    paintSwatch('');
+                                    labelIdInput.value = '';
+                                    labelPicker.hidden = true;
+                                    return;
+                                }
+                                labelName.textContent = option.name;
+                                paintSwatch(option.hex_color || '');
+                                labelIdInput.value = option.id || '';
+                                labelPicker.hidden = false;
+                                labelChangeable.hidden = !hasChoices;
+                                labelTrigger.style.cursor = hasChoices ? 'pointer' : 'default';
+                            }
+
+                            function buildOptionRows() {
+                                labelOptionsBox.innerHTML = '';
+                                labelOptions.forEach(function(opt){
+                                    const row = document.createElement('button');
+                                    row.type = 'button';
+                                    row.className = 'molly-label-option';
+                                    row.setAttribute('role', 'option');
+                                    row.setAttribute('data-id', opt.id);
+                                    const sw = document.createElement('span');
+                                    sw.className = 'molly-label-swatch';
+                                    sw.style.background = opt.hex_color || 'transparent';
+                                    sw.style.borderColor = opt.hex_color ? 'transparent' : '#ccc';
+                                    const nm = document.createElement('span');
+                                    nm.textContent = opt.name;
+                                    row.appendChild(sw);
+                                    row.appendChild(nm);
+                                    row.addEventListener('click', function(){
+                                        userPickedLabelId = opt.id;
+                                        setLabel(opt);
+                                        closeOptions();
+                                    });
+                                    labelOptionsBox.appendChild(row);
+                                });
+                            }
+
+                            function openOptions() {
+                                if (!hasChoices) return;
+                                labelOptionsBox.hidden = false;
+                                labelTrigger.setAttribute('aria-expanded', 'true');
+                            }
+                            function closeOptions() {
+                                labelOptionsBox.hidden = true;
+                                labelTrigger.setAttribute('aria-expanded', 'false');
+                            }
+                            function toggleOptions() {
+                                if (labelOptionsBox.hidden) openOptions();
+                                else closeOptions();
+                            }
+
+                            if (hasChoices) {
+                                buildOptionRows();
+                                labelTrigger.addEventListener('click', toggleOptions);
+                                document.addEventListener('click', function(e){
+                                    if (!labelPicker.contains(e.target)) closeOptions();
+                                });
+                            }
 
                             function fillSelect(select, items, placeholder) {
                                 select.innerHTML = '';
@@ -181,14 +269,25 @@
                                     if (match.image_url && mainImg) {
                                         mainImg.src = match.image_url;
                                     }
-                                    if (match.default_label_color_name) {
-                                        labelName.textContent = match.default_label_color_name;
-                                        labelSwatch.style.background = match.default_label_color_hex || 'transparent';
-                                        labelSwatch.style.borderColor = match.default_label_color_hex ? 'transparent' : '#ccc';
-                                        labelBox.hidden = false;
-                                    } else {
-                                        labelBox.hidden = true;
+                                    // Decide which label color to show:
+                                    // 1) the user's explicit pick (if still in options)
+                                    // 2) the variant's default label color (if any)
+                                    // 3) hide if neither
+                                    let chosen = null;
+                                    if (userPickedLabelId) {
+                                        chosen = labelOptions.find(function(o){ return o.id == userPickedLabelId; }) || null;
                                     }
+                                    if (!chosen && match.default_label_color_id) {
+                                        chosen = labelOptions.find(function(o){ return o.id == match.default_label_color_id; }) || {
+                                            id: match.default_label_color_id,
+                                            name: match.default_label_color_name,
+                                            hex_color: match.default_label_color_hex,
+                                        };
+                                    }
+                                    if (!chosen && hasChoices) {
+                                        chosen = labelOptions[0];
+                                    }
+                                    setLabel(chosen);
                                     if (match.cart_quantity > 0) {
                                         status.textContent = 'בעגלה: ' + match.cart_quantity + ' יחידות';
                                         status.className = 'molly-variant-status in-cart';
@@ -200,7 +299,7 @@
                                 } else {
                                     variantIdInput.value = '';
                                     addBtn.disabled = true;
-                                    labelBox.hidden = true;
+                                    setLabel(null);
                                     if (fabricSelect.value && colorSelect.value && printSelect.value) {
                                         status.textContent = 'הקומבינציה הזו אינה זמינה';
                                         status.className = 'molly-variant-status';

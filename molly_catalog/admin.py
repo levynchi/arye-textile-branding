@@ -173,6 +173,7 @@ class MollyProductAdmin(admin.ModelAdmin):
     search_fields = ("name", "description", "category__name")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("created", "updated")
+    filter_horizontal = ("available_label_colors",)
     inlines = [MollyProductImageInline, MollyVariantInline]
     actions = ("generate_variant_matrix",)
 
@@ -182,6 +183,14 @@ class MollyProductAdmin(admin.ModelAdmin):
         }),
         ("תיאורים", {
             "fields": ("description", "marketing_description", "information"),
+        }),
+        ("צבעי תוויות זמינים ללקוח לבחירה", {
+            "fields": ("available_label_colors",),
+            "description": (
+                "אם משאירים ריק - מולי תראה רק את צבע התווית של ברירת המחדל לכל ואריאנט "
+                "(שמוגדר על הוואריאנט עצמו). אם בוחרים כאן מספר צבעים, מולי תוכל לבחור "
+                "בעמוד המוצר איזה צבע תווית היא רוצה מתוך הצבעים האלה."
+            ),
         }),
         ("מידע נוסף", {
             "fields": ("created", "updated"),
@@ -378,8 +387,8 @@ class MollyCatalogUserActivityAdmin(admin.ModelAdmin):
 class MollyCartItemInline(admin.TabularInline):
     model = MollyCartItem
     extra = 0
-    readonly_fields = ("product", "variant", "quantity", "created")
-    fields = ("product", "variant", "quantity", "created")
+    readonly_fields = ("product", "variant", "selected_label_color", "quantity", "created")
+    fields = ("product", "variant", "selected_label_color", "quantity", "created")
     can_delete = False
 
     def has_add_permission(self, request, obj=None):

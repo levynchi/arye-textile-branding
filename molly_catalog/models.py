@@ -267,6 +267,16 @@ class MollyProduct(models.Model):
         default=True,
         help_text="אם מסומן, מולי תבחר צבע/הדפס/בד. אחרת זה מוצר בודד.",
     )
+    available_label_colors = models.ManyToManyField(
+        MollyLabelColor,
+        blank=True,
+        related_name="products",
+        verbose_name="צבעי תווית זמינים לבחירה",
+        help_text=(
+            "צבעי התווית שמולי תוכל לבחור מהם בעמוד המוצר. אם ריק - מולי "
+            "תראה רק את צבע התווית של ברירת המחדל בלי אפשרות לשנות."
+        ),
+    )
     order = models.PositiveIntegerField("סדר תצוגה", default=0)
     slug = models.SlugField("Slug", max_length=200, unique=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -480,6 +490,15 @@ class MollyCartItem(models.Model):
         null=True,
         blank=True,
     )
+    selected_label_color = models.ForeignKey(
+        MollyLabelColor,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cart_items",
+        verbose_name="צבע תווית שנבחר",
+        help_text="הצבע שמולי בחרה. אם ריק, ייעשה fallback לברירת המחדל של הוואריאנט.",
+    )
     quantity = models.PositiveIntegerField("כמות", default=1)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -488,7 +507,7 @@ class MollyCartItem(models.Model):
         app_label = "molly_catalog"
         verbose_name = "פריט בעגלה"
         verbose_name_plural = "פריטים בעגלה"
-        unique_together = ("cart", "variant")
+        unique_together = ("cart", "variant", "selected_label_color")
 
     def __str__(self):
         if self.variant:
@@ -502,6 +521,14 @@ class MollyCartItem(models.Model):
         if self.variant:
             return self.variant.get_image_url()
         return self.product.get_main_image()
+
+    def effective_label_color(self):
+        """The label color Molly will actually receive: her choice, or the variant default."""
+        if self.selected_label_color_id:
+            return self.selected_label_color
+        if self.variant_id and self.variant.default_label_color_id:
+            return self.variant.default_label_color
+        return None
 
 
 class MollyOrder(models.Model):

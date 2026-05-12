@@ -538,6 +538,85 @@ body.molly-body {
     color: var(--molly-text);
 }
 
+/* Clickable label-color picker (product page) */
+.molly-label-picker {
+    position: relative;
+    margin: 10px 0 14px;
+}
+
+.molly-label-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--molly-primary-light);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--molly-text);
+    text-align: right;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.molly-label-trigger:hover {
+    border-color: var(--molly-primary);
+    box-shadow: 0 1px 6px rgba(180, 120, 130, 0.15);
+}
+
+.molly-label-trigger-prefix {
+    color: var(--molly-text-soft);
+    font-size: 0.88rem;
+}
+
+.molly-label-change-hint {
+    margin-inline-start: auto;
+    padding: 3px 10px;
+    background: var(--molly-primary);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.molly-label-options {
+    position: absolute;
+    top: calc(100% + 4px);
+    inset-inline-end: 0;
+    inset-inline-start: 0;
+    z-index: 30;
+    background: var(--molly-card-bg);
+    border: 1px solid var(--molly-border);
+    border-radius: 8px;
+    box-shadow: var(--molly-shadow-hover);
+    padding: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.molly-label-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.92rem;
+    color: var(--molly-text);
+    text-align: right;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.molly-label-option:hover {
+    background: var(--molly-primary-light);
+}
+
 /* ---------- Cart page ---------- */
 
 .molly-cart-list {

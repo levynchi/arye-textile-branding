@@ -88,10 +88,14 @@ def seed():
             if was_created:
                 created += 1
     print(f"  variants created: {created} (total now: {prod.variants.count()})")
-    return user, prod, cat
+
+    # Wire up the product's selectable label colors (the new feature).
+    prod.available_label_colors.set([lc_black, lc_white])
+    print(f"  product available label colors: {[l.name for l in prod.available_label_colors.all()]}")
+    return user, prod, cat, lc_black, lc_white
 
 
-def http_flow(user, prod, cat):
+def http_flow(user, prod, cat, lc_black, lc_white):
     section("2. HTTP flow via real dev server")
 
     cj = http.cookiejar.CookieJar()
@@ -149,10 +153,17 @@ def http_flow(user, prod, cat):
     assert "mollyPrintSelect" in body
     assert "mollyVariantsData" in body
     assert "default_label_color_name" in body
-    print("  OK: product page has variant selectors, JSON data, and label-color info")
+    assert "mollyLabelColorOptionsData" in body, "product page must expose label-color options"
+    assert "mollyLabelColorTrigger" in body, "product page must render the clickable label picker"
+    print("  OK: product page has variant selectors, JSON data, and clickable label-color picker")
 
-    # 5. POST cart_add with first variant
+    # 5. POST cart_add with first variant. Pick the NON-default label so we
+    #    can confirm Molly's choice is what gets stored, not the variant default.
     variant = prod.variants.first()
+    if variant.default_label_color_id == lc_black.id:
+        chosen_label = lc_white
+    else:
+        chosen_label = lc_black
     m = re.search(r"csrfmiddlewaretoken[^>]+value=\"([^\"]+)\"", body)
     csrf = m.group(1)
     code, url, body = fetch(
@@ -160,19 +171,22 @@ def http_flow(user, prod, cat):
         data={
             "product_id": prod.id,
             "variant_id": variant.id,
+            "label_color_id": chosen_label.id,
             "quantity": 3,
             "csrfmiddlewaretoken": csrf,
         },
     )
-    print(f"  POST /molly/cart/add/ variant={variant.id} qty=3 -> {code} {url}")
+    print(f"  POST /molly/cart/add/ variant={variant.id} label={chosen_label.name} qty=3 -> {code} {url}")
 
-    # 6. GET cart
+    # 6. GET cart - verify Molly's CHOSEN label shows, not the variant default
     code, url, body = fetch("/molly/cart/")
     print(f"  GET /molly/cart/ -> {code}")
     assert "3" in body  # the qty appears somewhere
     assert prod.name in body
-    assert "צבע תווית" in body, "cart should display the default label color row"
-    print("  OK: cart shows added item with label color")
+    assert chosen_label.name in body, (
+        f"cart should display the chosen label color ({chosen_label.name}) not the default"
+    )
+    print(f"  OK: cart shows added item with chosen label color ({chosen_label.name})")
 
     # 7. POST checkout
     m = re.search(r"csrfmiddlewaretoken[^>]+value=\"([^\"]+)\"", body)
@@ -184,7 +198,10 @@ def http_flow(user, prod, cat):
     print(f"  POST /molly/checkout/ -> {code} {url}")
     assert "/orders/MOL-" in url
     assert "צבע תווית" in body, "order confirm page should display label color snapshot"
-    print(f"  OK: checkout created order with label-color snapshot at {url}")
+    assert chosen_label.name in body, (
+        f"order snapshot should preserve the chosen label color ({chosen_label.name})"
+    )
+    print(f"  OK: checkout created order with chosen label-color ({chosen_label.name}) snapshot at {url}")
 
     # 8. Order list
     code, url, body = fetch("/molly/orders/")
@@ -207,9 +224,9 @@ def cleanup():
 
 
 if __name__ == "__main__":
-    user, prod, cat = seed()
+    user, prod, cat, lc_black, lc_white = seed()
     try:
-        http_flow(user, prod, cat)
+        http_flow(user, prod, cat, lc_black, lc_white)
     finally:
         cleanup()
     print("\nOK: all checks passed")

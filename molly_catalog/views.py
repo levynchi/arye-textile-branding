@@ -20,6 +20,7 @@ from .models import (
     MollyCatalogUser,
     MollyCatalogUserActivity,
     MollyCategory,
+    MollyLabelColor,
     MollyOrder,
     MollyOrderItem,
     MollyProduct,
@@ -188,11 +189,11 @@ def _build_variants_data(product, cart=None):
         "background_color", "print_design", "fabric_type", "default_label_color"
     )
 
-    # Existing cart quantities, keyed by variant_id
+    # Existing cart quantities, keyed by variant_id (summed across label-color choices).
     cart_qty_map = {}
     if cart is not None:
         for item in cart.items.filter(product=product, variant__isnull=False):
-            cart_qty_map[item.variant_id] = item.quantity
+            cart_qty_map[item.variant_id] = cart_qty_map.get(item.variant_id, 0) + item.quantity
 
     background_colors = {}
     print_designs = {}
@@ -257,12 +258,23 @@ def _product_detail_context(request, product, category=None):
         if simple_item:
             simple_cart_quantity = simple_item.quantity
 
+    label_color_options = [
+        {
+            "id": lc.id,
+            "name": lc.name,
+            "hex_color": lc.hex_color,
+            "swatch_url": lc.swatch_image.url if lc.swatch_image else "",
+        }
+        for lc in product.available_label_colors.filter(is_active=True).order_by("order", "name")
+    ]
+
     return {
         **_nav_context(),
         "category": category,
         "product": product,
         "product_images": product.images.all(),
         "variants_data": variants_data,
+        "label_color_options": label_color_options,
         "simple_cart_quantity": simple_cart_quantity,
         "cart_count": _cart_count(request),
     }
@@ -305,6 +317,7 @@ def _build_cart_page_context(request):
             "items__variant__print_design",
             "items__variant__fabric_type",
             "items__variant__default_label_color",
+            "items__selected_label_color",
         ).get(user=user, status=MollyCart.STATUS_ACTIVE)
     except MollyCart.DoesNotExist:
         cart = None
@@ -313,6 +326,7 @@ def _build_cart_page_context(request):
     if cart:
         for item in cart.items.all().order_by("created"):
             v = item.variant
+            effective = item.effective_label_color()
             cart_items.append({
                 "id": item.id,
                 "product_id": item.product_id,
@@ -322,7 +336,8 @@ def _build_cart_page_context(request):
                 "background_color": v.background_color.name if v else "",
                 "print_design": v.print_design.name if v else "",
                 "fabric_type": v.fabric_type.name if v else "",
-                "label_color": v.default_label_color.name if v and v.default_label_color_id else "",
+                "label_color": effective.name if effective else "",
+                "label_color_hex": effective.hex_color if effective else "",
                 "image_url": item.get_image_url() or "",
                 "quantity": item.quantity,
                 "sku": v.sku if v else "",
@@ -357,6 +372,7 @@ def cart_add(request):
 
     product_id = request.POST.get("product_id")
     variant_id = request.POST.get("variant_id") or None
+    label_color_id = request.POST.get("label_color_id") or None
     try:
         quantity = int(request.POST.get("quantity") or 0)
     except (TypeError, ValueError):
@@ -380,7 +396,7 @@ def cart_add(request):
             messages.error(request, "נא לבחור צבע, הדפס וסוג בד")
             return redirect(request.POST.get("next") or "molly_catalog:cart")
         try:
-            variant = MollyVariant.objects.select_related("product").get(
+            variant = MollyVariant.objects.select_related("product", "default_label_color").get(
                 pk=variant_id, is_active=True, product=product
             )
         except (MollyVariant.DoesNotExist, TypeError, ValueError):
@@ -391,12 +407,28 @@ def cart_add(request):
     else:
         variant = None
 
+    # Resolve label color: prefer customer's choice if it's one of the product's
+    # available options. Fall back to the variant's default.
+    selected_label_color = None
+    if variant is not None:
+        if label_color_id:
+            try:
+                selected_label_color = product.available_label_colors.get(
+                    pk=label_color_id, is_active=True
+                )
+            except MollyLabelColor.DoesNotExist:
+                selected_label_color = None
+        if selected_label_color is None:
+            selected_label_color = variant.default_label_color
+
     if quantity == 0:
         # Treat 0 as "remove from cart"
         if variant is None:
             MollyCartItem.objects.filter(cart=cart, product=product, variant__isnull=True).delete()
         else:
-            MollyCartItem.objects.filter(cart=cart, variant=variant).delete()
+            MollyCartItem.objects.filter(
+                cart=cart, variant=variant, selected_label_color=selected_label_color
+            ).delete()
         message = "הפריט הוסר מההזמנה"
         if want_json:
             return JsonResponse({
@@ -413,12 +445,14 @@ def cart_add(request):
             cart=cart,
             product=product,
             variant=None,
+            selected_label_color=None,
             defaults={"quantity": quantity},
         )
     else:
         item, created = MollyCartItem.objects.update_or_create(
             cart=cart,
             variant=variant,
+            selected_label_color=selected_label_color,
             defaults={"product": product, "quantity": quantity},
         )
 
@@ -525,6 +559,7 @@ def checkout(request):
             "items__variant__print_design",
             "items__variant__fabric_type",
             "items__variant__default_label_color",
+            "items__selected_label_color",
         ).get(user=user, status=MollyCart.STATUS_ACTIVE)
     except MollyCart.DoesNotExist:
         messages.error(request, "ההזמנה ריקה")
@@ -545,6 +580,7 @@ def checkout(request):
 
     for item in cart.items.all():
         v = item.variant
+        effective_label = item.effective_label_color()
         MollyOrderItem.objects.create(
             order=order,
             product=item.product,
@@ -553,7 +589,7 @@ def checkout(request):
             background_color_name=v.background_color.name if v else "",
             print_design_name=v.print_design.name if v else "",
             fabric_type_name=v.fabric_type.name if v else "",
-            label_color_name=(v.default_label_color.name if v and v.default_label_color_id else ""),
+            label_color_name=(effective_label.name if effective_label else ""),
             variant_sku=v.sku if v else "",
             quantity=item.quantity,
         )
