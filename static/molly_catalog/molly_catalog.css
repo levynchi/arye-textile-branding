@@ -620,7 +620,7 @@ body.molly-body {
     background: var(--molly-primary-light);
 }
 
-/* ---------- Vertical variant list (product detail page) ---------- */
+/* ---------- Variant order builder (product detail page) ---------- */
 
 .molly-sr-only {
     position: absolute;
@@ -634,19 +634,18 @@ body.molly-body {
     border: 0;
 }
 
-.molly-variant-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+.molly-variant-builder {
     margin-top: 18px;
 }
 
+.molly-variant-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 .molly-variant-row {
-    display: grid;
-    grid-template-columns: 64px 1fr auto auto;
-    gap: 14px;
-    align-items: center;
-    padding: 12px 14px;
+    position: relative;
     background: var(--molly-card-bg);
     border: 1px solid var(--molly-border);
     border-radius: var(--molly-radius);
@@ -654,14 +653,183 @@ body.molly-body {
     transition: box-shadow 0.15s, border-color 0.15s;
 }
 
-.molly-variant-row:hover {
-    border-color: var(--molly-primary);
-    box-shadow: var(--molly-shadow-hover);
+.molly-variant-row.is-selected {
+    border-color: var(--molly-primary-light);
 }
 
-.molly-variant-row-image {
-    width: 64px;
-    height: 64px;
+/* Top summary: trigger + (controls when selected) */
+.molly-variant-row-summary {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+}
+
+.molly-variant-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--molly-bg);
+    border: 1px dashed var(--molly-border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--molly-text);
+    text-align: right;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.molly-variant-trigger:hover {
+    background: var(--molly-primary-light);
+    border-color: var(--molly-primary);
+}
+
+.molly-variant-row.is-selected .molly-variant-trigger {
+    background: var(--molly-card-bg);
+    border-style: solid;
+    border-color: var(--molly-border);
+}
+
+.molly-variant-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: var(--molly-card-bg);
+    border: 1px dashed var(--molly-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.molly-variant-thumb.has-image {
+    border-style: solid;
+}
+
+.molly-variant-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.molly-variant-trigger-label {
+    font-weight: 600;
+    color: var(--molly-text);
+    overflow-wrap: anywhere;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.molly-variant-trigger-meta {
+    font-size: 0.82rem;
+    color: var(--molly-text-soft);
+    margin-inline-start: 6px;
+}
+
+.molly-variant-trigger-chevron {
+    margin-inline-start: auto;
+    color: var(--molly-primary-dark);
+    font-size: 0.9rem;
+    transition: transform 0.2s;
+}
+
+.molly-variant-trigger[aria-expanded="true"] .molly-variant-trigger-chevron {
+    transform: rotate(180deg);
+}
+
+.molly-variant-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.molly-variant-controls .molly-quantity-input {
+    width: 72px;
+}
+
+.molly-variant-controls .molly-button {
+    padding: 8px 18px;
+    font-size: 0.92rem;
+}
+
+.molly-row-remove {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--molly-border);
+    background: var(--molly-card-bg);
+    color: var(--molly-danger);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.molly-row-remove:hover {
+    background: var(--molly-danger-light);
+}
+
+.molly-variant-controls .molly-label-picker {
+    margin: 0;
+    min-width: 150px;
+    max-width: 200px;
+}
+
+.molly-variant-controls .molly-label-trigger {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    gap: 8px;
+}
+
+.molly-variant-controls .molly-label-swatch {
+    width: 18px;
+    height: 18px;
+}
+
+/* The expanded list of variants below the trigger */
+.molly-variant-options {
+    border-top: 1px solid var(--molly-border);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 380px;
+    overflow-y: auto;
+    background: var(--molly-bg);
+    border-radius: 0 0 var(--molly-radius) var(--molly-radius);
+}
+
+.molly-variant-option {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    background: var(--molly-card-bg);
+    border: 1px solid var(--molly-border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.92rem;
+    color: var(--molly-text);
+    text-align: right;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+}
+
+.molly-variant-option:hover {
+    border-color: var(--molly-primary);
+    background: var(--molly-primary-light);
+}
+
+.molly-variant-option-thumb {
+    width: 52px;
+    height: 52px;
     border-radius: 6px;
     overflow: hidden;
     background: var(--molly-bg);
@@ -670,81 +838,85 @@ body.molly-body {
     justify-content: center;
 }
 
-.molly-variant-row-image img {
+.molly-variant-option-thumb img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.molly-variant-row-info {
-    min-width: 0;
+.molly-variant-option-info {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
+    min-width: 0;
 }
 
-.molly-variant-row-name {
+.molly-variant-option-name {
     font-weight: 600;
-    color: var(--molly-text);
-    font-size: 0.98rem;
     overflow-wrap: anywhere;
 }
 
-.molly-variant-row-sku {
-    font-size: 0.82rem;
+.molly-variant-option-sku,
+.molly-variant-option-cartq {
+    font-size: 0.78rem;
     color: var(--molly-text-soft);
 }
 
-.molly-variant-row .molly-label-picker {
-    margin: 0;
-    min-width: 170px;
-    max-width: 220px;
+.molly-variant-option-cartq {
+    color: var(--molly-success);
+    font-weight: 600;
 }
 
-.molly-variant-row .molly-label-trigger {
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    gap: 8px;
-}
-
-.molly-variant-row .molly-label-swatch {
-    width: 18px;
-    height: 18px;
-}
-
-.molly-variant-row-control {
+/* "+ add another variant" button */
+.molly-add-row-button {
     display: flex;
-    gap: 8px;
     align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: transparent;
+    border: 1.5px dashed var(--molly-primary);
+    border-radius: var(--molly-radius);
+    color: var(--molly-primary-dark);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
 }
 
-.molly-variant-row-control .molly-quantity-input {
-    width: 72px;
+.molly-add-row-button:hover {
+    background: var(--molly-primary-light);
+    border-color: var(--molly-primary-dark);
 }
 
-.molly-variant-row-control .molly-button {
-    padding: 8px 16px;
-    font-size: 0.92rem;
-}
-
-.molly-variant-row .molly-variant-status {
-    margin-top: 2px;
-    min-height: 0;
+.molly-add-row-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--molly-primary);
+    color: #fff;
+    font-size: 1.1rem;
+    line-height: 1;
+    font-weight: 700;
 }
 
 @media (max-width: 720px) {
-    .molly-variant-row {
-        grid-template-columns: 64px 1fr;
-        row-gap: 10px;
+    .molly-variant-row-summary {
+        grid-template-columns: 1fr;
     }
-    .molly-variant-row .molly-label-picker {
-        grid-column: 1 / -1;
+    .molly-variant-controls {
+        justify-content: stretch;
+    }
+    .molly-variant-controls .molly-label-picker {
+        flex: 1 1 100%;
         min-width: 0;
         max-width: none;
-    }
-    .molly-variant-row-control {
-        grid-column: 1 / -1;
-        justify-content: flex-end;
     }
 }
 

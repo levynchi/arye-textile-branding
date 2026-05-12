@@ -62,38 +62,38 @@
                 {% if product.is_orderable %}
                     {% if product.has_variants %}
                         {% if variants_data.variants %}
-                            <div class="molly-variant-list">
-                                {% for v in variants_data.variants %}
-                                    <form method="post" action="{% url 'molly_catalog:cart_add' %}" class="molly-variant-row">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="product_id" value="{{ product.id }}">
-                                        <input type="hidden" name="variant_id" value="{{ v.id }}">
-                                        <input type="hidden" name="next" value="{{ request.path }}">
+                            <div class="molly-variant-builder">
+                                <div class="molly-variant-rows"></div>
 
-                                        <div class="molly-variant-row-image">
-                                            {% if v.image_url %}
-                                                <img src="{{ v.image_url }}" alt="{{ v.name }}" loading="lazy">
-                                            {% endif %}
-                                        </div>
+                                <button type="button" class="molly-add-row-button" id="mollyAddRowButton">
+                                    <span class="molly-add-row-icon" aria-hidden="true">+</span>
+                                    <span>הוסיפי עוד ואריאנט להזמנה</span>
+                                </button>
+                            </div>
 
-                                        <div class="molly-variant-row-info">
-                                            <div class="molly-variant-row-name">{{ v.name }}</div>
-                                            {% if v.sku %}
-                                                <div class="molly-variant-row-sku">מק"ט: {{ v.sku }}</div>
-                                            {% endif %}
-                                            {% if v.cart_quantity %}
-                                                <div class="molly-variant-status in-cart">בעגלה: {{ v.cart_quantity }} יחידות</div>
-                                            {% endif %}
-                                        </div>
+                            {# Template cloned by JS for each variant row #}
+                            <template id="mollyVariantRowTemplate">
+                                <form method="post" action="{% url 'molly_catalog:cart_add' %}" class="molly-variant-row">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                                    <input type="hidden" name="variant_id" value="">
+                                    <input type="hidden" name="label_color_id" class="molly-label-id" value="">
+                                    <input type="hidden" name="next" value="{{ request.path }}">
 
-                                        {% if label_color_options or v.default_label_color_id %}
+                                    <div class="molly-variant-row-summary">
+                                        <button type="button" class="molly-variant-trigger" aria-expanded="false" aria-haspopup="listbox">
+                                            <span class="molly-variant-thumb" aria-hidden="true"></span>
+                                            <span class="molly-variant-trigger-label">בחרי ואריאנט</span>
+                                            <span class="molly-variant-trigger-meta"></span>
+                                            <span class="molly-variant-trigger-chevron" aria-hidden="true">&#9662;</span>
+                                        </button>
+
+                                        <div class="molly-variant-controls" hidden>
                                             <div class="molly-label-picker"
-                                                 data-default-id="{{ v.default_label_color_id|default_if_none:'' }}"
-                                                 data-default-name="{{ v.default_label_color_name }}"
-                                                 data-default-hex="{{ v.default_label_color_hex }}">
-                                                <input type="hidden" name="label_color_id"
-                                                       class="molly-label-id"
-                                                       value="{{ v.default_label_color_id|default_if_none:'' }}">
+                                                 hidden
+                                                 data-default-id=""
+                                                 data-default-name=""
+                                                 data-default-hex="">
                                                 <button type="button"
                                                         class="molly-label-trigger"
                                                         aria-expanded="false"
@@ -101,41 +101,96 @@
                                                     <span class="molly-label-trigger-prefix">צבע תווית:</span>
                                                     <span class="molly-label-swatch"></span>
                                                     <span class="molly-label-color-name"></span>
-                                                    {% if label_color_options %}
-                                                        <span class="molly-label-change-hint" aria-hidden="true">&#9662;</span>
-                                                    {% endif %}
+                                                    <span class="molly-label-change-hint" aria-hidden="true">&#9662;</span>
                                                 </button>
-                                                {% if label_color_options %}
-                                                    <div class="molly-label-options" hidden role="listbox" aria-label="צבעי תווית זמינים"></div>
-                                                {% endif %}
+                                                <div class="molly-label-options" hidden role="listbox" aria-label="צבעי תווית זמינים"></div>
                                             </div>
-                                        {% endif %}
 
-                                        <div class="molly-variant-row-control">
                                             <label class="molly-field-label molly-sr-only">כמות</label>
-                                            <input type="number" name="quantity" min="0"
-                                                   value="{% if v.cart_quantity %}{{ v.cart_quantity }}{% else %}1{% endif %}"
-                                                   class="molly-quantity-input">
+                                            <input type="number" name="quantity" min="1" value="1" class="molly-quantity-input">
                                             <button type="submit" class="molly-button">הוספה</button>
+                                            <button type="button" class="molly-row-remove" aria-label="הסירי את השורה">&times;</button>
                                         </div>
-                                    </form>
-                                {% endfor %}
-                            </div>
+                                    </div>
 
+                                    <div class="molly-variant-options" hidden role="listbox" aria-label="ואריאנטים זמינים"></div>
+
+                                    <div class="molly-variant-row-status" hidden></div>
+                                </form>
+                            </template>
+
+                            {{ variants_data|json_script:"mollyVariantsData" }}
                             {{ label_color_options|json_script:"mollyLabelColorOptionsData" }}
 
                             <script>
                             (function(){
-                                const labelOptionsRaw = document.getElementById('mollyLabelColorOptionsData');
-                                const labelOptions = labelOptionsRaw ? (JSON.parse(labelOptionsRaw.textContent) || []) : [];
-                                const hasChoices = labelOptions.length > 0;
+                                const variantsData = JSON.parse(document.getElementById('mollyVariantsData').textContent);
+                                const labelOptions = JSON.parse(document.getElementById('mollyLabelColorOptionsData').textContent) || [];
+                                const hasLabelChoices = labelOptions.length > 0;
+                                const variants = (variantsData && variantsData.variants) || [];
 
-                                document.querySelectorAll('.molly-variant-row .molly-label-picker').forEach(function(picker){
+                                const rowsContainer = document.querySelector('.molly-variant-rows');
+                                const addBtn = document.getElementById('mollyAddRowButton');
+                                const tmpl = document.getElementById('mollyVariantRowTemplate');
+                                const mainImg = document.getElementById('mollyProductMainImg');
+
+                                function closeAllOptionPanels(except) {
+                                    document.querySelectorAll('.molly-variant-row .molly-variant-options').forEach(function(box){
+                                        if (box !== except) {
+                                            box.hidden = true;
+                                            const trig = box.parentElement.querySelector('.molly-variant-trigger');
+                                            if (trig) trig.setAttribute('aria-expanded', 'false');
+                                        }
+                                    });
+                                }
+
+                                function buildVariantOption(v) {
+                                    const btn = document.createElement('button');
+                                    btn.type = 'button';
+                                    btn.className = 'molly-variant-option';
+                                    btn.setAttribute('role', 'option');
+                                    btn.dataset.variantId = v.id;
+
+                                    const thumb = document.createElement('span');
+                                    thumb.className = 'molly-variant-option-thumb';
+                                    if (v.image_url) {
+                                        const img = document.createElement('img');
+                                        img.src = v.image_url;
+                                        img.alt = v.name;
+                                        img.loading = 'lazy';
+                                        thumb.appendChild(img);
+                                    }
+                                    btn.appendChild(thumb);
+
+                                    const info = document.createElement('span');
+                                    info.className = 'molly-variant-option-info';
+                                    const name = document.createElement('span');
+                                    name.className = 'molly-variant-option-name';
+                                    name.textContent = v.name;
+                                    info.appendChild(name);
+                                    if (v.sku) {
+                                        const sku = document.createElement('span');
+                                        sku.className = 'molly-variant-option-sku';
+                                        sku.textContent = 'מק"ט: ' + v.sku;
+                                        info.appendChild(sku);
+                                    }
+                                    if (v.cart_quantity > 0) {
+                                        const cq = document.createElement('span');
+                                        cq.className = 'molly-variant-option-cartq';
+                                        cq.textContent = 'בעגלה: ' + v.cart_quantity;
+                                        info.appendChild(cq);
+                                    }
+                                    btn.appendChild(info);
+                                    return btn;
+                                }
+
+                                function setupLabelPicker(picker, variant) {
                                     const trigger = picker.querySelector('.molly-label-trigger');
                                     const swatch = picker.querySelector('.molly-label-swatch');
                                     const nameEl = picker.querySelector('.molly-label-color-name');
-                                    const hiddenInput = picker.querySelector('.molly-label-id');
+                                    const hiddenInput = picker.closest('form').querySelector('.molly-label-id');
                                     const optionsBox = picker.querySelector('.molly-label-options');
+                                    const changeHint = picker.querySelector('.molly-label-change-hint');
 
                                     function paint(hex) {
                                         swatch.style.background = hex || 'transparent';
@@ -147,36 +202,42 @@
                                             nameEl.textContent = '';
                                             paint('');
                                             hiddenInput.value = '';
+                                            picker.hidden = true;
                                             return;
                                         }
                                         nameEl.textContent = opt.name || '';
                                         paint(opt.hex_color || '');
                                         hiddenInput.value = opt.id || '';
+                                        picker.hidden = false;
                                     }
 
-                                    // Initial selection comes from the row's data-default-* attributes.
-                                    const initial = {
-                                        id: picker.dataset.defaultId || '',
-                                        name: picker.dataset.defaultName || '',
-                                        hex_color: picker.dataset.defaultHex || '',
-                                    };
-                                    setSelection(initial.id ? initial : (hasChoices ? labelOptions[0] : null));
+                                    // Decide initial selection
+                                    let initial = null;
+                                    if (variant.default_label_color_id) {
+                                        initial = labelOptions.find(function(o){ return o.id == variant.default_label_color_id; }) || {
+                                            id: variant.default_label_color_id,
+                                            name: variant.default_label_color_name,
+                                            hex_color: variant.default_label_color_hex,
+                                        };
+                                    }
+                                    if (!initial && hasLabelChoices) initial = labelOptions[0];
+                                    setSelection(initial);
 
-                                    if (!optionsBox || !hasChoices) {
-                                        // Display-only: no clickable dropdown.
+                                    if (!hasLabelChoices) {
+                                        if (changeHint) changeHint.hidden = true;
                                         trigger.style.cursor = 'default';
-                                        trigger.addEventListener('click', function(e){ e.preventDefault(); });
                                         return;
                                     }
+                                    if (changeHint) changeHint.hidden = false;
+                                    trigger.style.cursor = 'pointer';
 
-                                    // Build the option rows.
+                                    // Build option rows once
                                     optionsBox.innerHTML = '';
                                     labelOptions.forEach(function(opt){
                                         const row = document.createElement('button');
                                         row.type = 'button';
                                         row.className = 'molly-label-option';
                                         row.setAttribute('role', 'option');
-                                        row.setAttribute('data-id', opt.id);
                                         const sw = document.createElement('span');
                                         sw.className = 'molly-label-swatch';
                                         sw.style.background = opt.hex_color || 'transparent';
@@ -187,26 +248,141 @@
                                         row.appendChild(nm);
                                         row.addEventListener('click', function(){
                                             setSelection(opt);
-                                            close();
+                                            optionsBox.hidden = true;
+                                            trigger.setAttribute('aria-expanded', 'false');
                                         });
                                         optionsBox.appendChild(row);
                                     });
 
-                                    function open() {
-                                        optionsBox.hidden = false;
-                                        trigger.setAttribute('aria-expanded', 'true');
-                                    }
-                                    function close() {
+                                    trigger.onclick = function(){
+                                        if (optionsBox.hidden) {
+                                            optionsBox.hidden = false;
+                                            trigger.setAttribute('aria-expanded', 'true');
+                                        } else {
+                                            optionsBox.hidden = true;
+                                            trigger.setAttribute('aria-expanded', 'false');
+                                        }
+                                    };
+                                }
+
+                                function wireRow(row) {
+                                    const trigger = row.querySelector('.molly-variant-trigger');
+                                    const triggerLabel = row.querySelector('.molly-variant-trigger-label');
+                                    const triggerMeta = row.querySelector('.molly-variant-trigger-meta');
+                                    const triggerThumb = row.querySelector('.molly-variant-thumb');
+                                    const optionsBox = row.querySelector('.molly-variant-options');
+                                    const controls = row.querySelector('.molly-variant-controls');
+                                    const variantIdInput = row.querySelector('input[name=variant_id]');
+                                    const labelPicker = row.querySelector('.molly-label-picker');
+                                    const qtyInput = row.querySelector('input[name=quantity]');
+                                    const removeBtn = row.querySelector('.molly-row-remove');
+
+                                    // Build variant options once
+                                    optionsBox.innerHTML = '';
+                                    variants.forEach(function(v){
+                                        const opt = buildVariantOption(v);
+                                        opt.addEventListener('click', function(){
+                                            selectVariant(v);
+                                        });
+                                        optionsBox.appendChild(opt);
+                                    });
+
+                                    function selectVariant(v) {
+                                        variantIdInput.value = v.id;
+                                        triggerLabel.textContent = v.name;
+                                        triggerMeta.textContent = v.sku ? ('מק"ט: ' + v.sku) : '';
+                                        // Thumb
+                                        triggerThumb.innerHTML = '';
+                                        if (v.image_url) {
+                                            const img = document.createElement('img');
+                                            img.src = v.image_url;
+                                            img.alt = v.name;
+                                            triggerThumb.appendChild(img);
+                                            triggerThumb.classList.add('has-image');
+                                            // Also update main product image
+                                            if (mainImg) mainImg.src = v.image_url;
+                                        } else {
+                                            triggerThumb.classList.remove('has-image');
+                                        }
+
+                                        controls.hidden = false;
                                         optionsBox.hidden = true;
                                         trigger.setAttribute('aria-expanded', 'false');
+                                        row.classList.add('is-selected');
+
+                                        if (v.cart_quantity > 0) qtyInput.value = v.cart_quantity;
+
+                                        setupLabelPicker(labelPicker, v);
                                     }
+
+                                    function resetRow() {
+                                        variantIdInput.value = '';
+                                        triggerLabel.textContent = 'בחרי ואריאנט';
+                                        triggerMeta.textContent = '';
+                                        triggerThumb.innerHTML = '';
+                                        triggerThumb.classList.remove('has-image');
+                                        controls.hidden = true;
+                                        labelPicker.hidden = true;
+                                        row.classList.remove('is-selected');
+                                        qtyInput.value = 1;
+                                    }
+
                                     trigger.addEventListener('click', function(){
-                                        if (optionsBox.hidden) open(); else close();
+                                        const isOpen = !optionsBox.hidden;
+                                        closeAllOptionPanels(optionsBox);
+                                        if (!isOpen) {
+                                            optionsBox.hidden = false;
+                                            trigger.setAttribute('aria-expanded', 'true');
+                                        } else {
+                                            optionsBox.hidden = true;
+                                            trigger.setAttribute('aria-expanded', 'false');
+                                        }
                                     });
-                                    document.addEventListener('click', function(e){
-                                        if (!picker.contains(e.target)) close();
+
+                                    if (removeBtn) {
+                                        removeBtn.addEventListener('click', function(){
+                                            const allRows = rowsContainer.querySelectorAll('.molly-variant-row');
+                                            if (allRows.length > 1) {
+                                                row.remove();
+                                            } else {
+                                                resetRow();
+                                            }
+                                        });
+                                    }
+
+                                    // Prevent submitting an empty row
+                                    row.addEventListener('submit', function(e){
+                                        if (!variantIdInput.value) {
+                                            e.preventDefault();
+                                            trigger.focus();
+                                        }
                                     });
+                                }
+
+                                function createRow() {
+                                    const node = tmpl.content.cloneNode(true);
+                                    const row = node.querySelector('form');
+                                    rowsContainer.appendChild(row);
+                                    wireRow(row);
+                                    return row;
+                                }
+
+                                addBtn.addEventListener('click', function(){
+                                    const newRow = createRow();
+                                    // Auto-open the new row's picker for fluid flow
+                                    const trig = newRow.querySelector('.molly-variant-trigger');
+                                    if (trig) trig.click();
                                 });
+
+                                // Close option panels when clicking outside any row
+                                document.addEventListener('click', function(e){
+                                    if (!e.target.closest('.molly-variant-row')) {
+                                        closeAllOptionPanels(null);
+                                    }
+                                });
+
+                                // Seed initial row
+                                createRow();
                             })();
                             </script>
                         {% else %}

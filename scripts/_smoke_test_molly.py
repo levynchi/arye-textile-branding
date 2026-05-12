@@ -143,24 +143,25 @@ def http_flow(user, prod, cat, lc_black, lc_white):
     assert prod.slug in body, f"product slug {prod.slug} not in category page"
     print("  OK: category page lists the product")
 
-    # 4. GET product detail - now displays each admin-created variant as its own row,
-    #    not three orthogonal dropdowns the customer composes from.
+    # 4. GET product detail - the page now renders a single empty variant row
+    #    with an expandable picker plus a "+ add another row" button. The full
+    #    list of variants is embedded as JSON for the JS to render on demand.
     path = f"/molly/{cat.slug}/{prod.slug}/"
     code, url, body = fetch(path)
     print(f"  GET {path} -> {code}")
     assert code == 200
-    assert "molly-variant-list" in body, "product page must render the vertical variant list"
-    assert "molly-variant-row" in body, "product page must render at least one variant row"
-    # No leftover composing UI:
-    assert "mollyFabricSelect" not in body, "dropdown composer should have been removed"
-    assert "mollyColorSelect" not in body, "dropdown composer should have been removed"
-    assert "mollyPrintSelect" not in body, "dropdown composer should have been removed"
-    # Each variant row carries a hidden variant_id input + the composite name.
+    assert "molly-variant-builder" in body, "product page must render the variant builder shell"
+    assert "mollyVariantRowTemplate" in body, "the row template must be present for the JS to clone"
+    assert "mollyAddRowButton" in body, "the page must render the + add-row button"
+    # The previous direct-list and dropdown approaches must both be gone:
+    assert "molly-variant-list" not in body
+    assert "mollyFabricSelect" not in body
+    # The full variants list is shipped to the page as JSON for the picker.
+    assert "mollyVariantsData" in body, "variants_data JSON must be in the page"
     for v in prod.variants.all():
-        assert f'value="{v.id}"' in body, f"variant_id {v.id} must appear as a row in the page"
+        assert f'"id": {v.id}' in body, f"variant id {v.id} must appear inside mollyVariantsData JSON"
     assert "mollyLabelColorOptionsData" in body, "product page must expose label-color options"
-    assert "molly-label-trigger" in body, "product page must render the clickable label picker"
-    print("  OK: product page lists each admin-created variant as a row")
+    print("  OK: product page renders one empty row + variant picker template + add-row button")
 
     # 5. POST cart_add with first variant. Pick the NON-default label so we
     #    can confirm Molly's choice is what gets stored, not the variant default.
