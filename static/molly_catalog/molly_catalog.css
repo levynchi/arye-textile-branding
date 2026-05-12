@@ -573,12 +573,14 @@ body.molly-body {
 
 .molly-label-change-hint {
     margin-inline-start: auto;
-    padding: 3px 10px;
-    background: var(--molly-primary);
-    color: #fff;
-    border-radius: 999px;
-    font-size: 0.78rem;
-    font-weight: 600;
+    color: var(--molly-primary-dark);
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: transform 0.2s;
+}
+
+.molly-label-trigger[aria-expanded="true"] .molly-label-change-hint {
+    transform: rotate(180deg);
 }
 
 .molly-label-options {
