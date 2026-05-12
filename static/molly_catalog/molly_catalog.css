@@ -512,6 +512,32 @@ body.molly-body {
     font-weight: 600;
 }
 
+.molly-label-color-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 14px;
+    padding: 8px 12px;
+    background: var(--molly-primary-light);
+    border-radius: 8px;
+    font-size: 0.92rem;
+}
+
+.molly-label-swatch {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid #ccc;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    flex-shrink: 0;
+}
+
+.molly-label-color-name {
+    font-weight: 600;
+    color: var(--molly-text);
+}
+
 /* ---------- Cart page ---------- */
 
 .molly-cart-list {

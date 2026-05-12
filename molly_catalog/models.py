@@ -163,6 +163,41 @@ class MollyFabricType(models.Model):
         return self.name
 
 
+class MollyLabelColor(models.Model):
+    """A label/tag color, e.g. "לבן", "שחור", "זהב".
+
+    Unlike background color / print / fabric, the label color is a per-variant
+    DEFAULT (set by Arye/Molly when seeding the catalog) – it is NOT something
+    Molly chooses at order time, and it does NOT multiply the variant matrix.
+    """
+
+    name = models.CharField("שם צבע תווית", max_length=80, unique=True)
+    hex_color = models.CharField(
+        "קוד HEX",
+        max_length=9,
+        blank=True,
+        help_text='קוד צבע ל-CSS, למשל "#000000". משמש לתצוגת דוגמית.',
+    )
+    swatch_image = models.ImageField(
+        "תמונת דוגמית",
+        upload_to="molly_catalog/label_swatches/",
+        blank=True,
+        null=True,
+    )
+    order = models.PositiveIntegerField("סדר תצוגה", default=0)
+    is_active = models.BooleanField("פעיל", default=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "molly_catalog"
+        ordering = ("order", "name")
+        verbose_name = "צבע תווית"
+        verbose_name_plural = "צבעי תוויות"
+
+    def __str__(self):
+        return self.name
+
+
 # ---------------------------------------------------------------------------
 # Catalog content
 # ---------------------------------------------------------------------------
@@ -322,6 +357,15 @@ class MollyVariant(models.Model):
         on_delete=models.PROTECT,
         related_name="variants",
         verbose_name="סוג בד",
+    )
+    default_label_color = models.ForeignKey(
+        MollyLabelColor,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="variants",
+        verbose_name="צבע תווית ברירת מחדל",
+        help_text="צבע התווית שיוצרק עם הוואריאנט הזה. לא חלק מקומבינציות הואריאנטים.",
     )
     image = models.ImageField(
         "תמונת ואריאנט",
@@ -545,6 +589,7 @@ class MollyOrderItem(models.Model):
     background_color_name = models.CharField("צבע רקע", max_length=80, blank=True)
     print_design_name = models.CharField("הדפס", max_length=150, blank=True)
     fabric_type_name = models.CharField("סוג בד", max_length=100, blank=True)
+    label_color_name = models.CharField("צבע תווית", max_length=80, blank=True)
     variant_sku = models.CharField("מק\"ט", max_length=80, blank=True)
     quantity = models.PositiveIntegerField("כמות")
     created = models.DateTimeField(auto_now_add=True)
@@ -565,5 +610,9 @@ class MollyOrderItem(models.Model):
         return " | ".join(parts) + f" x{self.quantity}"
 
     def display_variant_name(self):
-        bits = [b for b in (self.fabric_type_name, self.background_color_name, self.print_design_name) if b]
+        bits = [b for b in (
+            self.fabric_type_name,
+            self.background_color_name,
+            self.print_design_name,
+        ) if b]
         return " | ".join(bits) if bits else "ללא ואריאנט"

@@ -80,6 +80,12 @@
                                 <select id="mollyPrintSelect" class="molly-select"></select>
                             </div>
 
+                            <div id="mollyLabelColorBox" class="molly-label-color-box" hidden>
+                                <span class="molly-field-label" style="margin:0;">צבע תווית ברירת מחדל:</span>
+                                <span id="mollyLabelColorSwatch" class="molly-label-swatch"></span>
+                                <span id="mollyLabelColorName" class="molly-label-color-name"></span>
+                            </div>
+
                             <div class="molly-quantity-row">
                                 <label class="molly-field-label" for="mollyQuantity" style="margin:0;">כמות</label>
                                 <input type="number" id="mollyQuantity" name="quantity" class="molly-quantity-input" min="0" value="1">
@@ -103,6 +109,9 @@
                             const addBtn = document.getElementById('mollyAddBtn');
                             const mainImg = document.getElementById('mollyProductMainImg');
                             const form = document.getElementById('mollyVariantForm');
+                            const labelBox = document.getElementById('mollyLabelColorBox');
+                            const labelSwatch = document.getElementById('mollyLabelColorSwatch');
+                            const labelName = document.getElementById('mollyLabelColorName');
 
                             function fillSelect(select, items, placeholder) {
                                 select.innerHTML = '';
@@ -172,6 +181,14 @@
                                     if (match.image_url && mainImg) {
                                         mainImg.src = match.image_url;
                                     }
+                                    if (match.default_label_color_name) {
+                                        labelName.textContent = match.default_label_color_name;
+                                        labelSwatch.style.background = match.default_label_color_hex || 'transparent';
+                                        labelSwatch.style.borderColor = match.default_label_color_hex ? 'transparent' : '#ccc';
+                                        labelBox.hidden = false;
+                                    } else {
+                                        labelBox.hidden = true;
+                                    }
                                     if (match.cart_quantity > 0) {
                                         status.textContent = 'בעגלה: ' + match.cart_quantity + ' יחידות';
                                         status.className = 'molly-variant-status in-cart';
@@ -183,6 +200,7 @@
                                 } else {
                                     variantIdInput.value = '';
                                     addBtn.disabled = true;
+                                    labelBox.hidden = true;
                                     if (fabricSelect.value && colorSelect.value && printSelect.value) {
                                         status.textContent = 'הקומבינציה הזו אינה זמינה';
                                         status.className = 'molly-variant-status';

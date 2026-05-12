@@ -47,6 +47,9 @@
                         <div style="flex:1;min-width:0;">
                             <p class="molly-order-item-name">{{ item.product_name }}</p>
                             <p class="molly-order-item-attrs">{{ item.display_variant_name }}</p>
+                            {% if item.label_color_name %}
+                                <p class="molly-order-item-attrs">צבע תווית: <strong>{{ item.label_color_name }}</strong></p>
+                            {% endif %}
                             {% if item.variant_sku %}
                                 <p class="molly-order-item-attrs">מק"ט: {{ item.variant_sku }}</p>
                             {% endif %}

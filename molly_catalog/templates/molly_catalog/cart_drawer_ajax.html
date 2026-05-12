@@ -11,6 +11,9 @@
                         {% if item.variant_id %}
                             <p class="molly-cart-item-variant">{{ item.variant_name }}</p>
                         {% endif %}
+                        {% if item.label_color %}
+                            <p class="molly-cart-item-variant">תווית: {{ item.label_color }}</p>
+                        {% endif %}
                         <p class="molly-cart-item-variant">כמות: {{ item.quantity }}</p>
                     </div>
                 </div>

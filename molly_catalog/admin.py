@@ -21,6 +21,7 @@ from .models import (
     MollyCatalogUserActivity,
     MollyCategory,
     MollyFabricType,
+    MollyLabelColor,
     MollyOrder,
     MollyOrderItem,
     MollyPrintDesign,
@@ -84,6 +85,23 @@ class MollyFabricTypeAdmin(admin.ModelAdmin):
     search_fields = ("name", "description")
 
 
+@admin.register(MollyLabelColor)
+class MollyLabelColorAdmin(admin.ModelAdmin):
+    list_display = ("name", "hex_preview", "is_active", "order")
+    list_editable = ("is_active", "order")
+    search_fields = ("name",)
+
+    def hex_preview(self, obj):
+        if obj.hex_color:
+            return format_html(
+                '<span style="display:inline-block;width:24px;height:24px;'
+                'border:1px solid #ccc;background:{};vertical-align:middle;"></span>'
+                ' {}', obj.hex_color, obj.hex_color
+            )
+        return "-"
+    hex_preview.short_description = "תצוגה"
+
+
 # ---------------------------------------------------------------------------
 # Catalog content
 # ---------------------------------------------------------------------------
@@ -107,9 +125,18 @@ class MollyProductImageInline(admin.TabularInline):
 class MollyVariantInline(admin.TabularInline):
     model = MollyVariant
     extra = 0
-    fields = ("background_color", "print_design", "fabric_type", "image", "sku", "is_active", "order")
+    fields = (
+        "background_color",
+        "print_design",
+        "fabric_type",
+        "default_label_color",
+        "image",
+        "sku",
+        "is_active",
+        "order",
+    )
     show_change_link = True
-    autocomplete_fields = ("background_color", "print_design", "fabric_type")
+    autocomplete_fields = ("background_color", "print_design", "fabric_type", "default_label_color")
 
 
 class GenerateVariantMatrixForm(forms.Form):
@@ -129,6 +156,12 @@ class GenerateVariantMatrixForm(forms.Form):
         queryset=MollyFabricType.objects.filter(is_active=True),
         widget=forms.CheckboxSelectMultiple,
         label="סוגי בדים",
+    )
+    default_label_color = forms.ModelChoiceField(
+        queryset=MollyLabelColor.objects.filter(is_active=True),
+        required=False,
+        label="צבע תווית ברירת מחדל (אופציונלי)",
+        help_text="אם נבחר, ייקבע כברירת מחדל לכל הוואריאנטים החדשים שיווצרו.",
     )
 
 
@@ -168,6 +201,7 @@ class MollyProductAdmin(admin.ModelAdmin):
                 colors = list(form.cleaned_data["background_colors"])
                 designs = list(form.cleaned_data["print_designs"])
                 fabrics = list(form.cleaned_data["fabric_types"])
+                default_label = form.cleaned_data.get("default_label_color")
 
                 to_create = []
                 for product in queryset:
@@ -179,6 +213,7 @@ class MollyProductAdmin(admin.ModelAdmin):
                                     background_color=color,
                                     print_design=design,
                                     fabric_type=fabric,
+                                    default_label_color=default_label,
                                 ))
                 if to_create:
                     MollyVariant.objects.bulk_create(to_create, ignore_conflicts=True)
@@ -220,11 +255,27 @@ class MollyCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(MollyVariant)
 class MollyVariantAdmin(admin.ModelAdmin):
-    list_display = ("product", "background_color", "print_design", "fabric_type", "sku", "is_active", "order")
-    list_editable = ("is_active", "order", "sku")
-    list_filter = ("product", "background_color", "print_design", "fabric_type", "is_active")
+    list_display = (
+        "product",
+        "background_color",
+        "print_design",
+        "fabric_type",
+        "default_label_color",
+        "sku",
+        "is_active",
+        "order",
+    )
+    list_editable = ("default_label_color", "is_active", "order", "sku")
+    list_filter = (
+        "product",
+        "background_color",
+        "print_design",
+        "fabric_type",
+        "default_label_color",
+        "is_active",
+    )
     search_fields = ("product__name", "sku")
-    autocomplete_fields = ("product", "background_color", "print_design", "fabric_type")
+    autocomplete_fields = ("product", "background_color", "print_design", "fabric_type", "default_label_color")
 
 
 # ---------------------------------------------------------------------------
@@ -350,8 +401,24 @@ class MollyCartAdmin(admin.ModelAdmin):
 class MollyOrderItemInline(admin.TabularInline):
     model = MollyOrderItem
     extra = 0
-    readonly_fields = ("product_name", "fabric_type_name", "background_color_name", "print_design_name", "variant_sku", "quantity")
-    fields = ("product_name", "fabric_type_name", "background_color_name", "print_design_name", "variant_sku", "quantity")
+    readonly_fields = (
+        "product_name",
+        "fabric_type_name",
+        "background_color_name",
+        "print_design_name",
+        "label_color_name",
+        "variant_sku",
+        "quantity",
+    )
+    fields = (
+        "product_name",
+        "fabric_type_name",
+        "background_color_name",
+        "print_design_name",
+        "label_color_name",
+        "variant_sku",
+        "quantity",
+    )
     can_delete = False
 
     def has_add_permission(self, request, obj=None):

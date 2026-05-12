@@ -35,6 +35,9 @@
                                     {% if item.background_color %}<span class="molly-cart-attr">{{ item.background_color }}</span>{% endif %}
                                     {% if item.print_design %}<span class="molly-cart-attr">{{ item.print_design }}</span>{% endif %}
                                 </div>
+                                {% if item.label_color %}
+                                    <p class="molly-cart-item-variant" style="margin-top:6px;">צבע תווית: <strong>{{ item.label_color }}</strong></p>
+                                {% endif %}
                                 {% if item.sku %}
                                     <p class="molly-cart-item-variant" style="margin-top:6px;">מק"ט: {{ item.sku }}</p>
                                 {% endif %}

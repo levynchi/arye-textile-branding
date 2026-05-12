@@ -185,7 +185,7 @@ def _build_variants_data(product, cart=None):
     the chosen attribute IDs.
     """
     qs = product.variants.filter(is_active=True).select_related(
-        "background_color", "print_design", "fabric_type"
+        "background_color", "print_design", "fabric_type", "default_label_color"
     )
 
     # Existing cart quantities, keyed by variant_id
@@ -219,6 +219,9 @@ def _build_variants_data(product, cart=None):
             "background_color_id": v.background_color_id,
             "print_design_id": v.print_design_id,
             "fabric_type_id": v.fabric_type_id,
+            "default_label_color_id": v.default_label_color_id,
+            "default_label_color_name": v.default_label_color.name if v.default_label_color_id else "",
+            "default_label_color_hex": v.default_label_color.hex_color if v.default_label_color_id else "",
             "image_url": v.get_image_url() or "",
             "sku": v.sku,
             "cart_quantity": cart_qty_map.get(v.id, 0),
@@ -301,6 +304,7 @@ def _build_cart_page_context(request):
             "items__variant__background_color",
             "items__variant__print_design",
             "items__variant__fabric_type",
+            "items__variant__default_label_color",
         ).get(user=user, status=MollyCart.STATUS_ACTIVE)
     except MollyCart.DoesNotExist:
         cart = None
@@ -308,18 +312,20 @@ def _build_cart_page_context(request):
     cart_items = []
     if cart:
         for item in cart.items.all().order_by("created"):
+            v = item.variant
             cart_items.append({
                 "id": item.id,
                 "product_id": item.product_id,
                 "product_name": item.product.name,
                 "variant_id": item.variant_id or "",
                 "variant_name": item.display_variant_name(),
-                "background_color": item.variant.background_color.name if item.variant_id else "",
-                "print_design": item.variant.print_design.name if item.variant_id else "",
-                "fabric_type": item.variant.fabric_type.name if item.variant_id else "",
+                "background_color": v.background_color.name if v else "",
+                "print_design": v.print_design.name if v else "",
+                "fabric_type": v.fabric_type.name if v else "",
+                "label_color": v.default_label_color.name if v and v.default_label_color_id else "",
                 "image_url": item.get_image_url() or "",
                 "quantity": item.quantity,
-                "sku": item.variant.sku if item.variant_id else "",
+                "sku": v.sku if v else "",
             })
 
     return {
@@ -518,6 +524,7 @@ def checkout(request):
             "items__variant__background_color",
             "items__variant__print_design",
             "items__variant__fabric_type",
+            "items__variant__default_label_color",
         ).get(user=user, status=MollyCart.STATUS_ACTIVE)
     except MollyCart.DoesNotExist:
         messages.error(request, "ההזמנה ריקה")
@@ -546,6 +553,7 @@ def checkout(request):
             background_color_name=v.background_color.name if v else "",
             print_design_name=v.print_design.name if v else "",
             fabric_type_name=v.fabric_type.name if v else "",
+            label_color_name=(v.default_label_color.name if v and v.default_label_color_id else ""),
             variant_sku=v.sku if v else "",
             quantity=item.quantity,
         )

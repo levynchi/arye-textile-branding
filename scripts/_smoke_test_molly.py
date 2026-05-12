@@ -20,6 +20,7 @@ from molly_catalog.models import (  # noqa: E402
     MollyCatalogUser,
     MollyCategory,
     MollyFabricType,
+    MollyLabelColor,
     MollyPrintDesign,
     MollyProduct,
     MollyVariant,
@@ -55,7 +56,13 @@ def seed():
     )
     ft_fleece, _ = MollyFabricType.objects.get_or_create(name="פליז")
     ft_jersey, _ = MollyFabricType.objects.get_or_create(name="טריקו")
-    print(f"  attributes: 2 colors, 1 print, 2 fabrics")
+    lc_black, _ = MollyLabelColor.objects.get_or_create(
+        name="שחור", defaults={"hex_color": "#000000"}
+    )
+    lc_white, _ = MollyLabelColor.objects.get_or_create(
+        name="לבן-תווית", defaults={"hex_color": "#ffffff"}
+    )
+    print(f"  attributes: 2 colors, 1 print, 2 fabrics, 2 label colors")
 
     cat, _ = MollyCategory.objects.get_or_create(name="שמיכות", defaults={"slug": "blankets"})
     prod, _ = MollyProduct.objects.get_or_create(
@@ -67,12 +74,17 @@ def seed():
     created = 0
     for c in (bc_white, bc_pink):
         for f in (ft_fleece, ft_jersey):
-            _, was_created = MollyVariant.objects.get_or_create(
+            default_label = lc_white if c == bc_white else lc_black
+            v, was_created = MollyVariant.objects.get_or_create(
                 product=prod,
                 background_color=c,
                 print_design=pd_stars,
                 fabric_type=f,
+                defaults={"default_label_color": default_label},
             )
+            if not was_created and v.default_label_color_id != default_label.id:
+                v.default_label_color = default_label
+                v.save(update_fields=["default_label_color"])
             if was_created:
                 created += 1
     print(f"  variants created: {created} (total now: {prod.variants.count()})")
@@ -136,7 +148,8 @@ def http_flow(user, prod, cat):
     assert "mollyColorSelect" in body
     assert "mollyPrintSelect" in body
     assert "mollyVariantsData" in body
-    print("  OK: product page has variant selectors and JSON data")
+    assert "default_label_color_name" in body
+    print("  OK: product page has variant selectors, JSON data, and label-color info")
 
     # 5. POST cart_add with first variant
     variant = prod.variants.first()
@@ -158,7 +171,8 @@ def http_flow(user, prod, cat):
     print(f"  GET /molly/cart/ -> {code}")
     assert "3" in body  # the qty appears somewhere
     assert prod.name in body
-    print("  OK: cart shows added item")
+    assert "צבע תווית" in body, "cart should display the default label color row"
+    print("  OK: cart shows added item with label color")
 
     # 7. POST checkout
     m = re.search(r"csrfmiddlewaretoken[^>]+value=\"([^\"]+)\"", body)
@@ -169,7 +183,8 @@ def http_flow(user, prod, cat):
     )
     print(f"  POST /molly/checkout/ -> {code} {url}")
     assert "/orders/MOL-" in url
-    print(f"  OK: checkout created order at {url}")
+    assert "צבע תווית" in body, "order confirm page should display label color snapshot"
+    print(f"  OK: checkout created order with label-color snapshot at {url}")
 
     # 8. Order list
     code, url, body = fetch("/molly/orders/")
