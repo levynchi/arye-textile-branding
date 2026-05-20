@@ -309,11 +309,22 @@ body.molly-body {
     box-shadow: var(--molly-shadow);
 }
 
+.molly-product-gallery,
+.molly-product-info {
+    min-width: 0;
+}
+
 @media (max-width: 760px) {
+    .molly-main {
+        padding: 18px 10px 64px;
+    }
     .molly-product-detail {
+        display: block;
         grid-template-columns: 1fr;
-        gap: 24px;
-        padding: 18px;
+        padding: 12px;
+    }
+    .molly-product-info {
+        margin-top: 18px;
     }
 }
 
@@ -636,16 +647,22 @@ body.molly-body {
 
 .molly-variant-builder {
     margin-top: 18px;
+    width: 100%;
+    min-width: 0;
 }
 
 .molly-variant-rows {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    width: 100%;
+    min-width: 0;
 }
 
 .molly-variant-row {
     position: relative;
+    width: 100%;
+    min-width: 0;
     background: var(--molly-card-bg);
     border: 1px solid var(--molly-border);
     border-radius: var(--molly-radius);
@@ -663,13 +680,17 @@ body.molly-body {
     flex-direction: column;
     gap: 10px;
     padding: 10px 12px;
+    width: 100%;
+    min-width: 0;
 }
 
 .molly-variant-trigger {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 10px;
     width: 100%;
+    min-width: 0;
     padding: 8px 10px;
     background: var(--molly-bg);
     border: 1px dashed var(--molly-border);
@@ -719,9 +740,10 @@ body.molly-body {
 .molly-variant-trigger-label {
     font-weight: 600;
     color: var(--molly-text);
-    overflow-wrap: anywhere;
-    flex-shrink: 1;
+    overflow-wrap: break-word;
+    word-break: normal;
     min-width: 0;
+    line-height: 1.35;
 }
 
 .molly-variant-trigger-meta {
@@ -908,16 +930,56 @@ body.molly-body {
 }
 
 @media (max-width: 720px) {
+    .molly-product-info h1 {
+        font-size: 1.45rem;
+        line-height: 1.2;
+    }
     .molly-variant-row-summary {
-        grid-template-columns: 1fr;
+        padding: 10px;
+    }
+    .molly-variant-trigger {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 10px;
+        font-size: 0.95rem;
+    }
+    .molly-variant-thumb,
+    .molly-variant-trigger-meta {
+        display: none !important;
+    }
+    .molly-variant-trigger-chevron {
+        margin-inline-start: 0;
     }
     .molly-variant-controls {
-        justify-content: stretch;
+        display: grid;
+        grid-template-columns: minmax(82px, 0.8fr) minmax(96px, 1fr) 36px;
+        gap: 8px;
+        align-items: stretch;
     }
     .molly-variant-controls .molly-label-picker {
-        flex: 1 1 100%;
+        grid-column: 1 / -1;
         min-width: 0;
         max-width: none;
+    }
+    .molly-variant-controls .molly-label-trigger,
+    .molly-variant-controls .molly-button,
+    .molly-variant-controls .molly-quantity-input {
+        width: 100%;
+    }
+    .molly-row-remove {
+        width: 36px;
+        height: 36px;
+    }
+    .molly-variant-options {
+        max-height: 300px;
+    }
+    .molly-variant-option {
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 10px;
+    }
+    .molly-variant-option-thumb {
+        width: 44px;
+        height: 44px;
     }
 }
 
