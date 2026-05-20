@@ -657,12 +657,11 @@ body.molly-body {
     border-color: var(--molly-primary-light);
 }
 
-/* Top summary: trigger + (controls when selected) */
+/* Top summary: trigger (full-width) + controls stacked below when selected */
 .molly-variant-row-summary {
-    display: grid;
-    grid-template-columns: 1fr auto;
+    display: flex;
+    flex-direction: column;
     gap: 10px;
-    align-items: center;
     padding: 10px 12px;
 }
 
@@ -695,12 +694,12 @@ body.molly-body {
 }
 
 .molly-variant-thumb {
+    display: none;
     width: 40px;
     height: 40px;
     border-radius: 6px;
     background: var(--molly-card-bg);
-    border: 1px dashed var(--molly-border);
-    display: flex;
+    border: 1px solid var(--molly-border);
     align-items: center;
     justify-content: center;
     overflow: hidden;
@@ -708,7 +707,7 @@ body.molly-body {
 }
 
 .molly-variant-thumb.has-image {
-    border-style: solid;
+    display: flex;
 }
 
 .molly-variant-thumb img {
@@ -747,7 +746,9 @@ body.molly-body {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    padding-top: 8px;
+    border-top: 1px solid var(--molly-border);
 }
 
 .molly-variant-controls .molly-quantity-input {
