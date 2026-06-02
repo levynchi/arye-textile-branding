@@ -474,6 +474,79 @@ def cart_add(request):
 
 @require_POST
 @require_molly_login
+def cart_add_bulk(request):
+    """Add/update several variants of one product in a single submit.
+
+    The product page renders one row per variant with its own quantity and
+    label-color picker. Each row contributes a (variant_id, label_color_id,
+    quantity) triple via parallel POST lists. We enforce a single cart line
+    per variant: quantity 0 removes the variant, switching the label updates
+    the same line rather than duplicating it.
+    """
+    user = get_current_molly_user(request)
+    cart = _get_or_create_active_cart(user)
+
+    try:
+        product = MollyProduct.objects.get(
+            pk=request.POST.get("product_id"), is_orderable=True
+        )
+    except (MollyProduct.DoesNotExist, TypeError, ValueError):
+        messages.error(request, "המוצר לא נמצא")
+        return redirect(request.POST.get("next") or "molly_catalog:cart")
+
+    variant_ids = request.POST.getlist("variant_id")
+    label_ids = request.POST.getlist("label_color_id")
+    quantities = request.POST.getlist("quantity")
+
+    changed = 0
+    for vid, lid, qraw in zip(variant_ids, label_ids, quantities):
+        variant = MollyVariant.objects.select_related("default_label_color").filter(
+            pk=vid, is_active=True, product=product
+        ).first()
+        if not variant:
+            continue
+
+        try:
+            qty = int(qraw or 0)
+        except (TypeError, ValueError):
+            qty = 0
+
+        # Resolve label: prefer customer choice among the product's options,
+        # then fall back to the variant default.
+        label = None
+        if lid:
+            label = product.available_label_colors.filter(
+                pk=lid, is_active=True
+            ).first()
+        if label is None:
+            label = variant.default_label_color
+
+        if qty <= 0:
+            removed = MollyCartItem.objects.filter(cart=cart, variant=variant).delete()
+            if removed[0]:
+                changed += 1
+        else:
+            # Keep a single line per variant: drop stale label lines first.
+            MollyCartItem.objects.filter(cart=cart, variant=variant).exclude(
+                selected_label_color=label
+            ).delete()
+            MollyCartItem.objects.update_or_create(
+                cart=cart,
+                variant=variant,
+                selected_label_color=label,
+                defaults={"product": product, "quantity": qty},
+            )
+            changed += 1
+
+    if changed:
+        messages.success(request, "ההזמנה עודכנה")
+    else:
+        messages.info(request, "לא נבחרה כמות לאף ואריאנט")
+    return redirect(request.POST.get("next") or "molly_catalog:cart")
+
+
+@require_POST
+@require_molly_login
 def cart_update(request):
     """Update quantity or remove an existing cart item."""
     user = get_current_molly_user(request)

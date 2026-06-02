@@ -143,46 +143,50 @@ def http_flow(user, prod, cat, lc_black, lc_white):
     assert prod.slug in body, f"product slug {prod.slug} not in category page"
     print("  OK: category page lists the product")
 
-    # 4. GET product detail - the page now renders a single empty variant row
-    #    with an expandable picker plus a "+ add another row" button. The full
-    #    list of variants is embedded as JSON for the JS to render on demand.
+    # 4. GET product detail - the page now renders every variant as its own
+    #    row inside ONE bulk form, each with a quantity input + label picker,
+    #    and a single "add to order" button at the bottom.
     path = f"/molly/{cat.slug}/{prod.slug}/"
     code, url, body = fetch(path)
     print(f"  GET {path} -> {code}")
     assert code == 200
-    assert "molly-variant-builder" in body, "product page must render the variant builder shell"
-    assert "mollyVariantRowTemplate" in body, "the row template must be present for the JS to clone"
-    assert "mollyAddRowButton" in body, "the page must render the + add-row button"
-    # The previous direct-list and dropdown approaches must both be gone:
-    assert "molly-variant-list" not in body
+    assert "molly-variant-order-form" in body, "product page must render the single bulk order form"
+    assert "cart/add-bulk/" in body, "the form must post to the bulk add endpoint"
+    assert "molly-bulk-add-button" in body, "the page must render the single bottom add button"
+    # The previous click-to-reveal builder must be gone:
+    assert "mollyVariantRowTemplate" not in body
+    assert "mollyAddRowButton" not in body
+    assert "molly-variant-builder" not in body
     assert "mollyFabricSelect" not in body
-    # The full variants list is shipped to the page as JSON for the picker.
-    assert "mollyVariantsData" in body, "variants_data JSON must be in the page"
+    # Every variant renders as its own row (server-side, not JSON-only).
     for v in prod.variants.all():
-        assert f'"id": {v.id}' in body, f"variant id {v.id} must appear inside mollyVariantsData JSON"
+        assert f'data-variant-id="{v.id}"' in body, f"variant id {v.id} must render as a row"
+        assert v.display_name in body, f"variant name '{v.display_name}' must render in its row"
     assert "mollyLabelColorOptionsData" in body, "product page must expose label-color options"
-    print("  OK: product page renders one empty row + variant picker template + add-row button")
+    print("  OK: product page renders one row per variant + single bulk add button")
 
-    # 5. POST cart_add with first variant. Pick the NON-default label so we
-    #    can confirm Molly's choice is what gets stored, not the variant default.
-    variant = prod.variants.first()
-    if variant.default_label_color_id == lc_black.id:
+    # 5. POST cart_add_bulk for all variants at once. Give the first variant a
+    #    quantity (with the NON-default label, to confirm the choice is stored)
+    #    and leave the rest at 0.
+    variants = list(prod.variants.all())
+    target = variants[0]
+    if target.default_label_color_id == lc_black.id:
         chosen_label = lc_white
     else:
         chosen_label = lc_black
     m = re.search(r"csrfmiddlewaretoken[^>]+value=\"([^\"]+)\"", body)
     csrf = m.group(1)
+    # Build parallel lists: every variant id + label + quantity.
+    bulk_pairs = [("product_id", prod.id), ("csrfmiddlewaretoken", csrf)]
+    for v in variants:
+        bulk_pairs.append(("variant_id", v.id))
+        bulk_pairs.append(("label_color_id", chosen_label.id if v.id == target.id else (v.default_label_color_id or "")))
+        bulk_pairs.append(("quantity", 3 if v.id == target.id else 0))
     code, url, body = fetch(
-        "/molly/cart/add/",
-        data={
-            "product_id": prod.id,
-            "variant_id": variant.id,
-            "label_color_id": chosen_label.id,
-            "quantity": 3,
-            "csrfmiddlewaretoken": csrf,
-        },
+        "/molly/cart/add-bulk/",
+        data=urlencode(bulk_pairs).encode("utf-8"),
     )
-    print(f"  POST /molly/cart/add/ variant={variant.id} label={chosen_label.name} qty=3 -> {code} {url}")
+    print(f"  POST /molly/cart/add-bulk/ target={target.id} label={chosen_label.name} qty=3 -> {code} {url}")
 
     # 6. GET cart - verify Molly's CHOSEN label shows, not the variant default
     code, url, body = fetch("/molly/cart/")
