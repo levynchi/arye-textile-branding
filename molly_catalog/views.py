@@ -8,6 +8,8 @@ private. Prices are never shown or computed anywhere.
 import logging
 from functools import wraps
 
+import resend
+from django.conf import settings
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -638,6 +640,46 @@ def cart_clear(request):
 # Checkout & order views
 # ---------------------------------------------------------------------------
 
+def send_molly_order_notification(order):
+    """Email the manufacturer a summary when Molly submits an order."""
+    try:
+        if not settings.RESEND_API_KEY:
+            logger.warning("RESEND_API_KEY not set, skipping Molly order email")
+            return
+        resend.api_key = settings.RESEND_API_KEY
+
+        lines = []
+        for item in order.items.all():
+            name = item.display_variant_name() or item.product_name
+            extra = []
+            if item.label_color_name:
+                extra.append(f"תווית: {item.label_color_name}")
+            if item.variant_sku:
+                extra.append(f'מק"ט: {item.variant_sku}')
+            suffix = (" | " + " | ".join(extra)) if extra else ""
+            lines.append(f"- {name}{suffix} | כמות: {item.quantity}")
+
+        body = (
+            "התקבלה הזמנה חדשה מקטלוג מולי!\n\n"
+            f"מספר הזמנה: {order.order_number}\n"
+            f"לקוחה: {order.user.display_name}\n"
+            f"תאריך: {order.created:%d/%m/%Y %H:%M}\n"
+            f'סה"כ יחידות: {order.get_total_quantity()}\n\n'
+            "פריטים:\n" + "\n".join(lines) + "\n\n"
+            f"הערות מולי: {order.notes or 'אין'}\n"
+        )
+
+        resend.Emails.send({
+            "from": "Arye Textile <onboarding@resend.dev>",
+            "to": [settings.MOLLY_ORDER_NOTIFY_EMAIL],
+            "subject": f"הזמנה חדשה ממולי: {order.order_number}",
+            "text": body,
+        })
+        logger.info("Molly order email sent for %s", order.order_number)
+    except Exception:
+        logger.exception("Failed to send Molly order notification")
+
+
 @require_molly_login
 def checkout(request):
     """Submit the active cart as a new MollyOrder. POST only; GET → cart."""
@@ -689,6 +731,8 @@ def checkout(request):
 
     cart.status = MollyCart.STATUS_SUBMITTED
     cart.save(update_fields=["status", "updated"])
+
+    send_molly_order_notification(order)
 
     messages.success(request, f"ההזמנה {order.order_number} התקבלה!")
     return redirect("molly_catalog:order_confirm", order_number=order.order_number)
