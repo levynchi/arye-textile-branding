@@ -109,8 +109,6 @@
                                         </div>
                                     {% endfor %}
                                 </div>
-
-                                <button type="submit" class="molly-button molly-bulk-add-button">הוספה להזמנה</button>
                             </form>
 
                             {{ label_color_options|json_script:"mollyLabelColorOptionsData" }}
@@ -120,11 +118,74 @@
                                 const labelOptions = JSON.parse(document.getElementById('mollyLabelColorOptionsData').textContent) || [];
                                 const hasLabelChoices = labelOptions.length > 0;
 
-                                document.querySelectorAll('.molly-variant-row .molly-label-picker').forEach(function(picker){
+                                const form = document.querySelector('.molly-variant-order-form');
+                                const addUrl = form.getAttribute('action');
+                                const csrf = (form.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+                                const productId = (form.querySelector('[name=product_id]') || {}).value || '';
+                                const cartBadge = document.querySelector('.molly-cart-badge');
+
+                                function updateCartBadge(count) {
+                                    if (!cartBadge) return;
+                                    cartBadge.textContent = count;
+                                    cartBadge.setAttribute('data-empty', count ? 'false' : 'true');
+                                }
+
+                                // Auto-add/update a single variant row in the cart on change.
+                                function syncRow(row) {
+                                    const variantId = (row.querySelector('[name=variant_id]') || {}).value || '';
+                                    const labelId = (row.querySelector('.molly-label-id') || {}).value || '';
+                                    const qtyInput = row.querySelector('[name=quantity]');
+                                    if (!variantId || !qtyInput) return;
+
+                                    let qty = parseInt(qtyInput.value, 10);
+                                    if (isNaN(qty) || qty < 0) qty = 0;
+
+                                    const body = new URLSearchParams();
+                                    body.append('csrfmiddlewaretoken', csrf);
+                                    body.append('format', 'json');
+                                    body.append('product_id', productId);
+                                    body.append('variant_id', variantId);
+                                    body.append('label_color_id', labelId);
+                                    body.append('quantity', qty);
+
+                                    row.classList.add('is-syncing');
+                                    fetch(addUrl, {
+                                        method: 'POST',
+                                        headers: {'X-Requested-With': 'XMLHttpRequest'},
+                                        body: body,
+                                        credentials: 'same-origin',
+                                    })
+                                    .then(function(r){ return r.json(); })
+                                    .then(function(data){
+                                        row.classList.remove('is-syncing');
+                                        if (!data || !data.ok) return;
+                                        updateCartBadge(data.cart_count);
+                                        // Reflect the stored quantity in the "in cart" badge.
+                                        const badge = row.querySelector('.molly-variant-row-cartq');
+                                        const stored = (data.quantities && data.quantities[variantId]) || 0;
+                                        if (badge) {
+                                            badge.textContent = 'בעגלה: ' + stored;
+                                            badge.hidden = !stored;
+                                        }
+                                        row.classList.add('is-saved');
+                                        setTimeout(function(){ row.classList.remove('is-saved'); }, 900);
+                                    })
+                                    .catch(function(){ row.classList.remove('is-syncing'); });
+                                }
+
+                                document.querySelectorAll('.molly-variant-row').forEach(function(row){
+                                    const qtyInput = row.querySelector('[name=quantity]');
+                                    if (qtyInput) {
+                                        qtyInput.addEventListener('change', function(){ syncRow(row); });
+                                    }
+
+                                    const picker = row.querySelector('.molly-label-picker');
+                                    if (!picker) return;
+
                                     const trigger = picker.querySelector('.molly-label-trigger');
                                     const swatch = picker.querySelector('.molly-label-swatch');
                                     const nameEl = picker.querySelector('.molly-label-color-name');
-                                    const hiddenInput = picker.closest('.molly-variant-row').querySelector('.molly-label-id');
+                                    const hiddenInput = row.querySelector('.molly-label-id');
                                     const optionsBox = picker.querySelector('.molly-label-options');
                                     const changeHint = picker.querySelector('.molly-label-change-hint');
 
@@ -133,7 +194,7 @@
                                         swatch.style.borderColor = hex ? 'transparent' : '#ccc';
                                     }
 
-                                    function setSelection(opt) {
+                                    function setSelection(opt, fromUser) {
                                         if (!opt) {
                                             nameEl.textContent = '';
                                             paint('');
@@ -143,6 +204,12 @@
                                         nameEl.textContent = opt.name || '';
                                         paint(opt.hex_color || '');
                                         hiddenInput.value = opt.id || '';
+                                        // If this variant already has a quantity, re-sync so the
+                                        // chosen label is stored against the existing line.
+                                        if (fromUser) {
+                                            const qtyInput = row.querySelector('[name=quantity]');
+                                            if (qtyInput && parseInt(qtyInput.value, 10) > 0) syncRow(row);
+                                        }
                                     }
 
                                     // Initial selection: row default, else first available option.
@@ -156,7 +223,7 @@
                                         };
                                     }
                                     if (!initial && hasLabelChoices) initial = labelOptions[0];
-                                    setSelection(initial);
+                                    setSelection(initial, false);
 
                                     if (!hasLabelChoices) {
                                         if (changeHint) changeHint.hidden = true;
@@ -167,24 +234,24 @@
                                     // Build the option list once.
                                     optionsBox.innerHTML = '';
                                     labelOptions.forEach(function(opt){
-                                        const row = document.createElement('button');
-                                        row.type = 'button';
-                                        row.className = 'molly-label-option';
-                                        row.setAttribute('role', 'option');
+                                        const orow = document.createElement('button');
+                                        orow.type = 'button';
+                                        orow.className = 'molly-label-option';
+                                        orow.setAttribute('role', 'option');
                                         const sw = document.createElement('span');
                                         sw.className = 'molly-label-swatch';
                                         sw.style.background = opt.hex_color || 'transparent';
                                         sw.style.borderColor = opt.hex_color ? 'transparent' : '#ccc';
                                         const nm = document.createElement('span');
                                         nm.textContent = opt.name;
-                                        row.appendChild(sw);
-                                        row.appendChild(nm);
-                                        row.addEventListener('click', function(){
-                                            setSelection(opt);
+                                        orow.appendChild(sw);
+                                        orow.appendChild(nm);
+                                        orow.addEventListener('click', function(){
+                                            setSelection(opt, true);
                                             optionsBox.hidden = true;
                                             trigger.setAttribute('aria-expanded', 'false');
                                         });
-                                        optionsBox.appendChild(row);
+                                        optionsBox.appendChild(orow);
                                     });
 
                                     trigger.addEventListener('click', function(){
@@ -204,6 +271,9 @@
                                         }
                                     });
                                 });
+
+                                // The form should never hard-submit; everything is AJAX.
+                                form.addEventListener('submit', function(e){ e.preventDefault(); });
                             })();
                             </script>
                         {% else %}

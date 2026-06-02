@@ -485,12 +485,15 @@ def cart_add_bulk(request):
     """
     user = get_current_molly_user(request)
     cart = _get_or_create_active_cart(user)
+    want_json = request.POST.get("format") == "json"
 
     try:
         product = MollyProduct.objects.get(
             pk=request.POST.get("product_id"), is_orderable=True
         )
     except (MollyProduct.DoesNotExist, TypeError, ValueError):
+        if want_json:
+            return JsonResponse({"ok": False, "error": "המוצר לא נמצא"}, status=400)
         messages.error(request, "המוצר לא נמצא")
         return redirect(request.POST.get("next") or "molly_catalog:cart")
 
@@ -499,6 +502,7 @@ def cart_add_bulk(request):
     quantities = request.POST.getlist("quantity")
 
     changed = 0
+    quantities_by_variant = {}
     for vid, lid, qraw in zip(variant_ids, label_ids, quantities):
         variant = MollyVariant.objects.select_related("default_label_color").filter(
             pk=vid, is_active=True, product=product
@@ -525,6 +529,7 @@ def cart_add_bulk(request):
             removed = MollyCartItem.objects.filter(cart=cart, variant=variant).delete()
             if removed[0]:
                 changed += 1
+            quantities_by_variant[variant.id] = 0
         else:
             # Keep a single line per variant: drop stale label lines first.
             MollyCartItem.objects.filter(cart=cart, variant=variant).exclude(
@@ -537,6 +542,15 @@ def cart_add_bulk(request):
                 defaults={"product": product, "quantity": qty},
             )
             changed += 1
+            quantities_by_variant[variant.id] = qty
+
+    if want_json:
+        return JsonResponse({
+            "ok": True,
+            "changed": changed,
+            "cart_count": cart.get_item_count(),
+            "quantities": quantities_by_variant,
+        })
 
     if changed:
         messages.success(request, "ההזמנה עודכנה")

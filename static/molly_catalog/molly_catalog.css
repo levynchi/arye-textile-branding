@@ -742,12 +742,14 @@ body.molly-body {
     width: 72px;
 }
 
-/* Single "add to order" button at the bottom of the list */
-.molly-bulk-add-button {
-    width: 100%;
-    margin-top: 16px;
-    padding: 14px 20px;
-    font-size: 1.05rem;
+/* Auto-add feedback: each row saves to the order on quantity/label change */
+.molly-variant-row.is-syncing {
+    opacity: 0.7;
+}
+
+.molly-variant-row.is-saved {
+    border-color: var(--molly-success);
+    box-shadow: 0 0 0 1px var(--molly-success);
 }
 
 @media (max-width: 720px) {

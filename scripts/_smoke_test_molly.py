@@ -150,9 +150,10 @@ def http_flow(user, prod, cat, lc_black, lc_white):
     code, url, body = fetch(path)
     print(f"  GET {path} -> {code}")
     assert code == 200
-    assert "molly-variant-order-form" in body, "product page must render the single bulk order form"
+    assert "molly-variant-order-form" in body, "product page must render the order form"
     assert "cart/add-bulk/" in body, "the form must post to the bulk add endpoint"
-    assert "molly-bulk-add-button" in body, "the page must render the single bottom add button"
+    # Quantities now auto-add on change; there is no manual submit button.
+    assert "molly-bulk-add-button" not in body, "the manual add button should be gone (auto-add)"
     # The previous click-to-reveal builder must be gone:
     assert "mollyVariantRowTemplate" not in body
     assert "mollyAddRowButton" not in body
@@ -176,17 +177,24 @@ def http_flow(user, prod, cat, lc_black, lc_white):
         chosen_label = lc_black
     m = re.search(r"csrfmiddlewaretoken[^>]+value=\"([^\"]+)\"", body)
     csrf = m.group(1)
-    # Build parallel lists: every variant id + label + quantity.
-    bulk_pairs = [("product_id", prod.id), ("csrfmiddlewaretoken", csrf)]
-    for v in variants:
-        bulk_pairs.append(("variant_id", v.id))
-        bulk_pairs.append(("label_color_id", chosen_label.id if v.id == target.id else (v.default_label_color_id or "")))
-        bulk_pairs.append(("quantity", 3 if v.id == target.id else 0))
+    # The product page auto-adds each row via AJAX (format=json). Post the
+    # target row exactly like the JS does and verify the JSON response.
+    bulk_pairs = [
+        ("product_id", prod.id),
+        ("csrfmiddlewaretoken", csrf),
+        ("format", "json"),
+        ("variant_id", target.id),
+        ("label_color_id", chosen_label.id),
+        ("quantity", 3),
+    ]
     code, url, body = fetch(
         "/molly/cart/add-bulk/",
         data=urlencode(bulk_pairs).encode("utf-8"),
     )
-    print(f"  POST /molly/cart/add-bulk/ target={target.id} label={chosen_label.name} qty=3 -> {code} {url}")
+    print(f"  POST /molly/cart/add-bulk/ (json) target={target.id} label={chosen_label.name} qty=3 -> {code}")
+    assert code == 200, "auto-add JSON request should return 200"
+    assert '"ok": true' in body, f"auto-add should return ok JSON, got: {body[:200]}"
+    assert '"cart_count"' in body, "auto-add JSON should include cart_count"
 
     # 6. GET cart - verify Molly's CHOSEN label shows, not the variant default
     code, url, body = fetch("/molly/cart/")
