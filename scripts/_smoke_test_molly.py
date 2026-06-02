@@ -204,7 +204,9 @@ def http_flow(user, prod, cat, lc_black, lc_white):
     assert chosen_label.name in body, (
         f"cart should display the chosen label color ({chosen_label.name}) not the default"
     )
-    print(f"  OK: cart shows added item with chosen label color ({chosen_label.name})")
+    product_url = f"/molly/{cat.slug}/{prod.slug}/"
+    assert product_url in body, f"cart row should link back to the product page ({product_url})"
+    print(f"  OK: cart shows added item with chosen label color ({chosen_label.name}) and links back to product")
 
     # 7. POST checkout
     m = re.search(r"csrfmiddlewaretoken[^>]+value=\"([^\"]+)\"", body)

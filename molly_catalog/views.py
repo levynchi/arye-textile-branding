@@ -317,6 +317,7 @@ def _build_cart_page_context(request):
     try:
         cart = MollyCart.objects.prefetch_related(
             "items__product__images",
+            "items__product__category",
             "items__variant__background_color",
             "items__variant__print_design",
             "items__variant__fabric_type",
@@ -335,6 +336,7 @@ def _build_cart_page_context(request):
                 "id": item.id,
                 "product_id": item.product_id,
                 "product_name": item.product.name,
+                "product_url": item.product.get_absolute_url(),
                 "variant_id": item.variant_id or "",
                 "variant_name": item.display_variant_name(),
                 "background_color": v.background_color.name if v else "",

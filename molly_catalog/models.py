@@ -298,6 +298,16 @@ class MollyProduct(models.Model):
             self.slug = slugify(self.name, allow_unicode=True)
         super().save(*args, **kwargs)
 
+    def get_absolute_url(self):
+        from django.urls import reverse
+
+        if self.category_id:
+            return reverse(
+                "molly_catalog:category_product_detail",
+                args=[self.category.slug, self.slug],
+            )
+        return reverse("molly_catalog:standalone_product_detail", args=[self.slug])
+
     def get_main_image(self):
         if self.main_image:
             return self.main_image.url

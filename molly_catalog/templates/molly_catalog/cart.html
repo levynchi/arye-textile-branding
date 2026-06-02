@@ -22,13 +22,15 @@
             <div class="molly-cart-list">
                 {% for item in cart_items %}
                     <div class="molly-cart-row" data-item-id="{{ item.id }}">
-                        <div class="molly-cart-image">
+                        <a class="molly-cart-image" href="{{ item.product_url }}" aria-label="חזרה לדף {{ item.product_name }}">
                             {% if item.image_url %}
                                 <img src="{{ item.image_url }}" alt="{{ item.product_name }}">
                             {% endif %}
-                        </div>
+                        </a>
                         <div class="molly-cart-item-info">
-                            <p class="molly-cart-item-name">{{ item.product_name }}</p>
+                            <p class="molly-cart-item-name">
+                                <a href="{{ item.product_url }}" class="molly-cart-item-link">{{ item.product_name }}</a>
+                            </p>
                             {% if item.variant_id %}
                                 <div class="molly-cart-item-attrs">
                                     {% if item.fabric_type %}<span class="molly-cart-attr">{{ item.fabric_type }}</span>{% endif %}

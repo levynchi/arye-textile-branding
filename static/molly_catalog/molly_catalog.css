@@ -815,6 +815,11 @@ body.molly-body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.15s;
+}
+
+.molly-cart-image:hover img {
+    transform: scale(1.05);
 }
 
 .molly-cart-item-info {
@@ -825,6 +830,16 @@ body.molly-body {
     font-weight: 700;
     margin: 0 0 4px;
     color: var(--molly-text);
+}
+
+.molly-cart-item-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.molly-cart-item-link:hover {
+    color: var(--molly-primary-dark);
+    text-decoration: underline;
 }
 
 .molly-cart-item-variant {
