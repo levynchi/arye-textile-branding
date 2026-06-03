@@ -2,25 +2,25 @@
    Molly Catalog — private order portal styling
    ------------------------------------------------------------
    Standalone styles. Does NOT inherit from white_catalog.css.
-   Color palette: soft rose + cream + warm gray for a feminine,
-   approachable feel distinct from the main brand catalog.
+   Color palette: monochrome black + white + gray for a clean,
+   minimal look distinct from the main brand catalog.
    ============================================================ */
 
 :root {
-    --molly-primary: #d4768a;
-    --molly-primary-dark: #b85771;
-    --molly-primary-light: #f5dde4;
-    --molly-bg: #fcf8f5;
+    --molly-primary: #1a1a1a;
+    --molly-primary-dark: #000000;
+    --molly-primary-light: #efefef;
+    --molly-bg: #f6f6f6;
     --molly-card-bg: #ffffff;
-    --molly-text: #2c2c2c;
+    --molly-text: #141414;
     --molly-text-soft: #6b6b6b;
-    --molly-border: #e8dfd8;
-    --molly-success: #6b9e6b;
-    --molly-success-light: #e6f0e6;
-    --molly-danger: #c75050;
-    --molly-danger-light: #fde8e8;
-    --molly-shadow: 0 2px 12px rgba(180, 120, 130, 0.08);
-    --molly-shadow-hover: 0 4px 20px rgba(180, 120, 130, 0.18);
+    --molly-border: #e2e2e2;
+    --molly-success: #2c2c2c;
+    --molly-success-light: #ededed;
+    --molly-danger: #1a1a1a;
+    --molly-danger-light: #ececec;
+    --molly-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    --molly-shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.16);
     --molly-radius: 10px;
     --molly-font: 'Assistant', 'Heebo', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
@@ -508,7 +508,7 @@ body.molly-body {
 }
 
 .molly-button-danger:hover:not(:disabled) {
-    background: #a04040;
+    background: #333333;
 }
 
 .molly-variant-status {
@@ -574,7 +574,7 @@ body.molly-body {
 
 .molly-label-trigger:hover {
     border-color: var(--molly-primary);
-    box-shadow: 0 1px 6px rgba(180, 120, 130, 0.15);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
 }
 
 .molly-label-trigger-prefix {
