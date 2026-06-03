@@ -19,6 +19,9 @@
     --molly-success-light: #ededed;
     --molly-danger: #1a1a1a;
     --molly-danger-light: #ececec;
+    --molly-accent: #e8caa5;
+    --molly-accent-dark: #d8b483;
+    --molly-accent-light: #f7eedd;
     --molly-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     --molly-shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.16);
     --molly-radius: 10px;
@@ -44,9 +47,9 @@ body.molly-body {
 /* ---------- Header ---------- */
 
 .molly-header {
-    background: linear-gradient(135deg, var(--molly-primary) 0%, var(--molly-primary-dark) 100%);
-    color: #fff;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    background: linear-gradient(135deg, var(--molly-accent) 0%, var(--molly-accent-dark) 100%);
+    color: var(--molly-text);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -67,7 +70,7 @@ body.molly-body {
     align-items: center;
     gap: 12px;
     text-decoration: none;
-    color: #fff;
+    color: var(--molly-text);
 }
 
 .molly-header-brand-title {
@@ -89,11 +92,11 @@ body.molly-body {
 }
 
 .molly-header-link {
-    color: #fff;
+    color: var(--molly-text);
     text-decoration: none;
     padding: 8px 16px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.07);
     font-size: 0.9rem;
     font-weight: 600;
     transition: background 0.2s;
@@ -101,7 +104,7 @@ body.molly-body {
 }
 
 .molly-header-link:hover {
-    background: rgba(255, 255, 255, 0.32);
+    background: rgba(0, 0, 0, 0.15);
 }
 
 .molly-header-cart {
@@ -247,7 +250,7 @@ body.molly-body {
 
 .molly-card-image {
     aspect-ratio: 1 / 1;
-    background: var(--molly-primary-light);
+    background: var(--molly-accent-light);
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -360,7 +363,7 @@ body.molly-body {
 
 .molly-product-thumb {
     aspect-ratio: 1 / 1;
-    background: var(--molly-primary-light);
+    background: var(--molly-accent-light);
     border-radius: 6px;
     overflow: hidden;
     cursor: pointer;
@@ -375,7 +378,7 @@ body.molly-body {
 }
 
 .molly-product-thumb.is-active {
-    border-color: var(--molly-primary);
+    border-color: var(--molly-accent-dark);
 }
 
 .molly-product-info h1 {
@@ -1125,7 +1128,7 @@ body.molly-body {
 }
 
 .molly-footer a {
-    color: var(--molly-primary-light);
+    color: var(--molly-accent);
     text-decoration: none;
 }
 
