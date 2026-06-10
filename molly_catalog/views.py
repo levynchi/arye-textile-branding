@@ -650,14 +650,18 @@ def send_molly_order_notification(order):
 
         lines = []
         for item in order.items.all():
-            name = item.display_variant_name() or item.product_name
-            extra = []
+            # Product name first so the manufacturer knows WHAT to make, then
+            # the full variant breakdown (fabric / background / print).
+            parts = [item.product_name or "מוצר"]
+            variant_desc = item.display_variant_name()
+            if variant_desc and variant_desc != "ללא ואריאנט":
+                parts.append(variant_desc)
             if item.label_color_name:
-                extra.append(f"תווית: {item.label_color_name}")
+                parts.append(f"תווית: {item.label_color_name}")
             if item.variant_sku:
-                extra.append(f'מק"ט: {item.variant_sku}')
-            suffix = (" | " + " | ".join(extra)) if extra else ""
-            lines.append(f"- {name}{suffix} | כמות: {item.quantity}")
+                parts.append(f'מק"ט: {item.variant_sku}')
+            parts.append(f"כמות: {item.quantity}")
+            lines.append("- " + " | ".join(parts))
 
         body = (
             "התקבלה הזמנה חדשה מקטלוג מולי!\n\n"
