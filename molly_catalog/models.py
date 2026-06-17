@@ -214,7 +214,7 @@ class MollyCategory(models.Model):
         null=True,
     )
     order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
-    slug = models.SlugField("Slug", max_length=200, unique=True, blank=True)
+    slug = models.SlugField("Slug", max_length=200, unique=True, blank=True, allow_unicode=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -278,7 +278,7 @@ class MollyProduct(models.Model):
         ),
     )
     order = models.PositiveIntegerField("סדר תצוגה", default=0)
-    slug = models.SlugField("Slug", max_length=200, unique=True, blank=True)
+    slug = models.SlugField("Slug", max_length=200, unique=True, blank=True, allow_unicode=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
