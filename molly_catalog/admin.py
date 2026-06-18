@@ -10,7 +10,8 @@ one click (skipping combinations that already exist thanks to the
 
 from django import forms
 from django.contrib import admin, messages
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
+from django.urls import path
 from django.utils.html import format_html, mark_safe
 
 from .models import (
@@ -442,6 +443,7 @@ class MollyOrderAdmin(admin.ModelAdmin):
     search_fields = ("order_number", "user__display_name", "user__username")
     readonly_fields = ("order_number", "user", "cart", "created", "updated")
     inlines = [MollyOrderItemInline]
+    change_form_template = "admin/molly_catalog/mollyorder_change_form.html"
 
     fieldsets = (
         ("פרטי הזמנה", {
@@ -455,3 +457,21 @@ class MollyOrderAdmin(admin.ModelAdmin):
     def item_count(self, obj):
         return obj.items.count()
     item_count.short_description = "פריטים"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<int:object_id>/print/",
+                self.admin_site.admin_view(self.print_order),
+                name="molly_catalog_mollyorder_print",
+            ),
+        ]
+        return custom + urls
+
+    def print_order(self, request, object_id):
+        order = get_object_or_404(
+            MollyOrder.objects.prefetch_related("items").select_related("user"),
+            pk=object_id,
+        )
+        return render(request, "admin/molly_catalog/order_print.html", {"order": order})
