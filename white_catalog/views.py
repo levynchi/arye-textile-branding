@@ -334,15 +334,29 @@ def _subcategory_detail_context(request, subcategory, category=None):
                 )
             }
 
+        # Restrict to the pack types this user's route allows.
+        allowed_pack_ids = set(catalog_user.get_allowed_pack_types().values_list("id", flat=True))
+
         pack_types_data = [
             {"pack_id": pt.pk, "pack_name": pt.name, "pack_qty": pt.quantity}
             for pt in WhitePackType.objects.filter(is_active=True)
+            if pt.pk in allowed_pack_ids
         ]
 
         fabric_map = {}
         for variant in (subcategory.variants
                         .filter(is_active=True)
-                        .select_related("fabric_type", "size_type")):
+                        .select_related("fabric_type", "size_type")
+                        .prefetch_related("pack_types")):
+            # A variant with no pack types is treated as available in all allowed packs.
+            variant_pack_ids = {pt.pk for pt in variant.pack_types.all()}
+            if variant_pack_ids:
+                size_pack_ids = variant_pack_ids & allowed_pack_ids
+            else:
+                size_pack_ids = set(allowed_pack_ids)
+            if not size_pack_ids:
+                continue
+
             fid = variant.fabric_type_id
             if fid not in fabric_map:
                 fabric_map[fid] = {
@@ -355,6 +369,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
                 "variant_id": variant.id,
                 "size_name": variant.size_type.name,
                 "unit_price": str(effective_price) if effective_price is not None else None,
+                "pack_ids": sorted(size_pack_ids),
                 "cart_quantities": {
                     str(pt["pack_id"]): cart_qty_map.get((variant.id, pt["pack_id"]), 0)
                     for pt in pack_types_data
@@ -572,6 +587,14 @@ def cart_add(request):
         messages.error(request, "נא לבחור סוג אריזה")
         return redirect(request.POST.get("next") or "white_catalog:cart")
 
+    # Enforce the user's pack route — they may only order allowed pack forms.
+    allowed_pack_ids = set(user.get_allowed_pack_types().values_list("id", flat=True))
+    if pack_type.pk not in allowed_pack_ids:
+        if want_json:
+            return JsonResponse({"ok": False, "error": "סוג האריזה אינו זמין עבורך"}, status=400)
+        messages.error(request, "סוג האריזה אינו זמין עבורך")
+        return redirect(request.POST.get("next") or "white_catalog:cart")
+
     added = 0
     for key, value in request.POST.items():
         if not key.startswith("qty_"):
@@ -594,6 +617,11 @@ def cart_add(request):
             continue
 
         if not variant.product.is_orderable or not variant.product.has_order_variants:
+            continue
+
+        # Skip variants that aren't sold in the selected pack form (empty = all forms).
+        variant_pack_ids = set(variant.pack_types.values_list("id", flat=True))
+        if variant_pack_ids and pack_type.pk not in variant_pack_ids:
             continue
 
         effective_price = variant.unit_price if variant.unit_price is not None else variant.product.unit_price
@@ -710,6 +738,15 @@ def cart_update(request):
             if is_ajax:
                 return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
             messages.error(request, "הפריט לא נמצא")
+            return redirect("white_catalog:cart")
+
+        # Enforce the user's pack route and the variant's pack forms.
+        allowed_pack_ids = set(user.get_allowed_pack_types().values_list("id", flat=True))
+        variant_pack_ids = set(variant.pack_types.values_list("id", flat=True))
+        if pack_type.pk not in allowed_pack_ids or (variant_pack_ids and pack_type.pk not in variant_pack_ids):
+            if is_ajax:
+                return JsonResponse({"status": "error", "error": "סוג האריזה אינו זמין עבורך"}, status=400)
+            messages.error(request, "סוג האריזה אינו זמין עבורך")
             return redirect("white_catalog:cart")
         item = (
             WhiteCartItem.objects.select_related("cart")

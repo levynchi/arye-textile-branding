@@ -671,6 +671,11 @@
                                     }
                                 };
 
+                                function sizeAvailableForPack(size, packId) {
+                                    if (!size.pack_ids || size.pack_ids.length === 0) return true;
+                                    return size.pack_ids.indexOf(packId) !== -1;
+                                }
+
                                 window.renderOrderTable = function() {
                                     const fabricId = parseInt(fabricSelect.value);
                                     const packId = parseInt(packSelect.value);
@@ -686,7 +691,18 @@
 
                                     const tbody = document.getElementById('orderTableBody');
                                     tbody.innerHTML = '';
-                                    fabric.sizes.forEach(function(size) {
+                                    const visibleSizes = fabric.sizes.filter(function(size) {
+                                        return sizeAvailableForPack(size, packId);
+                                    });
+                                    if (visibleSizes.length === 0) {
+                                        const emptyRow = document.createElement('tr');
+                                        emptyRow.innerHTML = '<td colspan="3" style="text-align:center; color:#888;">אין מידות זמינות לצורת אריזה זו</td>';
+                                        tbody.appendChild(emptyRow);
+                                        document.getElementById('totalSummary').textContent = '';
+                                        wrap.style.display = 'block';
+                                        return;
+                                    }
+                                    visibleSizes.forEach(function(size) {
                                         const unitPrice = size.unit_price ? parseFloat(size.unit_price) : null;
                                         const pricePerPack = unitPrice !== null
                                             ? '&#x20AA;' + (unitPrice * packType.pack_qty).toFixed(2)
@@ -718,6 +734,7 @@
                                     if (!fabric || !packType) return;
                                     let totalPacks = 0, totalUnits = 0, totalPrice = 0;
                                     fabric.sizes.forEach(function(size) {
+                                        if (!sizeAvailableForPack(size, packId)) return;
                                         const input = document.querySelector('input[name="qty_' + size.variant_id + '"]');
                                         if (!input) return;
                                         const qty = parseInt(input.value, 10);

@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django import forms
+from django.db import models as dj_models
 from django.utils.html import mark_safe
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice,
@@ -86,8 +87,11 @@ class WhiteProductVariantInline(admin.TabularInline):
 	"""Inline: one row = fabric type + size + unit price."""
 	model = WhiteProductVariant
 	extra = 1
-	fields = ("fabric_type", "size_type", "unit_price", "is_active", "order")
+	fields = ("fabric_type", "size_type", "pack_types", "unit_price", "is_active", "order")
 	show_change_link = True
+	formfield_overrides = {
+		dj_models.ManyToManyField: {"widget": forms.CheckboxSelectMultiple},
+	}
 
 
 @admin.register(WhiteSubcategory)
@@ -141,7 +145,7 @@ class WhiteCatalogUserForm(forms.ModelForm):
 	
 	class Meta:
 		model = WhiteCatalogUser
-		fields = ('company_name', 'contact_name', 'contact_phone', 'username', 'is_active')
+		fields = ('company_name', 'contact_name', 'contact_phone', 'username', 'pack_route', 'is_active')
 	
 	def save(self, commit=True):
 		user = super().save(commit=False)
@@ -161,9 +165,9 @@ class WhiteCatalogUserForm(forms.ModelForm):
 class WhiteCatalogUserAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteCatalogUser model."""
 	form = WhiteCatalogUserForm
-	list_display = ("company_name", "username", "contact_name", "contact_phone", "is_active", "last_login_display", "last_activity_display", "created")
+	list_display = ("company_name", "username", "contact_name", "contact_phone", "pack_route", "is_active", "last_login_display", "last_activity_display", "created")
 	list_editable = ("is_active",)
-	list_filter = ("is_active", "created", "last_login", "last_activity_at")
+	list_filter = ("pack_route", "is_active", "created", "last_login", "last_activity_at")
 	search_fields = ("company_name", "username", "contact_name", "contact_phone")
 	readonly_fields = ("created", "updated", "last_login", "last_activity_at", "activity_count")
 	inlines = [WhiteCatalogUserActivityInline]
@@ -198,6 +202,10 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 		}),
 		("פרטי התחברות", {
 			"fields": ("username", "password", "is_active")
+		}),
+		("מסלול מוצרים", {
+			"fields": ("pack_route",),
+			"description": "אילו צורות אריזה (שלישיות / חמישיות) המשתמש יראה בקטלוג"
 		}),
 		("פעילות", {
 			"fields": ("last_login", "last_activity_at", "activity_count"),
@@ -277,8 +285,11 @@ class WhiteVariantPackPriceInline(admin.TabularInline):
 class WhiteProductVariantAdmin(admin.ModelAdmin):
 	list_display = ("product", "fabric_type", "size_type", "unit_price", "is_active", "order")
 	list_editable = ("unit_price", "is_active", "order")
-	list_filter = ("product", "fabric_type", "is_active")
+	list_filter = ("product", "fabric_type", "pack_types", "is_active")
 	search_fields = ("fabric_type__name", "size_type__name", "product__name")
+	formfield_overrides = {
+		dj_models.ManyToManyField: {"widget": forms.CheckboxSelectMultiple},
+	}
 
 
 

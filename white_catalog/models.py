@@ -185,11 +185,27 @@ class WhiteSubcategoryPrice(models.Model):
 
 class WhiteCatalogUser(models.Model):
 	"""White catalog user model for managing access to white catalog pages."""
+	ROUTE_BOTH = "both"
+	ROUTE_THREES = "threes"
+	ROUTE_FIVES = "fives"
+	PACK_ROUTE_CHOICES = [
+		(ROUTE_BOTH, "גם שלישיות וגם חמישיות"),
+		(ROUTE_THREES, "שלישיות בלבד"),
+		(ROUTE_FIVES, "חמישיות בלבד"),
+	]
+
 	company_name = models.CharField("שם העסק", max_length=200)
 	contact_name = models.CharField("שם איש קשר", max_length=200)
 	contact_phone = models.CharField("טלפון איש קשר", max_length=20)
 	username = models.CharField("שם משתמש", max_length=150, unique=True)
 	password_hash = models.CharField("סיסמא", max_length=128)
+	pack_route = models.CharField(
+		"מסלול מוצרים",
+		max_length=10,
+		choices=PACK_ROUTE_CHOICES,
+		default=ROUTE_BOTH,
+		help_text="אילו צורות אריזה המשתמש יראה בקטלוג"
+	)
 	is_active = models.BooleanField("פעיל", default=True, help_text="האם המשתמש יכול להתחבר")
 	last_login = models.DateTimeField("כניסה אחרונה", null=True, blank=True)
 	last_activity_at = models.DateTimeField("פעילות אחרונה", null=True, blank=True)
@@ -212,7 +228,16 @@ class WhiteCatalogUser(models.Model):
 	def check_password(self, raw_password):
 		"""Check if the provided password matches the stored hash."""
 		return check_password(raw_password, self.password_hash)
-	
+
+	def get_allowed_pack_types(self):
+		"""Return active pack types this user is allowed to see, based on their route."""
+		qs = WhitePackType.objects.filter(is_active=True)
+		if self.pack_route == self.ROUTE_THREES:
+			return qs.filter(quantity=3)
+		if self.pack_route == self.ROUTE_FIVES:
+			return qs.filter(quantity=5)
+		return qs
+
 	def update_activity(self):
 		"""Update the last activity timestamp."""
 		from django.utils import timezone
@@ -306,6 +331,13 @@ class WhiteProductVariant(models.Model):
 		on_delete=models.PROTECT,
 		related_name="product_variants",
 		verbose_name="מידה"
+	)
+	pack_types = models.ManyToManyField(
+		"WhitePackType",
+		blank=True,
+		related_name="variants",
+		verbose_name="צורת אריזה",
+		help_text="באילו מארזים הגרסה נמכרת. ריק = כל המארזים"
 	)
 	unit_price = models.DecimalField(
 		'מחיר ליחידה (לא כולל מע"מ)',
