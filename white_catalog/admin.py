@@ -87,7 +87,7 @@ class WhiteProductVariantInline(admin.TabularInline):
 	"""Inline: one row = fabric type + size + unit price."""
 	model = WhiteProductVariant
 	extra = 1
-	fields = ("fabric_type", "size_type", "pack_types", "unit_price", "is_active", "order")
+	fields = ("fabric_type", "size_type", "pack_types", "unit_price", "barcode", "is_active", "order")
 	show_change_link = True
 	formfield_overrides = {
 		dj_models.ManyToManyField: {"widget": forms.CheckboxSelectMultiple},
@@ -283,13 +283,41 @@ class WhiteVariantPackPriceInline(admin.TabularInline):
 
 @admin.register(WhiteProductVariant)
 class WhiteProductVariantAdmin(admin.ModelAdmin):
-	list_display = ("product", "fabric_type", "size_type", "unit_price", "is_active", "order")
-	list_editable = ("unit_price", "is_active", "order")
+	list_display = ("product", "fabric_type", "size_type", "unit_price", "barcode", "is_active", "order")
+	list_editable = ("unit_price", "barcode", "is_active", "order")
 	list_filter = ("product", "fabric_type", "pack_types", "is_active")
-	search_fields = ("fabric_type__name", "size_type__name", "product__name")
+	search_fields = ("fabric_type__name", "size_type__name", "product__name", "barcode")
+	list_per_page = 200
+	actions = ("export_variants_csv",)
 	formfield_overrides = {
 		dj_models.ManyToManyField: {"widget": forms.CheckboxSelectMultiple},
 	}
+
+	@admin.action(description="ייצוא ל-CSV")
+	def export_variants_csv(self, request, queryset):
+		import csv
+		from django.http import HttpResponse
+
+		queryset = queryset.select_related("product", "fabric_type", "size_type").prefetch_related("pack_types")
+
+		response = HttpResponse(content_type="text/csv; charset=utf-8")
+		response["Content-Disposition"] = "attachment; filename=variants.csv"
+		response.write("\ufeff")  # BOM so Excel reads Hebrew correctly
+
+		writer = csv.writer(response)
+		writer.writerow(["מוצר", "סוג בד", "מידה", "צורת אריזה", "מחיר ליחידה", "ברקוד", "פעיל"])
+		for variant in queryset:
+			pack_names = ", ".join(pt.name for pt in variant.pack_types.all())
+			writer.writerow([
+				variant.product.name,
+				variant.fabric_type.name,
+				variant.size_type.name,
+				pack_names,
+				variant.unit_price if variant.unit_price is not None else "",
+				variant.barcode,
+				"כן" if variant.is_active else "לא",
+			])
+		return response
 
 
 

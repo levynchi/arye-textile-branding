@@ -347,6 +347,7 @@ class WhiteProductVariant(models.Model):
 		blank=True,
 		help_text='מחיר ליחידה בודדת — המחיר למארז יחושב אוטומטית לפי הכמות'
 	)
+	barcode = models.CharField("ברקוד", max_length=64, blank=True, default="")
 	is_active = models.BooleanField("פעיל", default=True)
 	order = models.PositiveIntegerField("סדר תצוגה", default=0)
 	created = models.DateTimeField(auto_now_add=True)
