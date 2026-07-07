@@ -285,8 +285,9 @@ class WhiteVariantPackPriceInline(admin.TabularInline):
 class WhiteProductVariantAdmin(admin.ModelAdmin):
 	list_display = ("product", "fabric_type", "size_type", "unit_price", "barcode", "is_active", "order")
 	list_editable = ("unit_price", "barcode", "is_active", "order")
-	list_filter = ("product", "fabric_type", "pack_types", "is_active")
+	list_filter = ("fabric_type", "product", "pack_types", "is_active")
 	search_fields = ("fabric_type__name", "size_type__name", "product__name", "barcode")
+	ordering = ("product__name", "fabric_type__name", "size_type__order")
 	list_per_page = 200
 	actions = ("export_variants_csv",)
 	formfield_overrides = {
