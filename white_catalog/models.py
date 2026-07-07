@@ -347,7 +347,7 @@ class WhiteProductVariant(models.Model):
 		blank=True,
 		help_text='מחיר ליחידה בודדת — המחיר למארז יחושב אוטומטית לפי הכמות'
 	)
-	barcode = models.CharField("ברקוד", max_length=64, blank=True, default="")
+	barcode = models.CharField("ברקוד", max_length=64, blank=True, null=True)
 	is_active = models.BooleanField("פעיל", default=True)
 	order = models.PositiveIntegerField("סדר תצוגה", default=0)
 	created = models.DateTimeField(auto_now_add=True)
@@ -359,6 +359,19 @@ class WhiteProductVariant(models.Model):
 		verbose_name = "גרסת מוצר"
 		verbose_name_plural = "גרסאות מוצר"
 		unique_together = ("product", "fabric_type", "size_type")
+		constraints = [
+			models.UniqueConstraint(
+				fields=["barcode"],
+				condition=models.Q(barcode__isnull=False) & ~models.Q(barcode=""),
+				name="unique_variant_barcode",
+				violation_error_message="ברקוד זה כבר קיים בגרסת מוצר אחרת",
+			),
+		]
+
+	def save(self, *args, **kwargs):
+		# Normalize empty/whitespace barcodes to NULL so they never collide.
+		self.barcode = (self.barcode or "").strip() or None
+		super().save(*args, **kwargs)
 
 	def __str__(self):
 		return f"{self.product.name} — {self.fabric_type.name} {self.size_type.name}"
