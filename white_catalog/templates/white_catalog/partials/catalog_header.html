@@ -114,6 +114,62 @@
             display: none;
         }
     }
+
+    .catalog-barcode-search {
+        background: #f5f6f7;
+        border-bottom: 1px solid #e4e7ec;
+        padding: 10px 16px;
+    }
+
+    .catalog-barcode-search-form {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        max-width: 520px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .catalog-barcode-search-input {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 42px;
+        padding: 8px 14px;
+        border: 1px solid #cfd3d9;
+        border-radius: 8px;
+        background: #fff;
+        color: #111317;
+        font-size: 0.95rem;
+        font-family: inherit;
+        direction: ltr;
+        text-align: left;
+    }
+
+    .catalog-barcode-search-input:focus {
+        outline: none;
+        border-color: #7594b1;
+        box-shadow: 0 0 0 2px rgba(117, 148, 177, 0.2);
+    }
+
+    .catalog-barcode-search-btn {
+        flex: 0 0 auto;
+        min-height: 42px;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 8px;
+        background: #7594b1;
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.2s ease;
+    }
+
+    .catalog-barcode-search-btn:hover {
+        background: #5a7a98;
+    }
 </style>
 {% if request.session.white_catalog_user_id %}
 <link rel="stylesheet" href="{% static 'white_catalog/cart_order.css' %}">
@@ -198,6 +254,31 @@
                 </ul>
             </nav>
         </div>
+    </div>
+
+    <div class="catalog-barcode-search">
+        <form class="catalog-barcode-search-form" action="{% url 'white_catalog:barcode_search' %}" method="get" role="search">
+            <input
+                type="search"
+                name="q"
+                class="catalog-barcode-search-input"
+                placeholder="חיפוש לפי ברקוד..."
+                aria-label="חיפוש לפי ברקוד"
+                inputmode="numeric"
+                autocomplete="off"
+                value="{{ request.GET.q|default:'' }}"
+            >
+            <button type="submit" class="catalog-barcode-search-btn">חפש</button>
+        </form>
+        {% if messages %}
+        <div class="catalog-barcode-search-messages" style="max-width:520px;margin:8px auto 0;">
+            {% for message in messages %}
+                <div class="order-message order-message-{{ message.tags }}" style="padding:10px 14px;border-radius:6px;font-weight:600;{% if message.tags == 'error' %}background:#f8d7da;color:#721c24;{% elif message.tags == 'success' %}background:#d4edda;color:#155724;{% else %}background:#d1ecf1;color:#0c5460;{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 </header>
 

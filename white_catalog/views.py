@@ -2,11 +2,13 @@ import json
 import logging
 from functools import wraps
 from decimal import Decimal
+from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .models import (
@@ -290,6 +292,46 @@ def catalog_home(request):
     return render(request, "white_catalog/catalog_home.html", context)
 
 
+def barcode_search(request):
+    """Find a white-catalog variant by barcode and redirect to its product page."""
+    q = (request.GET.get("q") or request.POST.get("q") or "").strip()
+    if not q:
+        messages.error(request, "נא להזין ברקוד לחיפוש")
+        return redirect("white_catalog:home")
+
+    variant = (
+        WhiteProductVariant.objects.filter(barcode__iexact=q, is_active=True)
+        .select_related("product", "product__category", "fabric_type", "size_type")
+        .first()
+    )
+    if not variant or not variant.product_id:
+        messages.error(request, f'לא נמצא מוצר עם ברקוד "{q}"')
+        referer = request.META.get("HTTP_REFERER")
+        if referer:
+            return redirect(referer)
+        return redirect("white_catalog:home")
+
+    product = variant.product
+    query = urlencode({
+        "fabric": variant.fabric_type_id,
+        "variant": variant.id,
+    })
+    if product.category_id:
+        url = reverse(
+            "white_catalog:subcategory_detail",
+            kwargs={
+                "category_slug": product.category.slug,
+                "subcategory_slug": product.slug,
+            },
+        )
+    else:
+        url = reverse(
+            "white_catalog:standalone_subcategory_detail",
+            kwargs={"subcategory_slug": product.slug},
+        )
+    return redirect(f"{url}?{query}")
+
+
 def category_detail(request, category_slug):
     """Category detail page showing subcategories."""
     category = get_object_or_404(WhiteCategory, slug=category_slug)
@@ -369,6 +411,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
                 "variant_id": variant.id,
                 "size_name": variant.size_type.name,
                 "unit_price": str(effective_price) if effective_price is not None else None,
+                "barcode": variant.barcode or "",
                 "pack_ids": sorted(size_pack_ids),
                 "cart_quantities": {
                     str(pt["pack_id"]): cart_qty_map.get((variant.id, pt["pack_id"]), 0)
