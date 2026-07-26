@@ -147,36 +147,23 @@
         .order-table tbody tr.variant-row { cursor: pointer; }
         .order-table tbody tr.variant-row.is-selected { background: #e8eef4; }
         .order-table tbody tr.variant-row.is-selected:hover { background: #e0e8f0; }
-        .variant-barcode-panel {
-            display: none;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin: 0 0 12px;
-            padding: 12px 14px;
-            background: #f5f6f7;
-            border: 1px solid #d9e1ea;
-            border-right: 4px solid #7594b1;
-            border-radius: 8px;
-            color: #333;
-        }
-        .variant-barcode-panel.is-visible { display: flex; }
-        .variant-barcode-label {
-            font-weight: 700;
-            color: #555;
-            font-size: 0.95rem;
-        }
-        .variant-barcode-value {
+        .order-table .col-barcode {
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 1.15rem;
-            font-weight: 800;
+            font-size: 0.9rem;
+            font-weight: 700;
             color: #355230;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.03em;
             direction: ltr;
             unicode-bidi: isolate;
+            white-space: nowrap;
         }
-        .variant-barcode-empty { color: #888; font-weight: 600; }
+        .order-table .col-barcode.is-empty {
+            color: #aaa;
+            font-family: inherit;
+            font-weight: 600;
+            letter-spacing: normal;
+            direction: rtl;
+        }
         .col-qty { min-width: 90px; }
         .col-na { color: #aaa; }
         .qty-input {
@@ -470,14 +457,11 @@
                                     <input type="hidden" name="next" value="{{ request.path }}">
                                     <input type="hidden" name="pack_type_id" id="packTypeInput" value="">
                                     <div id="orderTableWrap" style="display:none;">
-                                        <div id="variantBarcodePanel" class="variant-barcode-panel" aria-live="polite">
-                                            <span class="variant-barcode-label">ברקוד למידה שנבחרה:</span>
-                                            <span id="variantBarcodeValue" class="variant-barcode-value"></span>
-                                        </div>
                                         <table class="order-table">
                                             <thead>
                                                 <tr>
                                                     <th>מידה</th>
+                                                    <th>ברקוד</th>
                                                     <th>מחיר למארז</th>
                                                     <th>כמות</th>
                                                 </tr>
@@ -715,38 +699,24 @@
                                 }
 
                                 let selectedVariantId = null;
-                                const barcodePanel = document.getElementById('variantBarcodePanel');
-                                const barcodeValueEl = document.getElementById('variantBarcodeValue');
 
-                                function showVariantBarcode(size) {
-                                    if (!barcodePanel || !barcodeValueEl) return;
-                                    if (!size) {
-                                        barcodePanel.classList.remove('is-visible');
-                                        barcodeValueEl.textContent = '';
-                                        barcodeValueEl.classList.remove('variant-barcode-empty');
-                                        return;
-                                    }
-                                    const code = (size.barcode || '').trim();
-                                    barcodePanel.classList.add('is-visible');
-                                    if (code) {
-                                        barcodeValueEl.textContent = code;
-                                        barcodeValueEl.classList.remove('variant-barcode-empty');
-                                    } else {
-                                        barcodeValueEl.textContent = 'אין ברקוד למידה זו';
-                                        barcodeValueEl.classList.add('variant-barcode-empty');
-                                    }
-                                }
-
-                                function selectVariantRow(variantId, size) {
+                                function selectVariantRow(variantId) {
                                     selectedVariantId = variantId;
                                     const tbody = document.getElementById('orderTableBody');
-                                    if (tbody) {
-                                        tbody.querySelectorAll('tr.variant-row').forEach(function(row) {
-                                            const rowId = parseInt(row.getAttribute('data-variant-id'), 10);
-                                            row.classList.toggle('is-selected', rowId === variantId);
-                                        });
-                                    }
-                                    showVariantBarcode(size || null);
+                                    if (!tbody) return;
+                                    tbody.querySelectorAll('tr.variant-row').forEach(function(row) {
+                                        const rowId = parseInt(row.getAttribute('data-variant-id'), 10);
+                                        row.classList.toggle('is-selected', rowId === variantId);
+                                    });
+                                }
+
+                                function escapeHtml(value) {
+                                    return String(value)
+                                        .replace(/&/g, '&amp;')
+                                        .replace(/</g, '&lt;')
+                                        .replace(/>/g, '&gt;')
+                                        .replace(/"/g, '&quot;')
+                                        .replace(/'/g, '&#39;');
                                 }
 
                                 window.renderOrderTable = function() {
@@ -755,7 +725,6 @@
                                     const wrap = document.getElementById('orderTableWrap');
                                     if (!fabricId || !packId) {
                                         wrap.style.display = 'none';
-                                        showVariantBarcode(null);
                                         return;
                                     }
                                     mergeStoredCartQuantities();
@@ -764,7 +733,6 @@
                                     const packType = packTypes.find(function(pt) { return pt.pack_id === packId; });
                                     if (!fabric || !packType) {
                                         wrap.style.display = 'none';
-                                        showVariantBarcode(null);
                                         return;
                                     }
 
@@ -777,14 +745,12 @@
                                     });
                                     if (visibleSizes.length === 0) {
                                         const emptyRow = document.createElement('tr');
-                                        emptyRow.innerHTML = '<td colspan="3" style="text-align:center; color:#888;">אין מידות זמינות לצורת אריזה זו</td>';
+                                        emptyRow.innerHTML = '<td colspan="4" style="text-align:center; color:#888;">אין מידות זמינות לצורת אריזה זו</td>';
                                         tbody.appendChild(emptyRow);
                                         document.getElementById('totalSummary').textContent = '';
-                                        showVariantBarcode(null);
                                         wrap.style.display = 'block';
                                         return;
                                     }
-                                    let selectedSize = null;
                                     visibleSizes.forEach(function(size) {
                                         const unitPrice = size.unit_price ? parseFloat(size.unit_price) : null;
                                         const pricePerPack = unitPrice !== null
@@ -794,11 +760,19 @@
                                             ? parseInt(size.cart_quantities[String(packId)] || 0, 10)
                                             : 0;
                                         const qtyValue = savedQty > 0 ? String(savedQty) : '';
+                                        const barcode = (size.barcode || '').trim();
+                                        const barcodeCell = barcode
+                                            ? '<td class="col-barcode">' + escapeHtml(barcode) + '</td>'
+                                            : '<td class="col-barcode is-empty">&mdash;</td>';
                                         const row = document.createElement('tr');
                                         row.className = 'variant-row';
                                         row.setAttribute('data-variant-id', String(size.variant_id));
+                                        if (selectedVariantId === size.variant_id) {
+                                            row.classList.add('is-selected');
+                                        }
                                         row.innerHTML =
-                                            '<td class="col-size"><strong>' + size.size_name + '</strong></td>' +
+                                            '<td class="col-size"><strong>' + escapeHtml(size.size_name) + '</strong></td>' +
+                                            barcodeCell +
                                             '<td>' + pricePerPack + '</td>' +
                                             '<td><input type="number" name="qty_' + size.variant_id + '" ' +
                                             'min="0" step="1" value="' + qtyValue + '" class="qty-input" placeholder="0" ' +
@@ -806,26 +780,18 @@
                                             'onblur="syncProductQtyBlur(this)"></td>';
                                         row.addEventListener('click', function(e) {
                                             if (e.target && e.target.closest('input')) return;
-                                            selectVariantRow(size.variant_id, size);
+                                            selectVariantRow(size.variant_id);
                                         });
                                         const qtyInput = row.querySelector('input.qty-input');
                                         if (qtyInput) {
                                             qtyInput.addEventListener('focus', function() {
-                                                selectVariantRow(size.variant_id, size);
+                                                selectVariantRow(size.variant_id);
                                             });
-                                        }
-                                        if (selectedVariantId === size.variant_id) {
-                                            selectedSize = size;
                                         }
                                         tbody.appendChild(row);
                                     });
 
                                     wrap.style.display = 'block';
-                                    if (selectedSize) {
-                                        selectVariantRow(selectedSize.variant_id, selectedSize);
-                                    } else {
-                                        showVariantBarcode(null);
-                                    }
                                     updateTotal();
                                 };
 
