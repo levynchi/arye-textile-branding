@@ -28,6 +28,8 @@
         .status-delivered { background: #d4edda; color: #155724; }
         .status-cancelled { background: #f8d7da; color: #721c24; }
         .btn-view { color: #7594b1; font-weight: 700; text-decoration: underline; font-size: 0.9rem; }
+        .btn-export { color: #355230; font-weight: 700; text-decoration: underline; font-size: 0.9rem; white-space: nowrap; }
+        .order-actions-cell { display: flex; gap: 14px; align-items: center; }
         .no-orders { text-align: center; padding: 60px; color: #666; }
         .order-items-preview { font-size: 0.85rem; color: #666; margin-top: 4px; }
         .orders-mobile-list { display: none; }
@@ -153,7 +155,10 @@
                                 </span>
                             </td>
                             <td>
-                                <a href="{% url 'white_catalog:order_confirm' order.order_number %}" class="btn-view">צפה</a>
+                                <div class="order-actions-cell">
+                                    <a href="{% url 'white_catalog:order_confirm' order.order_number %}" class="btn-view">צפה</a>
+                                    <a href="{% url 'white_catalog:export_order' order.order_number %}" class="btn-export">אקסל</a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -191,6 +196,7 @@
                         </div>
                         <div class="order-mobile-actions">
                             <a href="{% url 'white_catalog:order_confirm' order.order_number %}" class="btn-view">צפה בהזמנה</a>
+                            <a href="{% url 'white_catalog:export_order' order.order_number %}" class="btn-export">הורדה לאקסל</a>
                         </div>
                     </div>
                     {% endfor %}

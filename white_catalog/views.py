@@ -1185,3 +1185,109 @@ def export_products_excel(request):
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
 
+
+@require_catalog_login
+def export_order_excel(request, order_number):
+    """Download a single order as an Excel file.
+
+    One row per order line with the variant barcode, quantities and prices —
+    so the customer can receive the ordered stock into their own system
+    without the noise of the full catalog.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    user = get_current_catalog_user(request)
+    order = get_object_or_404(
+        WhiteOrder.objects.prefetch_related("items__product__images", "items__variant"),
+        order_number=order_number,
+        user=user,
+    )
+
+    headers = [
+        "ברקוד",
+        "שם מוצר",
+        "גרסה (בד)",
+        "מידה",
+        "סוג מארז",
+        "יחידות במארז",
+        "כמות מארזים",
+        'סה"כ יחידות',
+        'מחיר למארז (לא כולל מע"מ)',
+        'סה"כ שורה (לא כולל מע"מ)',
+        'מחיר קמעונאי מומלץ (לא כולל מע"מ)',
+        "קישורי תמונות",
+    ]
+    price_columns = {9, 10, 11}
+    images_column = len(headers)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"הזמנה {order.order_number}"[:31]
+    ws.sheet_view.rightToLeft = True
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="7594B1", end_color="7594B1", fill_type="solid")
+    for col, title in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.freeze_panes = "A2"
+
+    widths = [16, 28, 20, 12, 16, 12, 12, 12, 18, 18, 18, 70]
+    for col, width in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+    def write_row(row_index, values):
+        for col, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col, value=value)
+            if col in price_columns and value is not None:
+                cell.number_format = "#,##0.00"
+            if col == images_column:
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+    row = 2
+    for item in order.items.all():
+        barcode = item.variant.barcode if item.variant_id and item.variant else None
+        product = item.product if item.product_id else None
+        online_price = product.online_price if product else None
+        image_urls = "\n".join(
+            request.build_absolute_uri(img["url"]) for img in product.get_all_images()
+        ) if product else ""
+
+        write_row(row, [
+            barcode or "",
+            item.product_name,
+            item.variant_name,
+            item.size_name,
+            item.pack_type_name,
+            item.pack_quantity,
+            item.quantity,
+            item.pack_quantity * item.quantity,
+            item.unit_price,
+            item.get_line_total(),
+            online_price,
+            image_urls,
+        ])
+        row += 1
+
+    total_font = Font(bold=True)
+    label_cell = ws.cell(row=row, column=9, value='סה"כ להזמנה (לא כולל מע"מ):')
+    label_cell.font = total_font
+    total_cell = ws.cell(row=row, column=10, value=order.total_amount)
+    total_cell.font = total_font
+    total_cell.number_format = "#,##0.00"
+
+    buffer = BytesIO()
+    wb.save(buffer)
+
+    filename = f"arye-order-{order.order_number}.xlsx"
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+

@@ -17,6 +17,7 @@ urlpatterns = [
     # Checkout & orders
     path("checkout/", views.checkout, name="checkout"),
     path("orders/", views.order_list, name="order_list"),
+    path("orders/<str:order_number>/export/", views.export_order_excel, name="export_order"),
     path("orders/<str:order_number>/", views.order_confirm, name="order_confirm"),
     # Product data export for customer site integration
     path("export/products/", views.export_products_excel, name="export_products"),
