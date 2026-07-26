@@ -5,6 +5,7 @@
                         <tr>
                             <th>מוצר</th>
                             <th>סוג בד</th>
+                            <th>ברקוד</th>
                             <th>מידה</th>
                             <th>מארז</th>
                             <th>מחיר</th>
@@ -18,6 +19,7 @@
                         <tr>
                             <td data-label="מוצר"><strong>{{ item.product.name }}</strong></td>
                             <td data-label="סוג בד">{{ item.display_fabric_name }}</td>
+                            <td data-label="ברקוד" class="col-barcode{% if not item.variant_id or not item.variant.barcode %} is-empty{% endif %}">{% if item.variant_id and item.variant.barcode %}{{ item.variant.barcode }}{% else %}—{% endif %}</td>
                             <td data-label="מידה">{{ item.display_size_name }}</td>
                             <td data-label="מארז">{{ item.display_pack_name }}</td>
                             <td data-label="מחיר">{% if item.is_simple_item %}₪{{ item.price_at_add }} ל{{ item.display_pack_name }}{% else %}₪{{ item.price_at_add }} למארז{% endif %}</td>
@@ -47,7 +49,7 @@
                         </tr>
                         {% endfor %}
                         <tr class="cart-total-row">
-                            <td colspan="6" style="text-align:left;">סה"כ (לא כולל מע"מ):</td>
+                            <td colspan="7" style="text-align:left;">סה"כ (לא כולל מע"מ):</td>
                             <td colspan="2" data-cart-total>₪{{ cart.get_total }}</td>
                         </tr>
                     </tbody>
@@ -70,6 +72,7 @@
                         <table class="mobile-sizes-table">
                             <thead>
                                 <tr>
+                                    <th>ברקוד</th>
                                     <th>{% if group.is_simple %}סוג{% else %}מידה{% endif %}</th>
                                     <th>כמות</th>
                                     <th>סה"כ</th>
@@ -79,6 +82,7 @@
                             <tbody>
                                 {% for item in group.items %}
                                 <tr>
+                                    <td class="col-barcode{% if not item.barcode %} is-empty{% endif %}">{% if item.barcode %}{{ item.barcode }}{% else %}—{% endif %}</td>
                                     <td>{{ item.size_name }}</td>
                                     <td>
                                         <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">

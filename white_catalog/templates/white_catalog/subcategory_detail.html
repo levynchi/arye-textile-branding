@@ -460,8 +460,8 @@
                                         <table class="order-table">
                                             <thead>
                                                 <tr>
-                                                    <th>מידה</th>
                                                     <th>ברקוד</th>
+                                                    <th>מידה</th>
                                                     <th>מחיר למארז</th>
                                                     <th>כמות</th>
                                                 </tr>
@@ -771,8 +771,8 @@
                                             row.classList.add('is-selected');
                                         }
                                         row.innerHTML =
-                                            '<td class="col-size"><strong>' + escapeHtml(size.size_name) + '</strong></td>' +
                                             barcodeCell +
+                                            '<td class="col-size"><strong>' + escapeHtml(size.size_name) + '</strong></td>' +
                                             '<td>' + pricePerPack + '</td>' +
                                             '<td><input type="number" name="qty_' + size.variant_id + '" ' +
                                             'min="0" step="1" value="' + qtyValue + '" class="qty-input" placeholder="0" ' +

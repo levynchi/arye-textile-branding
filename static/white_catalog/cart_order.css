@@ -156,6 +156,25 @@
 .mobile-sizes-table td strong { font-weight: 400; }
 .mobile-sizes-table tbody tr:last-child td { border-bottom: none; }
 .mobile-sizes-table .qty-input-small { width: 52px; }
+.cart-table .col-barcode,
+.mobile-sizes-table .col-barcode {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #355230;
+    letter-spacing: 0.02em;
+    direction: ltr;
+    unicode-bidi: isolate;
+    white-space: nowrap;
+}
+.cart-table .col-barcode.is-empty,
+.mobile-sizes-table .col-barcode.is-empty {
+    color: #aaa;
+    font-family: inherit;
+    font-weight: 400;
+    letter-spacing: normal;
+    direction: rtl;
+}
 .mobile-group-total {
     background: #ffffff;
     padding: 10px 16px;
