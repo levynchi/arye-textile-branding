@@ -245,6 +245,9 @@
                 </button>
                 <ul id="catalog-nav-menu" class="catalog-nav-list">
                     <li><a href="{% url 'white_catalog:home' %}">דף הבית</a></li>
+                    {% if request.session.white_catalog_user_id %}
+                        <li><a href="{% url 'white_catalog:export_products' %}">הורדת קטלוג מוצרים (Excel)</a></li>
+                    {% endif %}
                     {% for cat in all_categories %}
                         <li><a href="{% url 'white_catalog:category_detail' cat.slug %}">{{ cat.name }}</a></li>
                     {% endfor %}

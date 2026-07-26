@@ -18,6 +18,8 @@ urlpatterns = [
     path("checkout/", views.checkout, name="checkout"),
     path("orders/", views.order_list, name="order_list"),
     path("orders/<str:order_number>/", views.order_confirm, name="order_confirm"),
+    # Product data export for customer site integration
+    path("export/products/", views.export_products_excel, name="export_products"),
     # Standalone subcategory — must come before category_detail
     re_path(r"^product/(?P<subcategory_slug>[\w\-]+)/$", views.standalone_subcategory_detail, name="standalone_subcategory_detail"),
     re_path(r"^(?P<category_slug>[\w\-]+)/$", views.category_detail, name="category_detail"),

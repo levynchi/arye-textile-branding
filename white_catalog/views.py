@@ -2,14 +2,16 @@ import json
 import logging
 from functools import wraps
 from decimal import Decimal
+from io import BytesIO
 from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import strip_tags
 from django.views.decorators.http import require_POST
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteCatalogUser, WhiteCatalogUserActivity,
@@ -1029,4 +1031,157 @@ def order_list(request):
         "cart_count": _cart_count(request),
     }
     return render(request, "white_catalog/order_list.html", context)
+
+
+# ---------------------------------------------------------------------------
+# Product data export (for customer site integration)
+# ---------------------------------------------------------------------------
+
+@require_catalog_login
+def export_products_excel(request):
+    """Download the full product catalog as an Excel file.
+
+    One row per product variant (barcode + fabric + size) with wholesale and
+    recommended retail prices, pack prices filtered by the user's pack route,
+    marketing description and absolute image URLs — everything a customer
+    needs to import the products into their own store.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    user = get_current_catalog_user(request)
+    allowed_packs = list(user.get_allowed_pack_types().order_by("order", "quantity"))
+
+    headers = [
+        "ברקוד",
+        "קטגוריה",
+        "שם מוצר",
+        "סוג בד",
+        "מידה",
+        'מחיר סיטונאי ליחידה (לא כולל מע"מ)',
+    ]
+    headers += [f'מחיר {pack.name} (לא כולל מע"מ)' for pack in allowed_packs]
+    headers += [
+        'מחיר קמעונאי מומלץ (לא כולל מע"מ)',
+        "תיאור שיווקי",
+        "קישורי תמונות",
+    ]
+    price_columns = set(range(6, 6 + len(allowed_packs) + 2))  # unit + packs + retail
+    images_column = len(headers)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "קטלוג מוצרים"
+    ws.sheet_view.rightToLeft = True
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="7594B1", end_color="7594B1", fill_type="solid")
+    for col, title in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.freeze_panes = "A2"
+
+    widths = [16, 20, 28, 20, 12] + [18] * (len(allowed_packs) + 2) + [60, 70]
+    for col, width in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+    def clean_html(value):
+        return " ".join(strip_tags(value or "").split())
+
+    def write_row(row_index, values):
+        for col, value in enumerate(values, start=1):
+            cell = ws.cell(row=row_index, column=col, value=value)
+            if col in price_columns and value is not None:
+                cell.number_format = "#,##0.00"
+            if col == images_column:
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+    products = (
+        WhiteSubcategory.objects.filter(is_orderable=True)
+        .select_related("category")
+        .prefetch_related(
+            "images",
+            "variants__fabric_type",
+            "variants__size_type",
+            "variants__pack_types",
+            "variants__pack_prices",
+        )
+        .order_by("category__order", "category__name", "order", "name")
+    )
+
+    row = 2
+    for product in products:
+        category_name = product.category.name if product.category_id else ""
+        description = clean_html(product.marketing_description) or clean_html(product.description)
+        image_urls = "\n".join(
+            request.build_absolute_uri(img["url"]) for img in product.get_all_images()
+        )
+
+        if product.has_order_variants:
+            for variant in product.variants.all():
+                if not variant.is_active:
+                    continue
+                # Empty pack_types on a variant means it is sold in all pack forms.
+                variant_pack_ids = {pt.pk for pt in variant.pack_types.all()}
+                pack_price_map = {pp.pack_type_id: pp.price for pp in variant.pack_prices.all()}
+                effective_unit = (
+                    variant.unit_price if variant.unit_price is not None else product.unit_price
+                )
+
+                pack_cells = []
+                available_in_any_pack = False
+                for pack in allowed_packs:
+                    if variant_pack_ids and pack.pk not in variant_pack_ids:
+                        pack_cells.append(None)
+                        continue
+                    price = pack_price_map.get(pack.pk)
+                    if price is None and effective_unit is not None:
+                        price = effective_unit * pack.quantity
+                    pack_cells.append(price)
+                    available_in_any_pack = True
+
+                if allowed_packs and not available_in_any_pack:
+                    continue
+
+                write_row(row, [
+                    variant.barcode or "",
+                    category_name,
+                    product.name,
+                    variant.fabric_type.name,
+                    variant.size_type.name,
+                    effective_unit,
+                    *pack_cells,
+                    product.online_price,
+                    description,
+                    image_urls,
+                ])
+                row += 1
+        else:
+            write_row(row, [
+                "",
+                category_name,
+                product.name,
+                "",
+                "",
+                product.unit_price,
+                *[None] * len(allowed_packs),
+                product.online_price,
+                description,
+                image_urls,
+            ])
+            row += 1
+
+    buffer = BytesIO()
+    wb.save(buffer)
+
+    filename = f"arye-white-catalog-{timezone.now().strftime('%Y-%m-%d')}.xlsx"
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
