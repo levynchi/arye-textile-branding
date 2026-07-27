@@ -7,6 +7,7 @@ from .models import (
     WhiteCatalogUser, WhiteCatalogUserActivity,
     WhiteFabricType, WhiteSizeType, WhitePackType,
     WhiteProductVariant, WhiteVariantPackPrice,
+    WhiteColor, WhiteColorVariant,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
 )
 
@@ -15,7 +16,7 @@ class WhiteSubcategoryInline(admin.TabularInline):
 	"""Inline admin for WhiteSubcategory within WhiteCategory."""
 	model = WhiteSubcategory
 	extra = 1
-	fields = ("name", "description", "image", "order", "slug", "is_orderable", "has_order_variants")
+	fields = ("name", "description", "image", "order", "slug", "is_orderable", "has_order_variants", "has_color_variants")
 	prepopulated_fields = {"slug": ("name",)}
 
 
@@ -94,12 +95,20 @@ class WhiteProductVariantInline(admin.TabularInline):
 	}
 
 
+class WhiteColorVariantInline(admin.TabularInline):
+	"""Inline: one row = color from the fan + its own barcode."""
+	model = WhiteColorVariant
+	extra = 1
+	fields = ("color", "barcode", "unit_price", "image", "is_active", "order")
+	show_change_link = True
+
+
 @admin.register(WhiteSubcategory)
 class WhiteSubcategoryAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteSubcategory model."""
-	list_display = ("name", "category", "is_orderable", "has_order_variants", "unit_price", "online_price", "order", "created", "updated")
+	list_display = ("name", "category", "is_orderable", "has_order_variants", "has_color_variants", "unit_price", "online_price", "order", "created", "updated")
 	list_editable = ("order",)
-	list_filter = ("category", "is_orderable", "has_order_variants")
+	list_filter = ("category", "is_orderable", "has_order_variants", "has_color_variants")
 	search_fields = ("name", "description", "category__name")
 	prepopulated_fields = {"slug": ("name",)}
 	readonly_fields = ("created", "updated")
@@ -113,11 +122,11 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 			'all': ('https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/skins/ui/oxide/skin.rtl.min.css',)
 		}
 	
-	inlines = [WhiteSubcategoryPriceInline, WhiteSubcategoryImageInline, WhiteProductVariantInline]
+	inlines = [WhiteSubcategoryPriceInline, WhiteSubcategoryImageInline, WhiteProductVariantInline, WhiteColorVariantInline]
 
 	fieldsets = (
 		(None, {
-			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable", "has_order_variants")
+			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable", "has_order_variants", "has_color_variants")
 		}),
 		("מחירים (למוצרים ללא גרסאות)", {
 			"fields": ("unit_price", "simple_price_label", "online_price"),
@@ -275,6 +284,38 @@ class WhitePackTypeAdmin(admin.ModelAdmin):
 	search_fields = ("name",)
 
 
+@admin.register(WhiteColor)
+class WhiteColorAdmin(admin.ModelAdmin):
+	list_display = ("swatch_preview", "name", "hex_color", "order", "is_active")
+	list_display_links = ("name",)
+	list_editable = ("order", "is_active")
+	search_fields = ("name", "hex_color")
+
+	def swatch_preview(self, obj):
+		if obj.swatch_image:
+			return mark_safe(
+				f'<img src="{obj.swatch_image.url}" style="width:28px;height:28px;border-radius:50%;'
+				f'object-fit:cover;border:1px solid #ccc;" />'
+			)
+		if obj.hex_color:
+			return mark_safe(
+				f'<span style="display:inline-block;width:28px;height:28px;border-radius:50%;'
+				f'background:{obj.hex_color};border:1px solid #ccc;"></span>'
+			)
+		return "-"
+	swatch_preview.short_description = "דוגמית"
+
+
+@admin.register(WhiteColorVariant)
+class WhiteColorVariantAdmin(admin.ModelAdmin):
+	list_display = ("product", "color", "barcode", "unit_price", "is_active", "order")
+	list_editable = ("barcode", "unit_price", "is_active", "order")
+	list_filter = ("color", "product", "is_active")
+	search_fields = ("color__name", "product__name", "barcode")
+	ordering = ("product__name", "order", "color__order")
+	list_per_page = 200
+
+
 class WhiteVariantPackPriceInline(admin.TabularInline):
 	model = WhiteVariantPackPrice
 	extra = 1
@@ -326,8 +367,8 @@ class WhiteProductVariantAdmin(admin.ModelAdmin):
 class WhiteCartItemInline(admin.TabularInline):
 	model = WhiteCartItem
 	extra = 0
-	readonly_fields = ("product", "variant", "pack_type", "quantity", "price_at_add", "get_line_total")
-	fields = ("product", "variant", "pack_type", "quantity", "price_at_add", "get_line_total")
+	readonly_fields = ("product", "variant", "color_variant", "pack_type", "quantity", "price_at_add", "get_line_total")
+	fields = ("product", "variant", "color_variant", "pack_type", "quantity", "price_at_add", "get_line_total")
 	can_delete = False
 
 	def get_line_total(self, obj):
@@ -357,8 +398,8 @@ class WhiteCartAdmin(admin.ModelAdmin):
 class WhiteOrderItemInline(admin.TabularInline):
 	model = WhiteOrderItem
 	extra = 0
-	readonly_fields = ("product_name", "variant_name", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
-	fields = ("product_name", "variant_name", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
+	readonly_fields = ("product_name", "variant_name", "color_name", "barcode", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
+	fields = ("product_name", "variant_name", "color_name", "barcode", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
 	can_delete = False
 
 	def get_line_total(self, obj):

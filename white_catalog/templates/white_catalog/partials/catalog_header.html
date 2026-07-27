@@ -371,25 +371,42 @@
     function publishCartQuantitySync(payload) {
         var productId = parseInt(payload && payload.productId, 10);
         var variantId = parseInt(payload && payload.variantId, 10);
+        var colorVariantId = parseInt(payload && payload.colorVariantId, 10);
         var packTypeId = parseInt(payload && payload.packTypeId, 10);
         var quantity = parseInt(payload && payload.quantity, 10);
         if (!Number.isFinite(quantity) || quantity < 0) quantity = 0;
-        var isSimpleProduct = Number.isFinite(productId) && (!Number.isFinite(variantId) || !Number.isFinite(packTypeId));
-        if (!isSimpleProduct && (!Number.isFinite(variantId) || !Number.isFinite(packTypeId))) return;
-        var key = isSimpleProduct ? ('product:' + String(productId)) : (String(variantId) + ':' + String(packTypeId));
+        var isColorVariant = Number.isFinite(colorVariantId);
+        var isSimpleProduct = !isColorVariant && Number.isFinite(productId) && (!Number.isFinite(variantId) || !Number.isFinite(packTypeId));
+        if (!isColorVariant && !isSimpleProduct && (!Number.isFinite(variantId) || !Number.isFinite(packTypeId))) return;
+        var key;
+        if (isColorVariant) {
+            key = 'color:' + String(colorVariantId);
+        } else if (isSimpleProduct) {
+            key = 'product:' + String(productId);
+        } else {
+            key = String(variantId) + ':' + String(packTypeId);
+        }
         var syncMap = readCartQtySyncMap();
-        syncMap[key] = isSimpleProduct
-            ? {
+        if (isColorVariant) {
+            syncMap[key] = {
+                colorVariantId: colorVariantId,
+                quantity: quantity,
+                updatedAt: Date.now()
+            };
+        } else if (isSimpleProduct) {
+            syncMap[key] = {
                 productId: productId,
                 quantity: quantity,
                 updatedAt: Date.now()
-            }
-            : {
+            };
+        } else {
+            syncMap[key] = {
                 variantId: variantId,
                 packTypeId: packTypeId,
                 quantity: quantity,
                 updatedAt: Date.now()
             };
+        }
         try {
             localStorage.setItem(CART_QTY_SYNC_STORAGE_KEY, JSON.stringify(syncMap));
         } catch (e) {}
@@ -498,6 +515,7 @@
                 publishCartQuantitySync({
                     productId: fd.get('product_id'),
                     variantId: fd.get('variant_id'),
+                    colorVariantId: fd.get('color_variant_id'),
                     packTypeId: fd.get('pack_type_id'),
                     quantity: 0
                 });
@@ -579,6 +597,7 @@
                     publishCartQuantitySync({
                         productId: formData.get('product_id'),
                         variantId: formData.get('variant_id'),
+                        colorVariantId: formData.get('color_variant_id'),
                         packTypeId: formData.get('pack_type_id'),
                         quantity: 0
                     });
@@ -595,6 +614,7 @@
                 publishCartQuantitySync({
                     productId: formData.get('product_id'),
                     variantId: formData.get('variant_id'),
+                    colorVariantId: formData.get('color_variant_id'),
                     packTypeId: formData.get('pack_type_id'),
                     quantity: formData.get('quantity')
                 });

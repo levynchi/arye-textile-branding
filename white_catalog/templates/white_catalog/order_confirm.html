@@ -111,13 +111,13 @@
                                 {% endif %}
                                 <div class="mobile-cart-header-text">
                                     <div class="mobile-cart-title">{{ group.product_name }}</div>
-                                    <div class="mobile-cart-meta">{% if group.is_simple %}{{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} ל{{ group.pack_type }}{% else %}{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז{% endif %}</div>
+                                    <div class="mobile-cart-meta">{% if group.is_color %}מניפת צבעים &nbsp;|&nbsp; מחיר ליחידה{% elif group.is_simple %}{{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} ל{{ group.pack_type }}{% else %}{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז{% endif %}</div>
                                 </div>
                             </div>
                             <table class="mobile-sizes-table">
                                 <thead>
                                     <tr>
-                                        <th>{% if group.is_simple %}סוג{% else %}מידה{% endif %}</th>
+                                        <th>{% if group.is_color %}צבע{% elif group.is_simple %}סוג{% else %}מידה{% endif %}</th>
                                         <th>כמות</th>
                                         <th>סה"כ</th>
                                         <th></th>

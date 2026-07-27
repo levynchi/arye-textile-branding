@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteCatalogUser, WhiteCatalogUserActivity,
     WhiteFabricType, WhiteProductVariant, WhiteVariantPackPrice, WhitePackType,
+    WhiteColorVariant,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
 )
 from .middleware import get_client_ip
@@ -123,7 +124,8 @@ def _build_cart_page_context(request):
         return {"cart": None, "grouped_items": [], "cart_count": 0}
     try:
         cart = WhiteCart.objects.prefetch_related(
-            "items__product__images", "items__variant__fabric_type", "items__variant__size_type", "items__pack_type"
+            "items__product__images", "items__variant__fabric_type", "items__variant__size_type",
+            "items__color_variant__color", "items__pack_type"
         ).get(user=user, status=WhiteCart.STATUS_ACTIVE)
     except WhiteCart.DoesNotExist:
         cart = None
@@ -132,7 +134,9 @@ def _build_cart_page_context(request):
     if cart:
         groups_map = {}
         for item in cart.items.all():
-            if not item.variant_id or not item.pack_type_id:
+            if item.color_variant_id:
+                key = ("color", item.product_id)
+            elif not item.variant_id or not item.pack_type_id:
                 key = ("simple", item.product_id)
             else:
                 key = (item.product_id, item.variant.fabric_type_id, item.pack_type_id)
@@ -149,17 +153,46 @@ def _build_cart_page_context(request):
                     "group_total": Decimal("0"),
                     "items_by_variant_id": {},
                     "is_simple": item.is_simple_item,
+                    "is_color": bool(item.color_variant_id),
                 }
                 if item.variant_id and item.pack_type_id:
                     group["pack_type_obj"] = item.pack_type
                     group["fabric_type_id"] = item.variant.fabric_type_id
                 groups_map[key] = group
                 grouped_items.append(group)
-            groups_map[key]["items_by_variant_id"][item.variant_id or f"simple-{item.product_id}"] = item
+            groups_map[key]["items_by_variant_id"][
+                item.color_variant_id or item.variant_id or f"simple-{item.product_id}"
+            ] = item
             groups_map[key]["group_total"] += item.price_at_add * item.quantity
 
         for group in grouped_items:
-            if group["is_simple"]:
+            if group["is_color"]:
+                color_variants = (
+                    group["product"].color_variants.filter(is_active=True)
+                    .select_related("color")
+                )
+                for cv in color_variants:
+                    existing_item = group["items_by_variant_id"].get(cv.id)
+                    quantity = existing_item.quantity if existing_item else 0
+                    line_total = existing_item.get_line_total() if existing_item else Decimal("0")
+                    group["items"].append(
+                        {
+                            "item_id": existing_item.id if existing_item else "",
+                            "variant_id": "",
+                            "color_variant_id": cv.id,
+                            "pack_type_id": "",
+                            "barcode": cv.barcode or "",
+                            "size_name": cv.color.name,
+                            "color_hex": cv.color.hex_color or "",
+                            "swatch_url": cv.color.swatch_image.url if cv.color.swatch_image else "",
+                            "quantity": quantity,
+                            "line_total": "{:.2f}".format(line_total),
+                            "has_item": bool(existing_item),
+                            "is_simple": False,
+                            "is_color": True,
+                        }
+                    )
+            elif group["is_simple"]:
                 existing_item = group["items_by_variant_id"].get(f"simple-{group['product'].id}")
                 group["items"].append(
                     {
@@ -220,8 +253,11 @@ def _build_order_grouped_items(order):
     groups_map = {}
 
     for item in order.items.all():
-        is_simple = not item.variant_id
-        if is_simple:
+        is_color = bool(item.color_name) or bool(item.color_variant_id)
+        is_simple = not item.variant_id and not is_color
+        if is_color:
+            key = ("color", item.product_id or item.product_name)
+        elif is_simple:
             key = ("simple", item.product_id or item.product_name)
         else:
             fabric_name = item.variant.fabric_type.name if item.variant_id and item.variant and item.variant.fabric_type_id else item.variant_name
@@ -229,26 +265,36 @@ def _build_order_grouped_items(order):
 
         if key not in groups_map:
             product_image = item.product.get_main_image() if item.product_id and item.product else None
+            if is_color:
+                fabric_label = "מניפת צבעים"
+            elif is_simple:
+                fabric_label = "ללא גרסאות"
+            else:
+                fabric_label = item.variant.fabric_type.name if item.variant_id and item.variant and item.variant.fabric_type_id else item.variant_name
             group = {
                 "product_name": item.product_name,
                 "product_image": product_image,
-                "fabric_type": (
-                    "ללא גרסאות"
-                    if is_simple
-                    else (item.variant.fabric_type.name if item.variant_id and item.variant and item.variant.fabric_type_id else item.variant_name)
-                ),
+                "fabric_type": fabric_label,
                 "pack_type": item.pack_type_name,
                 "price_at_add": item.unit_price,
                 "items": [],
                 "group_total": Decimal("0"),
                 "is_simple": is_simple,
+                "is_color": is_color,
             }
             groups_map[key] = group
             grouped_items.append(group)
 
+        if is_color:
+            row_name = item.color_name or item.variant_name
+        elif is_simple:
+            row_name = "יחידות"
+        else:
+            row_name = item.size_name
         groups_map[key]["items"].append(
             {
-                "size_name": "יחידות" if is_simple else item.size_name,
+                "size_name": row_name,
+                "barcode": item.barcode or "",
                 "quantity": item.quantity,
                 "line_total": "{:.2f}".format(item.get_line_total()),
             }
@@ -308,18 +354,31 @@ def barcode_search(request):
         .select_related("product", "product__category", "fabric_type", "size_type")
         .first()
     )
+
+    color_variant = None
     if not variant or not variant.product_id:
+        color_variant = (
+            WhiteColorVariant.objects.filter(barcode__iexact=q, is_active=True)
+            .select_related("product", "product__category", "color")
+            .first()
+        )
+
+    if variant and variant.product_id:
+        product = variant.product
+        query = urlencode({
+            "fabric": variant.fabric_type_id,
+            "variant": variant.id,
+        })
+    elif color_variant and color_variant.product_id:
+        product = color_variant.product
+        query = urlencode({"color_variant": color_variant.id})
+    else:
         messages.error(request, f'לא נמצא מוצר עם ברקוד "{q}"')
         referer = request.META.get("HTTP_REFERER")
         if referer:
             return redirect(referer)
         return redirect("white_catalog:home")
 
-    product = variant.product
-    query = urlencode({
-        "fabric": variant.fabric_type_id,
-        "variant": variant.id,
-    })
     if product.category_id:
         url = reverse(
             "white_catalog:subcategory_detail",
@@ -352,11 +411,19 @@ def _subcategory_detail_context(request, subcategory, category=None):
     """Build context for subcategory detail views."""
     catalog_user = get_current_catalog_user(request)
     show_variant_ordering = bool(catalog_user and subcategory.is_orderable and subcategory.has_order_variants)
-    show_simple_ordering = bool(catalog_user and subcategory.is_orderable and not subcategory.has_order_variants)
+    show_color_ordering = bool(
+        catalog_user and subcategory.is_orderable
+        and subcategory.has_color_variants and not subcategory.has_order_variants
+    )
+    show_simple_ordering = bool(
+        catalog_user and subcategory.is_orderable
+        and not subcategory.has_order_variants and not subcategory.has_color_variants
+    )
 
     # Build variants JSON grouped by fabric_type for the ordering widget
     variants_data = []
     pack_types_data = []
+    color_variants_data = []
     simple_cart_quantity = 0
     active_cart = None
     if catalog_user:
@@ -423,6 +490,31 @@ def _subcategory_detail_context(request, subcategory, category=None):
                 },
             })
         variants_data = list(fabric_map.values())
+    elif show_color_ordering:
+        cart_qty_map = {}
+        if active_cart:
+            cart_qty_map = {
+                item.color_variant_id: item.quantity
+                for item in active_cart.items.filter(
+                    product=subcategory,
+                    color_variant__isnull=False,
+                )
+            }
+
+        for cv in (subcategory.color_variants
+                   .filter(is_active=True, color__is_active=True)
+                   .select_related("color")):
+            effective_price = cv.get_effective_price()
+            color_variants_data.append({
+                "id": cv.id,
+                "color_name": cv.color.name,
+                "hex_color": cv.color.hex_color or "",
+                "swatch_url": cv.color.swatch_image.url if cv.color.swatch_image else "",
+                "image_url": cv.image.url if cv.image else "",
+                "barcode": cv.barcode or "",
+                "unit_price": str(effective_price) if effective_price is not None else None,
+                "cart_quantity": cart_qty_map.get(cv.id, 0),
+            })
     elif show_simple_ordering and active_cart:
         simple_item = (
             active_cart.items.filter(
@@ -442,9 +534,11 @@ def _subcategory_detail_context(request, subcategory, category=None):
         "subcategory_images": subcategory.images.all(),
         "catalog_user": catalog_user,
         "show_variant_ordering": show_variant_ordering,
+        "show_color_ordering": show_color_ordering,
         "show_simple_ordering": show_simple_ordering,
         "variants_data": variants_data,
         "pack_types_data": pack_types_data,
+        "color_variants_data": color_variants_data,
         "simple_cart_quantity": simple_cart_quantity,
         "cart_count": _cart_count(request),
     }
@@ -565,6 +659,12 @@ def cart_add(request):
             messages.error(request, "למוצר זה יש להזין הזמנה לפי גרסאות ומארזים")
             return redirect(request.POST.get("next") or "white_catalog:cart")
 
+        if product.has_color_variants:
+            if want_json:
+                return JsonResponse({"ok": False, "error": "למוצר זה יש להזין הזמנה לפי מניפת הצבעים"}, status=400)
+            messages.error(request, "למוצר זה יש להזין הזמנה לפי מניפת הצבעים")
+            return redirect(request.POST.get("next") or "white_catalog:cart")
+
         try:
             quantity = int((simple_quantity_raw or "").strip() or 0)
         except (TypeError, ValueError, AttributeError):
@@ -585,6 +685,7 @@ def cart_add(request):
                 product=product,
                 variant__isnull=True,
                 pack_type__isnull=True,
+                color_variant__isnull=True,
             )
             .first()
         )
@@ -623,6 +724,71 @@ def cart_add(request):
             messages.success(request, "דף ההזמנה עודכן")
         else:
             messages.info(request, "המוצר הוסר מדף ההזמנה")
+        return redirect(request.POST.get("next") or "white_catalog:cart")
+
+    # Color-fan ordering: one quantity per color variant, no pack types.
+    if any(key.startswith("color_qty_") for key in request.POST):
+        added = 0
+        for key, value in request.POST.items():
+            if not key.startswith("color_qty_"):
+                continue
+            try:
+                color_variant_id = key[len("color_qty_"):]
+                raw = (value or "").strip()
+                quantity = 0 if raw == "" else int(raw)
+            except (ValueError, TypeError, AttributeError):
+                continue
+
+            if quantity < 0:
+                continue
+
+            try:
+                color_variant = WhiteColorVariant.objects.select_related("product").get(
+                    pk=color_variant_id, is_active=True
+                )
+            except (WhiteColorVariant.DoesNotExist, ValueError):
+                continue
+
+            if not color_variant.product.is_orderable or not color_variant.product.has_color_variants:
+                continue
+
+            effective_price = color_variant.get_effective_price()
+            if effective_price is None:
+                continue
+
+            if quantity == 0:
+                WhiteCartItem.objects.filter(cart=cart, color_variant=color_variant).delete()
+            else:
+                WhiteCartItem.objects.update_or_create(
+                    cart=cart,
+                    color_variant=color_variant,
+                    defaults={
+                        "product": color_variant.product,
+                        "quantity": quantity,
+                        "price_at_add": effective_price,
+                    },
+                )
+                added += 1
+
+        if want_json:
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "added": added,
+                    "cart_count": cart.get_item_count(),
+                    "message": (
+                        f"דף ההזמנה עודכן — {added} צבעים נוספו"
+                        if added
+                        else "לא נוספו פריטים להזמנה"
+                    ),
+                }
+            )
+
+        if added:
+            messages.success(request, f"דף ההזמנה עודכן — {added} צבעים נוספו")
+        else:
+            messages.info(request, "לא נוספו פריטים להזמנה")
+
         return redirect(request.POST.get("next") or "white_catalog:cart")
 
     pack_type_id = request.POST.get("pack_type_id")
@@ -741,6 +907,7 @@ def cart_update(request):
     item_id = request.POST.get("item_id")
     action = request.POST.get("action")  # "update" or "remove"
     variant_id = request.POST.get("variant_id")
+    color_variant_id = request.POST.get("color_variant_id")
     pack_type_id = request.POST.get("pack_type_id")
     product_id = request.POST.get("product_id")
     is_ajax = request.POST.get("format") == "json"
@@ -759,6 +926,7 @@ def cart_update(request):
     item = None
     pack_type = None
     variant = None
+    color_variant = None
     product = None
     if item_id:
         try:
@@ -800,10 +968,27 @@ def cart_update(request):
             .filter(cart=cart, variant=variant, pack_type=pack_type)
             .first()
         )
+    elif action == "update" and color_variant_id:
+        cart = get_or_create_active_cart(user)
+        try:
+            color_variant = WhiteColorVariant.objects.select_related("product").get(
+                pk=color_variant_id,
+                is_active=True,
+            )
+        except (WhiteColorVariant.DoesNotExist, TypeError, ValueError):
+            if is_ajax:
+                return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
+            messages.error(request, "הפריט לא נמצא")
+            return redirect("white_catalog:cart")
+        item = (
+            WhiteCartItem.objects.select_related("cart")
+            .filter(cart=cart, color_variant=color_variant)
+            .first()
+        )
     elif action == "update" and product_id:
         cart = get_or_create_active_cart(user)
         try:
-            product = WhiteSubcategory.objects.get(pk=product_id, is_orderable=True, has_order_variants=False)
+            product = WhiteSubcategory.objects.get(pk=product_id, is_orderable=True, has_order_variants=False, has_color_variants=False)
         except (WhiteSubcategory.DoesNotExist, TypeError, ValueError):
             if is_ajax:
                 return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
@@ -811,7 +996,7 @@ def cart_update(request):
             return redirect("white_catalog:cart")
         item = (
             WhiteCartItem.objects.select_related("cart")
-            .filter(cart=cart, product=product, variant__isnull=True, pack_type__isnull=True)
+            .filter(cart=cart, product=product, variant__isnull=True, pack_type__isnull=True, color_variant__isnull=True)
             .first()
         )
     else:
@@ -881,6 +1066,8 @@ def cart_update(request):
             if not item:
                 if product:
                     effective_price = product.unit_price
+                elif color_variant:
+                    effective_price = color_variant.get_effective_price()
                 else:
                     effective_price = variant.unit_price if variant.unit_price is not None else variant.product.unit_price
                 if effective_price is None:
@@ -894,6 +1081,16 @@ def cart_update(request):
                         product=product,
                         quantity=qty,
                         price_at_add=effective_price,
+                    )
+                elif color_variant:
+                    item, _ = WhiteCartItem.objects.update_or_create(
+                        cart=cart,
+                        color_variant=color_variant,
+                        defaults={
+                            "product": color_variant.product,
+                            "quantity": qty,
+                            "price_at_add": effective_price,
+                        },
                     )
                 else:
                     item, _ = WhiteCartItem.objects.update_or_create(
@@ -956,7 +1153,8 @@ def checkout(request):
     user = get_current_catalog_user(request)
     try:
         cart = WhiteCart.objects.prefetch_related(
-            "items__product", "items__variant__fabric_type", "items__variant__size_type", "items__pack_type"
+            "items__product", "items__variant__fabric_type", "items__variant__size_type",
+            "items__color_variant__color", "items__pack_type"
         ).get(user=user, status=WhiteCart.STATUS_ACTIVE)
     except WhiteCart.DoesNotExist:
         messages.error(request, "דף ההזמנה ריק")
@@ -977,13 +1175,24 @@ def checkout(request):
         total_amount=total,
     )
 
-    for item in cart.items.select_related("product", "variant__fabric_type", "variant__size_type", "pack_type").all():
+    for item in cart.items.select_related(
+        "product", "variant__fabric_type", "variant__size_type", "color_variant__color", "pack_type"
+    ).all():
+        if item.color_variant_id:
+            snapshot_barcode = item.color_variant.barcode or ""
+        elif item.variant_id:
+            snapshot_barcode = item.variant.barcode or ""
+        else:
+            snapshot_barcode = ""
         WhiteOrderItem.objects.create(
             order=order,
             product=item.product,
             variant=item.variant,
+            color_variant=item.color_variant,
             product_name=item.product.name,
-            variant_name=item.display_variant_name,
+            variant_name="מניפת צבעים" if item.color_variant_id else item.display_variant_name,
+            color_name=item.color_variant.color.name if item.color_variant_id else "",
+            barcode=snapshot_barcode,
             size_name=item.display_size_name,
             pack_type_name=item.display_pack_name,
             pack_quantity=item.pack_type.quantity if item.pack_type_id else 1,
@@ -1059,6 +1268,7 @@ def export_products_excel(request):
         "שם מוצר",
         "סוג בד",
         "מידה",
+        "צבע",
         'מחיר סיטונאי ליחידה (לא כולל מע"מ)',
     ]
     headers += [f'מחיר {pack.name} (לא כולל מע"מ)' for pack in allowed_packs]
@@ -1067,7 +1277,7 @@ def export_products_excel(request):
         "תיאור שיווקי",
         "קישורי תמונות",
     ]
-    price_columns = set(range(6, 6 + len(allowed_packs) + 2))  # unit + packs + retail
+    price_columns = set(range(7, 7 + len(allowed_packs) + 2))  # unit + packs + retail
     images_column = len(headers)
 
     wb = Workbook()
@@ -1084,7 +1294,7 @@ def export_products_excel(request):
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws.freeze_panes = "A2"
 
-    widths = [16, 20, 28, 20, 12] + [18] * (len(allowed_packs) + 2) + [60, 70]
+    widths = [16, 20, 28, 20, 12, 14] + [18] * (len(allowed_packs) + 2) + [60, 70]
     for col, width in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(col)].width = width
 
@@ -1108,6 +1318,7 @@ def export_products_excel(request):
             "variants__size_type",
             "variants__pack_types",
             "variants__pack_prices",
+            "color_variants__color",
         )
         .order_by("category__order", "category__name", "order", "name")
     )
@@ -1152,6 +1363,7 @@ def export_products_excel(request):
                     product.name,
                     variant.fabric_type.name,
                     variant.size_type.name,
+                    "",
                     effective_unit,
                     *pack_cells,
                     product.online_price,
@@ -1159,11 +1371,36 @@ def export_products_excel(request):
                     image_urls,
                 ])
                 row += 1
+        elif product.has_color_variants:
+            for color_variant in product.color_variants.all():
+                if not color_variant.is_active:
+                    continue
+                color_image_urls = image_urls
+                if color_variant.image:
+                    color_image_urls = "\n".join(filter(None, [
+                        request.build_absolute_uri(color_variant.image.url),
+                        image_urls,
+                    ]))
+                write_row(row, [
+                    color_variant.barcode or "",
+                    category_name,
+                    product.name,
+                    "",
+                    "",
+                    color_variant.color.name,
+                    color_variant.get_effective_price(),
+                    *[None] * len(allowed_packs),
+                    product.online_price,
+                    description,
+                    color_image_urls,
+                ])
+                row += 1
         else:
             write_row(row, [
                 "",
                 category_name,
                 product.name,
+                "",
                 "",
                 "",
                 product.unit_price,
@@ -1250,7 +1487,7 @@ def export_order_excel(request, order_number):
 
     row = 2
     for item in order.items.all():
-        barcode = item.variant.barcode if item.variant_id and item.variant else None
+        barcode = item.barcode or (item.variant.barcode if item.variant_id and item.variant else None)
         product = item.product if item.product_id else None
         online_price = product.online_price if product else None
         image_urls = "\n".join(

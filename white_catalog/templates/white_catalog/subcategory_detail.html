@@ -351,6 +351,83 @@
                 width: calc(100vw - 32px);
             }
         }
+
+        /* ---- Color fan ordering ---- */
+        .color-fan {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin: 8px 0 16px;
+        }
+        .color-chip {
+            width: 104px;
+            background: white;
+            border: 2px solid #e3e6ea;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 8px 8px 10px;
+            text-align: center;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+        }
+        .color-chip.is-selected {
+            border-color: #7594b1;
+            box-shadow: 0 8px 18px rgba(117,148,177,0.35);
+            transform: translateY(-4px);
+        }
+        .color-chip.has-qty {
+            border-color: #7594b1;
+        }
+        .color-chip-swatch {
+            display: block;
+            width: 100%;
+            height: 84px;
+            border: 1px solid rgba(0,0,0,0.10);
+            border-radius: 8px 8px 4px 4px;
+            padding: 0;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            background-size: cover;
+            background-position: center;
+            transition: filter 0.15s;
+        }
+        .color-chip-swatch:hover { filter: brightness(0.94); }
+        .color-chip-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #333;
+            margin-top: 7px;
+            line-height: 1.2;
+        }
+        .color-chip-barcode {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #355230;
+            direction: ltr;
+            unicode-bidi: isolate;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 3px;
+        }
+        .color-chip-barcode.is-empty {
+            color: #aaa;
+            font-family: inherit;
+            font-weight: 600;
+        }
+        .color-chip-price {
+            font-weight: 800;
+            color: #7594b1;
+            font-size: 0.92rem;
+            margin-top: 3px;
+        }
+        .color-chip-qty { margin-top: 7px; }
+        .color-chip-qty .qty-input { width: 68px; }
+        @media (max-width: 640px) {
+            .color-fan { gap: 10px; }
+            .color-chip { width: calc((100% - 20px) / 3); min-width: 92px; }
+            .color-chip-swatch { height: 70px; }
+        }
     </style>
 </head>
 <body class="catalog-body">
@@ -884,6 +961,281 @@
                             })();
                             </script>
 
+                        {% elif show_color_ordering %}
+                            <!-- ===== Color-fan Ordering Widget ===== -->
+                            <div class="ordering-widget">
+                                {% for message in messages %}
+                                    <div class="order-message order-message-{{ message.tags }}">{{ message }}</div>
+                                {% endfor %}
+                                <div id="orderToast" class="order-toast" role="status" aria-live="polite" aria-atomic="true">
+                                    <span class="order-toast-badge">✓</span>
+                                    <div id="orderToastText" class="order-toast-text"></div>
+                                </div>
+
+                                <form id="colorOrderForm" method="post" action="{% url 'white_catalog:cart_add' %}" novalidate>
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <input type="hidden" name="product_id" value="{{ subcategory.id }}">
+
+                                    {% if color_variants_data %}
+                                        <label class="variant-label">בחר צבעים מהמניפה והזן כמות לכל צבע:</label>
+                                        <div class="color-fan" id="colorFan">
+                                            {% for cv in color_variants_data %}
+                                            <div class="color-chip{% if cv.cart_quantity %} has-qty{% endif %}" data-color-variant-id="{{ cv.id }}">
+                                                <button type="button" class="color-chip-swatch" aria-label="בחר צבע {{ cv.color_name }}"
+                                                    {% if cv.swatch_url %}style="background-image:url('{{ cv.swatch_url }}');"{% elif cv.hex_color %}style="background-color: {{ cv.hex_color }};"{% endif %}></button>
+                                                <div class="color-chip-name">{{ cv.color_name }}</div>
+                                                {% if cv.barcode %}
+                                                    <div class="color-chip-barcode" title="{{ cv.barcode }}">{{ cv.barcode }}</div>
+                                                {% else %}
+                                                    <div class="color-chip-barcode is-empty">&mdash;</div>
+                                                {% endif %}
+                                                {% if cv.unit_price %}
+                                                    <div class="color-chip-price">₪{{ cv.unit_price }}</div>
+                                                {% endif %}
+                                                <div class="color-chip-qty">
+                                                    <input type="number" name="color_qty_{{ cv.id }}" min="0" step="1"
+                                                        value="{% if cv.cart_quantity %}{{ cv.cart_quantity }}{% endif %}"
+                                                        class="qty-input" placeholder="0" inputmode="numeric"
+                                                        {% if not cv.unit_price %}disabled{% endif %}
+                                                        oninput="syncColorQtyChange(this)"
+                                                        onblur="syncColorQtyBlur(this)">
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <div id="colorTotalSummary" style="font-weight:700; margin:10px 0; color:#333;"></div>
+                                        <div class="order-actions product-order-actions">
+                                            <button type="button" class="btn-view-cart js-open-cart-drawer">דף הזמנה ({{ cart_count }})</button>
+                                            <a href="{% url 'white_catalog:home' %}" class="btn-add-more">
+                                                <span class="btn-add-more-lines">חזור לקטלוג</span>
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="order-message order-message-info">אין צבעים זמינים למוצר זה כרגע.</div>
+                                    {% endif %}
+                                </form>
+                            </div>
+
+                            {{ color_variants_data|json_script:"color-variants-data" }}
+                            <script>
+                            (function() {
+                                const dataEl = document.getElementById('color-variants-data');
+                                const colorVariants = dataEl ? JSON.parse(dataEl.textContent) : [];
+                                const form = document.getElementById('colorOrderForm');
+                                const fan = document.getElementById('colorFan');
+                                const orderToast = document.getElementById('orderToast');
+                                const orderToastText = document.getElementById('orderToastText');
+                                const totalSummary = document.getElementById('colorTotalSummary');
+                                let orderToastTimer = null;
+                                let colorSyncTimer = null;
+
+                                if (!form || !fan) return;
+
+                                const byId = {};
+                                colorVariants.forEach(function(cv) { byId[cv.id] = cv; });
+
+                                function showFirstAddToast() {
+                                    if (!orderToast || !orderToastText) return;
+                                    orderToastText.textContent = 'נוסף לעגלה';
+                                    orderToast.classList.add('is-visible');
+                                    clearTimeout(orderToastTimer);
+                                    orderToastTimer = setTimeout(function() {
+                                        orderToast.classList.remove('is-visible');
+                                    }, 3200);
+                                }
+
+                                function getProductCartQuantityTotal() {
+                                    let total = 0;
+                                    colorVariants.forEach(function(cv) {
+                                        const qty = parseInt(cv.cart_quantity, 10);
+                                        if (Number.isFinite(qty) && qty > 0) total += qty;
+                                    });
+                                    return total;
+                                }
+
+                                function chipFor(id) {
+                                    return fan.querySelector('.color-chip[data-color-variant-id="' + id + '"]');
+                                }
+                                function inputFor(id) {
+                                    return form.querySelector('input[name="color_qty_' + id + '"]');
+                                }
+
+                                function selectColorChip(id) {
+                                    fan.querySelectorAll('.color-chip').forEach(function(chip) {
+                                        const chipId = parseInt(chip.getAttribute('data-color-variant-id'), 10);
+                                        chip.classList.toggle('is-selected', chipId === id);
+                                    });
+                                    const cv = byId[id];
+                                    if (cv && cv.image_url) {
+                                        const mainImage = document.getElementById('mainImage');
+                                        if (mainImage) mainImage.src = cv.image_url;
+                                        document.querySelectorAll('.thumbnail').forEach(function(t) { t.classList.remove('active'); });
+                                    }
+                                }
+
+                                fan.querySelectorAll('.color-chip').forEach(function(chip) {
+                                    const id = parseInt(chip.getAttribute('data-color-variant-id'), 10);
+                                    const swatch = chip.querySelector('.color-chip-swatch');
+                                    if (swatch) swatch.addEventListener('click', function() { selectColorChip(id); });
+                                    const input = chip.querySelector('input.qty-input');
+                                    if (input) input.addEventListener('focus', function() { selectColorChip(id); });
+                                });
+
+                                function normalizeQtyInput(input) {
+                                    var v = (input.value || '').trim();
+                                    if (v === '') {
+                                        input.value = '';
+                                        return 0;
+                                    }
+                                    var n = parseInt(v, 10);
+                                    if (isNaN(n) || n < 0) {
+                                        input.value = '';
+                                        return 0;
+                                    }
+                                    input.value = String(n);
+                                    return n;
+                                }
+
+                                window.updateColorTotal = function() {
+                                    let totalUnits = 0, totalPrice = 0;
+                                    colorVariants.forEach(function(cv) {
+                                        const input = inputFor(cv.id);
+                                        if (!input) return;
+                                        const qty = parseInt(input.value, 10);
+                                        const qtyNum = Number.isFinite(qty) && qty > 0 ? qty : 0;
+                                        const price = cv.unit_price ? parseFloat(cv.unit_price) : 0;
+                                        totalUnits += qtyNum;
+                                        totalPrice += qtyNum * price;
+                                        const chip = chipFor(cv.id);
+                                        if (chip) chip.classList.toggle('has-qty', qtyNum > 0);
+                                    });
+                                    totalSummary.textContent = totalUnits > 0
+                                        ? 'סה"כ: ' + totalUnits + ' יחידות | ₪' + totalPrice.toFixed(2) + ' (לא כולל מע"מ)'
+                                        : '';
+                                };
+
+                                function updateLocalCartQuantities() {
+                                    colorVariants.forEach(function(cv) {
+                                        const input = inputFor(cv.id);
+                                        if (!input) return;
+                                        const qty = parseInt(input.value, 10);
+                                        cv.cart_quantity = Number.isFinite(qty) && qty > 0 ? qty : 0;
+                                    });
+                                }
+
+                                function publishColorQuantities() {
+                                    if (typeof window.publishCartQuantitySync !== 'function') return;
+                                    colorVariants.forEach(function(cv) {
+                                        window.publishCartQuantitySync({
+                                            colorVariantId: cv.id,
+                                            quantity: cv.cart_quantity || 0,
+                                            silent: true
+                                        });
+                                    });
+                                }
+
+                                function syncColorOrder(immediate) {
+                                    const activeInput = document.activeElement && document.activeElement.matches('input.qty-input')
+                                        ? document.activeElement
+                                        : null;
+                                    if (!immediate && activeInput && activeInput.value === '') return;
+                                    const productQtyBeforeSync = getProductCartQuantityTotal();
+                                    clearTimeout(colorSyncTimer);
+                                    const runSync = function() {
+                                        const fd = new FormData(form);
+                                        fd.append('format', 'json');
+                                        fetch(form.getAttribute('action') || form.action, {
+                                            method: 'POST',
+                                            body: fd,
+                                            credentials: 'same-origin',
+                                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                                        })
+                                            .then(function(r) { return r.json(); })
+                                            .then(function(data) {
+                                                if (!data.ok) return;
+                                                updateLocalCartQuantities();
+                                                publishColorQuantities();
+                                                const productQtyAfterSync = getProductCartQuantityTotal();
+                                                if (typeof window.setHeaderCartCount === 'function') window.setHeaderCartCount(data.cart_count);
+                                                var viewCartLink = document.querySelector('.btn-view-cart');
+                                                if (viewCartLink) viewCartLink.textContent = 'דף הזמנה (' + data.cart_count + ')';
+                                                if (typeof window.flashCartIndicator === 'function' && data.added > 0) window.flashCartIndicator();
+                                                if (productQtyBeforeSync === 0 && productQtyAfterSync > 0) showFirstAddToast();
+                                                var drawer = document.getElementById('cartDrawer');
+                                                if (drawer && drawer.classList.contains('is-open') && typeof window.refreshCartDrawer === 'function') {
+                                                    window.refreshCartDrawer();
+                                                }
+                                            })
+                                            .catch(function(error) {
+                                                console.error('color-order-cart-sync-failed', error);
+                                            });
+                                    };
+                                    if (immediate) {
+                                        runSync();
+                                    } else {
+                                        colorSyncTimer = setTimeout(runSync, 500);
+                                    }
+                                }
+
+                                window.syncColorQtyChange = function(input) {
+                                    window.updateColorTotal();
+                                    syncColorOrder(false);
+                                };
+                                window.syncColorQtyBlur = function(input) {
+                                    normalizeQtyInput(input);
+                                    window.updateColorTotal();
+                                    syncColorOrder(true);
+                                };
+
+                                function applySyncedQuantity(colorVariantId, quantity) {
+                                    const cv = byId[colorVariantId];
+                                    if (!cv) return;
+                                    cv.cart_quantity = quantity;
+                                    const input = inputFor(colorVariantId);
+                                    if (input && document.activeElement !== input) {
+                                        input.value = quantity > 0 ? String(quantity) : '';
+                                    }
+                                    window.updateColorTotal();
+                                }
+
+                                window.addEventListener('white-catalog-cart-quantity-sync', function(event) {
+                                    const detail = event.detail || {};
+                                    const colorVariantId = parseInt(detail.colorVariantId, 10);
+                                    if (!Number.isFinite(colorVariantId)) return;
+                                    const quantity = parseInt(detail.quantity, 10);
+                                    applySyncedQuantity(colorVariantId, Number.isFinite(quantity) && quantity > 0 ? quantity : 0);
+                                });
+
+                                function mergeStoredQuantities() {
+                                    if (typeof window.readCartQtySyncMap !== 'function') return;
+                                    const syncMap = window.readCartQtySyncMap();
+                                    Object.keys(syncMap).forEach(function(key) {
+                                        const entry = syncMap[key];
+                                        if (!entry) return;
+                                        const colorVariantId = parseInt(entry.colorVariantId, 10);
+                                        if (!Number.isFinite(colorVariantId)) return;
+                                        const quantity = parseInt(entry.quantity, 10);
+                                        applySyncedQuantity(colorVariantId, Number.isFinite(quantity) && quantity > 0 ? quantity : 0);
+                                    });
+                                }
+
+                                window.addEventListener('pageshow', mergeStoredQuantities);
+
+                                (function applyColorDeepLink() {
+                                    const params = new URLSearchParams(window.location.search);
+                                    const colorParam = parseInt(params.get('color_variant'), 10);
+                                    if (!Number.isFinite(colorParam) || !byId[colorParam]) return;
+                                    selectColorChip(colorParam);
+                                    const chip = chipFor(colorParam);
+                                    if (chip) chip.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                })();
+
+                                mergeStoredQuantities();
+                                window.updateColorTotal();
+                            })();
+                            </script>
+
                         {% elif show_simple_ordering %}
                             <div class="ordering-widget">
                                 {% for message in messages %}
@@ -1226,7 +1578,7 @@
     {% if catalog_user and subcategory.is_orderable %}
     <script>
     (function() {
-        var form = document.getElementById('orderForm') || document.getElementById('simpleOrderForm');
+        var form = document.getElementById('orderForm') || document.getElementById('colorOrderForm') || document.getElementById('simpleOrderForm');
         if (!form) return;
         form.addEventListener('submit', function(e) {
             e.preventDefault();

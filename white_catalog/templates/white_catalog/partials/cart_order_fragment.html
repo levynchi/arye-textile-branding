@@ -19,16 +19,21 @@
                         <tr>
                             <td data-label="מוצר"><strong>{{ item.product.name }}</strong></td>
                             <td data-label="סוג בד">{{ item.display_fabric_name }}</td>
+                            {% if item.is_color_item %}
+                            <td data-label="ברקוד" class="col-barcode{% if not item.color_variant.barcode %} is-empty{% endif %}">{% if item.color_variant.barcode %}{{ item.color_variant.barcode }}{% else %}—{% endif %}</td>
+                            {% else %}
                             <td data-label="ברקוד" class="col-barcode{% if not item.variant_id or not item.variant.barcode %} is-empty{% endif %}">{% if item.variant_id and item.variant.barcode %}{{ item.variant.barcode }}{% else %}—{% endif %}</td>
+                            {% endif %}
                             <td data-label="מידה">{{ item.display_size_name }}</td>
                             <td data-label="מארז">{{ item.display_pack_name }}</td>
-                            <td data-label="מחיר">{% if item.is_simple_item %}₪{{ item.price_at_add }} ל{{ item.display_pack_name }}{% else %}₪{{ item.price_at_add }} למארז{% endif %}</td>
+                            <td data-label="מחיר">{% if item.is_color_item %}₪{{ item.price_at_add }} ליחידה{% elif item.is_simple_item %}₪{{ item.price_at_add }} ל{{ item.display_pack_name }}{% else %}₪{{ item.price_at_add }} למארז{% endif %}</td>
                             <td data-label="כמות">
                                 <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">
                                     {% csrf_token %}
                                     <input type="hidden" name="item_id" value="{{ item.id }}">
                                     <input type="hidden" name="product_id" value="{{ item.product_id }}">
                                     <input type="hidden" name="variant_id" value="{{ item.variant_id|default_if_none:'' }}">
+                                    <input type="hidden" name="color_variant_id" value="{{ item.color_variant_id|default_if_none:'' }}">
                                     <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id|default_if_none:'' }}">
                                     <input type="hidden" name="action" value="update">
                                     <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)" onblur="updateCartQtyNow(this)">
@@ -41,6 +46,7 @@
                                     <input type="hidden" name="item_id" value="{{ item.id }}">
                                     <input type="hidden" name="product_id" value="{{ item.product_id }}">
                                     <input type="hidden" name="variant_id" value="{{ item.variant_id|default_if_none:'' }}">
+                                    <input type="hidden" name="color_variant_id" value="{{ item.color_variant_id|default_if_none:'' }}">
                                     <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id|default_if_none:'' }}">
                                     <input type="hidden" name="action" value="remove">
                                     <button type="submit" class="btn-remove">✕ הסר</button>
@@ -66,14 +72,14 @@
                             {% endif %}
                             <div class="mobile-cart-header-text">
                                 <div class="mobile-cart-title">{{ group.product_name }}</div>
-                                <div class="mobile-cart-meta">{% if group.is_simple %}{{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} ל{{ group.pack_type }}{% else %}{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז{% endif %}</div>
+                                <div class="mobile-cart-meta">{% if group.is_color %}מניפת צבעים &nbsp;|&nbsp; מחיר ליחידה{% elif group.is_simple %}{{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} ל{{ group.pack_type }}{% else %}{{ group.fabric_type }} &nbsp;|&nbsp; {{ group.pack_type }} &nbsp;|&nbsp; ₪{{ group.price_at_add }} למארז{% endif %}</div>
                             </div>
                         </div>
                         <table class="mobile-sizes-table">
                             <thead>
                                 <tr>
                                     <th>ברקוד</th>
-                                    <th>{% if group.is_simple %}סוג{% else %}מידה{% endif %}</th>
+                                    <th>{% if group.is_color %}צבע{% elif group.is_simple %}סוג{% else %}מידה{% endif %}</th>
                                     <th>כמות</th>
                                     <th>סה"כ</th>
                                     <th></th>
@@ -83,13 +89,14 @@
                                 {% for item in group.items %}
                                 <tr>
                                     <td class="col-barcode{% if not item.barcode %} is-empty{% endif %}">{% if item.barcode %}{{ item.barcode }}{% else %}—{% endif %}</td>
-                                    <td>{{ item.size_name }}</td>
+                                    <td>{% if item.is_color %}<span style="display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;margin-left:5px;border:1px solid #ccc;background-color:{{ item.color_hex|default:'#eee' }};{% if item.swatch_url %}background-image:url('{{ item.swatch_url }}');background-size:cover;background-position:center;{% endif %}"></span>{% endif %}{{ item.size_name }}</td>
                                     <td>
                                         <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">
                                             {% csrf_token %}
                                             <input type="hidden" name="item_id" value="{{ item.item_id }}">
                                             <input type="hidden" name="product_id" value="{{ group.product_id|default:'' }}">
                                             <input type="hidden" name="variant_id" value="{{ item.variant_id|default_if_none:'' }}">
+                                            <input type="hidden" name="color_variant_id" value="{{ item.color_variant_id|default_if_none:'' }}">
                                             <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id|default_if_none:'' }}">
                                             <input type="hidden" name="action" value="update">
                                             <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="qty-input-small" oninput="updateCartQty(this)" onblur="updateCartQtyNow(this)">
@@ -103,6 +110,7 @@
                                             <input type="hidden" name="item_id" value="{{ item.item_id }}">
                                             <input type="hidden" name="product_id" value="{{ group.product_id|default:'' }}">
                                             <input type="hidden" name="variant_id" value="{{ item.variant_id|default_if_none:'' }}">
+                                            <input type="hidden" name="color_variant_id" value="{{ item.color_variant_id|default_if_none:'' }}">
                                             <input type="hidden" name="pack_type_id" value="{{ item.pack_type_id|default_if_none:'' }}">
                                             <input type="hidden" name="action" value="remove">
                                             <button type="submit" class="btn-remove">✕</button>

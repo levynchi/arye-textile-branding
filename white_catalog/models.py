@@ -46,6 +46,11 @@ class WhiteSubcategory(models.Model):
 		default=False,
 		help_text="סמן אם המוצר מוזמן דרך גרסאות, מידות וסוגי מארזים"
 	)
+	has_color_variants = models.BooleanField(
+		"הזמנה לפי מניפת צבעים",
+		default=False,
+		help_text="סמן אם המוצר מוזמן דרך מניפת צבעים (לכל צבע ברקוד משלו). לא לשלב עם גרסאות + מארזים"
+	)
 	category = models.ForeignKey(
 		WhiteCategory,
 		on_delete=models.CASCADE,
@@ -312,6 +317,102 @@ class WhiteFabricType(models.Model):
 		return self.name
 
 
+class WhiteColor(models.Model):
+	"""Global color-fan entry — defined once, reused across all products."""
+	name = models.CharField("שם צבע", max_length=80, unique=True, help_text="למשל: לבן, תכלת, ורוד עתיק")
+	hex_color = models.CharField(
+		"קוד HEX",
+		max_length=9,
+		blank=True,
+		help_text='קוד צבע ל-CSS, למשל "#ffffff" — משמש לתצוגת הדוגמית'
+	)
+	swatch_image = models.ImageField(
+		"תמונת דוגמית",
+		upload_to="white_catalog/color_swatches/",
+		blank=True,
+		null=True,
+		help_text="אופציונלי — תמונה קטנה שתוצג כדוגמית במקום צבע אחיד"
+	)
+	order = models.PositiveIntegerField("סדר תצוגה", default=0)
+	is_active = models.BooleanField("פעיל", default=True)
+	created = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		app_label = "white_catalog"
+		ordering = ("order", "name")
+		verbose_name = "צבע (מניפה)"
+		verbose_name_plural = "מניפת צבעים"
+
+	def __str__(self):
+		return self.name
+
+
+class WhiteColorVariant(models.Model):
+	"""One row = one product color from the color fan, with its own barcode."""
+	product = models.ForeignKey(
+		WhiteSubcategory,
+		on_delete=models.CASCADE,
+		related_name="color_variants",
+		verbose_name="מוצר"
+	)
+	color = models.ForeignKey(
+		WhiteColor,
+		on_delete=models.PROTECT,
+		related_name="product_variants",
+		verbose_name="צבע"
+	)
+	barcode = models.CharField("ברקוד", max_length=64, blank=True, null=True)
+	unit_price = models.DecimalField(
+		'מחיר ליחידה (לא כולל מע"מ)',
+		max_digits=10,
+		decimal_places=2,
+		null=True,
+		blank=True,
+		help_text="אם ריק — ייעשה שימוש במחיר הסיטונאי של המוצר"
+	)
+	image = models.ImageField(
+		"תמונת צבע",
+		upload_to="white_catalog/color_variants/",
+		blank=True,
+		null=True,
+		help_text="אופציונלי — בחירת הצבע בעמוד המוצר תחליף את התמונה הראשית"
+	)
+	is_active = models.BooleanField("פעיל", default=True)
+	order = models.PositiveIntegerField("סדר תצוגה", default=0)
+	created = models.DateTimeField(auto_now_add=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		app_label = "white_catalog"
+		ordering = ("order", "color__order", "color__name")
+		verbose_name = "צבע למוצר"
+		verbose_name_plural = "צבעים למוצר"
+		unique_together = ("product", "color")
+		constraints = [
+			models.UniqueConstraint(
+				fields=["barcode"],
+				condition=models.Q(barcode__isnull=False) & ~models.Q(barcode=""),
+				name="unique_color_variant_barcode",
+				violation_error_message="ברקוד זה כבר קיים בצבע מוצר אחר",
+			),
+		]
+
+	def save(self, *args, **kwargs):
+		# Normalize empty/whitespace barcodes to NULL so they never collide.
+		self.barcode = (self.barcode or "").strip() or None
+		super().save(*args, **kwargs)
+
+	def __str__(self):
+		return f"{self.product.name} — {self.color.name}"
+
+	@property
+	def name(self):
+		return self.color.name
+
+	def get_effective_price(self):
+		return self.unit_price if self.unit_price is not None else self.product.unit_price
+
+
 class WhiteProductVariant(models.Model):
 	"""One row = one combination of product + fabric type + size."""
 	product = models.ForeignKey(
@@ -473,6 +574,7 @@ class WhiteCartItem(models.Model):
 	cart = models.ForeignKey(WhiteCart, on_delete=models.CASCADE, related_name="items", verbose_name="עגלה")
 	product = models.ForeignKey(WhiteSubcategory, on_delete=models.CASCADE, related_name="cart_items", verbose_name="מוצר")
 	variant = models.ForeignKey(WhiteProductVariant, on_delete=models.CASCADE, related_name="cart_items", verbose_name="גרסה", null=True, blank=True)
+	color_variant = models.ForeignKey(WhiteColorVariant, on_delete=models.CASCADE, related_name="cart_items", verbose_name="צבע", null=True, blank=True)
 	pack_type = models.ForeignKey(WhitePackType, on_delete=models.CASCADE, related_name="cart_items", verbose_name="סוג מארז", null=True, blank=True)
 	quantity = models.PositiveIntegerField("כמות", default=1)
 	price_at_add = models.DecimalField("מחיר בעת הוספה", max_digits=10, decimal_places=2)
@@ -484,8 +586,17 @@ class WhiteCartItem(models.Model):
 		verbose_name = "פריט בעגלה"
 		verbose_name_plural = "פריטים בעגלה"
 		unique_together = ("cart", "variant", "pack_type")
+		constraints = [
+			models.UniqueConstraint(
+				fields=["cart", "color_variant"],
+				condition=models.Q(color_variant__isnull=False),
+				name="unique_cart_color_variant",
+			),
+		]
 
 	def __str__(self):
+		if self.color_variant_id:
+			return f"{self.product.name} | צבע {self.color_variant.color.name} x{self.quantity}"
 		if self.variant and self.pack_type:
 			return (
 				f"{self.product.name} | {self.variant.fabric_type.name} | "
@@ -498,28 +609,40 @@ class WhiteCartItem(models.Model):
 
 	@property
 	def is_simple_item(self):
-		return not self.variant_id and not self.pack_type_id
+		return not self.variant_id and not self.pack_type_id and not self.color_variant_id
+
+	@property
+	def is_color_item(self):
+		return bool(self.color_variant_id)
 
 	@property
 	def display_fabric_name(self):
+		if self.color_variant_id:
+			return "מניפת צבעים"
 		if self.variant_id and self.variant and self.variant.fabric_type_id:
 			return self.variant.fabric_type.name
 		return "ללא גרסאות"
 
 	@property
 	def display_size_name(self):
+		if self.color_variant_id and self.color_variant:
+			return self.color_variant.color.name
 		if self.variant_id and self.variant and self.variant.size_type_id:
 			return self.variant.size_type.name
 		return "-"
 
 	@property
 	def display_pack_name(self):
+		if self.color_variant_id:
+			return "יחידה"
 		if self.pack_type_id and self.pack_type:
 			return self.pack_type.name
 		return self.product.simple_price_label_display
 
 	@property
 	def display_variant_name(self):
+		if self.color_variant_id and self.color_variant:
+			return self.color_variant.color.name
 		if self.variant_id and self.variant:
 			return self.variant.name
 		return "הזמנה פשוטה"
@@ -587,9 +710,12 @@ class WhiteOrderItem(models.Model):
 	# Live FK references (nullable — for admin drill-through only)
 	product = models.ForeignKey(WhiteSubcategory, on_delete=models.SET_NULL, null=True, blank=True, related_name="order_items", verbose_name="מוצר")
 	variant = models.ForeignKey(WhiteProductVariant, on_delete=models.SET_NULL, null=True, blank=True, related_name="order_items", verbose_name="גרסה")
+	color_variant = models.ForeignKey(WhiteColorVariant, on_delete=models.SET_NULL, null=True, blank=True, related_name="order_items", verbose_name="צבע")
 	# Snapshot fields — never change after creation
 	product_name = models.CharField("שם מוצר", max_length=200)
 	variant_name = models.CharField("גרסה", max_length=100)
+	color_name = models.CharField("צבע", max_length=80, blank=True, default="")
+	barcode = models.CharField("ברקוד", max_length=64, blank=True, default="")
 	size_name = models.CharField("מידה", max_length=50)
 	pack_type_name = models.CharField("סוג מארז", max_length=100)
 	pack_quantity = models.PositiveIntegerField("יחידות במארז")

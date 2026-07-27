@@ -102,6 +102,7 @@
                         window.publishCartQuantitySync({
                             productId: formData.get('product_id'),
                             variantId: formData.get('variant_id'),
+                            colorVariantId: formData.get('color_variant_id'),
                             packTypeId: formData.get('pack_type_id'),
                             quantity: 0
                         });
@@ -120,6 +121,7 @@
                     window.publishCartQuantitySync({
                         productId: formData.get('product_id'),
                         variantId: formData.get('variant_id'),
+                        colorVariantId: formData.get('color_variant_id'),
                         packTypeId: formData.get('pack_type_id'),
                         quantity: formData.get('quantity')
                     });
