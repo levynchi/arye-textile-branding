@@ -344,7 +344,22 @@ class WhiteColor(models.Model):
 		verbose_name_plural = "מניפת צבעים"
 
 	def __str__(self):
+		if self.hex_color:
+			return f"{self.name} ({self.hex_color})"
 		return self.name
+
+	def save(self, *args, **kwargs):
+		# Normalize "#fff" / "fff" / " #AABBCC " → "#aabbcc"
+		raw = (self.hex_color or "").strip()
+		if raw:
+			if not raw.startswith("#"):
+				raw = f"#{raw}"
+			if len(raw) == 4:  # #RGB → #RRGGBB
+				raw = f"#{raw[1]*2}{raw[2]*2}{raw[3]*2}"
+			self.hex_color = raw.lower()
+		else:
+			self.hex_color = ""
+		super().save(*args, **kwargs)
 
 
 class WhiteColorVariant(models.Model):

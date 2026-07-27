@@ -117,9 +117,13 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 		js = (
 			'https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/tinymce.min.js',
 			'admin_tinymce_init.js',
+			'white_catalog/admin_product_color_sample.js',
 		)
 		css = {
-			'all': ('https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/skins/ui/oxide/skin.rtl.min.css',)
+			'all': (
+				'https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/skins/ui/oxide/skin.rtl.min.css',
+				'white_catalog/admin_color_picker.css',
+			)
 		}
 	
 	inlines = [WhiteSubcategoryPriceInline, WhiteSubcategoryImageInline, WhiteProductVariantInline, WhiteColorVariantInline]
@@ -288,8 +292,24 @@ class WhitePackTypeAdmin(admin.ModelAdmin):
 class WhiteColorAdmin(admin.ModelAdmin):
 	list_display = ("swatch_preview", "name", "hex_color", "order", "is_active")
 	list_display_links = ("name",)
-	list_editable = ("order", "is_active")
+	list_editable = ("hex_color", "order", "is_active")
 	search_fields = ("name", "hex_color")
+	list_filter = ("is_active",)
+	ordering = ("order", "name")
+
+	class Media:
+		js = ("white_catalog/admin_color_picker.js",)
+		css = {"all": ("white_catalog/admin_color_picker.css",)}
+
+	fieldsets = (
+		(None, {
+			"fields": ("name", "hex_color", "swatch_image", "order", "is_active"),
+			"description": (
+				"אפשר לדגום צבע מתמונה עם הכפתורים ליד שדה קוד HEX, "
+				"או לדגום קודם מתמונת המוצר בעמוד העריכה ואז ללחוץ + כאן — הקוד יוזן אוטומטית."
+			),
+		}),
+	)
 
 	def swatch_preview(self, obj):
 		if obj.swatch_image:

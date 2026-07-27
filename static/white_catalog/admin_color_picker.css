@@ -1,0 +1,122 @@
+.wc-color-picker-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.wc-color-picker-wrap input[type="color"] {
+  width: 44px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.wc-color-picker-wrap .wc-hex-preview {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #bbb;
+  vertical-align: middle;
+}
+
+.wc-color-picker-wrap button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.wc-sample-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 19, 23, 0.55);
+  padding: 20px;
+}
+
+.wc-sample-modal.is-open {
+  display: flex;
+}
+
+.wc-sample-dialog {
+  background: #fff;
+  border-radius: 12px;
+  max-width: min(920px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 16px 18px 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  direction: rtl;
+}
+
+.wc-sample-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+}
+
+.wc-sample-dialog p {
+  margin: 0 0 12px;
+  color: #555;
+}
+
+.wc-sample-canvas-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  cursor: crosshair;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f4f4f4;
+}
+
+.wc-sample-canvas-wrap canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.wc-sample-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.wc-sample-toolbar .wc-picked {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.wc-sample-toolbar .wc-picked-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #bbb;
+}
+
+.wc-inline-sample-bar {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.wc-inline-sample-bar strong {
+  margin-left: 4px;
+}
