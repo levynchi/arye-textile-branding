@@ -138,6 +138,10 @@ if USE_SPACES:
         else:
             MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/'
 
+# Shared-secret token for the white catalog import API (desktop app integration).
+# Empty value disables the API.
+WHITE_CATALOG_API_TOKEN = os.environ.get('WHITE_CATALOG_API_TOKEN', '')
+
 # Email settings for contact form notifications (using Resend API)
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 CONTACT_EMAIL = 'levynchi@gmail.com'

@@ -1,5 +1,5 @@
 from django.urls import path, re_path
-from . import views
+from . import api, views
 
 app_name = "white_catalog"
 
@@ -21,6 +21,9 @@ urlpatterns = [
     path("orders/<str:order_number>/", views.order_confirm, name="order_confirm"),
     # Product data export for customer site integration
     path("export/products/", views.export_products_excel, name="export_products"),
+    # JSON API for the desktop app (token-authenticated) — must come before the slug catch-alls
+    path("api/export-meta/", api.export_meta, name="api_export_meta"),
+    path("api/variants/import/", api.import_variants, name="api_import_variants"),
     # Standalone subcategory — must come before category_detail
     re_path(r"^product/(?P<subcategory_slug>[\w\-]+)/$", views.standalone_subcategory_detail, name="standalone_subcategory_detail"),
     re_path(r"^(?P<category_slug>[\w\-]+)/$", views.category_detail, name="category_detail"),
