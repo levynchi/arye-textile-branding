@@ -117,6 +117,8 @@ def _import_color_row(product, row, color_name, price, barcode):
 		ext = str(row.get('image_format') or 'jpg').strip().lower() or 'jpg'
 		safe_name = (barcode or color.name or 'color').replace(' ', '_')
 		variant.image.save(f'{safe_name}.{ext}', ContentFile(data), save=False)
+		# אותה תמונה משמשת גם כדוגמית הצבע במניפה (טקסטורת הבד במקום צבע אחיד)
+		color.swatch_image.save(f'swatch_{safe_name}.{ext}', ContentFile(data), save=True)
 
 	variant.save()
 
@@ -262,10 +264,19 @@ def import_variants(request):
 			errors.append(f'שורה {i}: {exc}')
 
 	# Make the imported variants actually visible on the site.
-	if color_rows_seen and (created or updated) and not product.has_color_variants:
-		product.has_color_variants = True
-		product.save(update_fields=['has_color_variants'])
-		warnings.append('המוצר סומן אוטומטית כ"הזמנה לפי מניפת צבעים"')
+	if color_rows_seen and (created or updated):
+		# מצב צבעים ומצב "גרסאות + מארזים" לא חיים יחד - ייבוא צבעים קובע מצב צבעים
+		flag_updates = []
+		if not product.has_color_variants:
+			product.has_color_variants = True
+			flag_updates.append('has_color_variants')
+			warnings.append('המוצר סומן אוטומטית כ"הזמנה לפי מניפת צבעים"')
+		if product.has_order_variants:
+			product.has_order_variants = False
+			flag_updates.append('has_order_variants')
+			warnings.append('מצב "גרסאות + מארזים" כובה כדי שמניפת הצבעים תוצג')
+		if flag_updates:
+			product.save(update_fields=flag_updates)
 	if (created or updated) and not color_rows_seen and not product.has_order_variants:
 		if product.has_color_variants:
 			warnings.append(

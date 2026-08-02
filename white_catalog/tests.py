@@ -110,7 +110,7 @@ class ImportColorVariantsTests(TestCase):
         self.assertEqual(WhiteColorVariant.objects.count(), 1)
         self.assertEqual(WhiteColor.objects.count(), 1)
 
-    def test_color_row_saves_swatch_image(self):
+    def test_color_row_saves_variant_image_and_color_swatch(self):
         rows = [{
             "barcode": "222",
             "unit_price": "21.3",
@@ -125,6 +125,23 @@ class ImportColorVariantsTests(TestCase):
         variant = WhiteColorVariant.objects.get(barcode="222")
         self.assertTrue(variant.image)
         self.assertTrue(variant.image.name.endswith(".jpg"))
+        # התמונה נשמרת גם כדוגמית הצבע במניפה
+        color = WhiteColor.objects.get(name="תכלת")
+        self.assertTrue(color.swatch_image)
+        self.assertTrue(color.swatch_image.name.endswith(".jpg"))
+
+    def test_color_import_switches_product_from_order_variants_to_color_mode(self):
+        self.product.has_order_variants = True
+        self.product.save(update_fields=["has_order_variants"])
+
+        response = self._post([{"barcode": "666", "unit_price": "21.3", "color": "תכלת"}])
+
+        data = response.json()
+        self.assertEqual(data["errors"], [])
+        self.product.refresh_from_db()
+        self.assertTrue(self.product.has_color_variants)
+        self.assertFalse(self.product.has_order_variants)
+        self.assertTrue(any("כובה" in w for w in data["warnings"]))
 
     def test_color_row_releases_barcode_from_stale_size_variant(self):
         fabric = WhiteFabricType.objects.create(name="טריקו ג'רזי")
