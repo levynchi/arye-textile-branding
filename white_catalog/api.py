@@ -4,16 +4,20 @@ Authentication: shared secret token in the X-API-Token header, configured via th
 WHITE_CATALOG_API_TOKEN environment variable (see arye_site/settings).
 """
 
+import base64
 import json
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
+	WhiteColor,
+	WhiteColorVariant,
 	WhiteFabricType,
 	WhiteProductVariant,
 	WhiteSizeType,
@@ -72,6 +76,60 @@ def _parse_price(value):
 		raise ValueError(f'מחיר לא תקין: {value}')
 
 
+def _import_color_row(product, row, color_name, price, barcode):
+	"""Create/update a WhiteColorVariant for a color-fan row.
+
+	Returns True when a new variant was created, False when updated.
+	Raises ValueError with a Hebrew message for row-level errors.
+	"""
+	color_hex = str(row.get('color_hex') or '').strip()
+	color, _ = WhiteColor.objects.get_or_create(name=color_name)
+	if color_hex and color.hex_color != color_hex.lower():
+		color.hex_color = color_hex
+		color.save()
+
+	variant = None
+	if barcode:
+		variant = WhiteColorVariant.objects.filter(barcode=barcode).first()
+		if variant is not None and variant.product_id != product.id:
+			raise ValueError(
+				f'הברקוד {barcode} כבר משויך לצבע של מוצר אחר ({variant.product.name})'
+			)
+	if variant is None:
+		variant = WhiteColorVariant.objects.filter(product=product, color=color).first()
+
+	was_created = variant is None
+	if variant is None:
+		variant = WhiteColorVariant(product=product, color=color)
+	else:
+		variant.color = color
+	if barcode:
+		variant.barcode = barcode
+	if price is not None:
+		variant.unit_price = price
+
+	image_b64 = row.get('image_base64') or ''
+	if image_b64:
+		try:
+			data = base64.b64decode(image_b64)
+		except Exception:
+			raise ValueError('תמונת הצבע אינה base64 תקין')
+		ext = str(row.get('image_format') or 'jpg').strip().lower() or 'jpg'
+		safe_name = (barcode or color.name or 'color').replace(' ', '_')
+		variant.image.save(f'{safe_name}.{ext}', ContentFile(data), save=False)
+
+	variant.save()
+
+	# ברקוד שנתפס בעבר בטעות על וריאנט מידה של אותו מוצר - משוחרר לטובת הצבע
+	if barcode:
+		stale = WhiteProductVariant.objects.filter(product=product, barcode=barcode).first()
+		if stale is not None:
+			stale.barcode = None
+			stale.save(update_fields=['barcode'])
+
+	return was_created
+
+
 @csrf_exempt
 @require_POST
 def import_variants(request):
@@ -90,6 +148,11 @@ def import_variants(request):
 
 	Rows are matched by barcode first (idempotent re-runs), then by the
 	(product, fabric, size) unique combination.
+
+	Rows that carry a "color" key are treated as color-fan rows instead: they
+	create/update WhiteColorVariant (with optional "color_hex", and an optional
+	"image_base64"/"image_format" pair for the fabric swatch image), and no size
+	is required for them.
 	"""
 	if not _token_valid(request):
 		return _forbidden()
@@ -114,6 +177,7 @@ def import_variants(request):
 
 	created = 0
 	updated = 0
+	color_rows_seen = False
 	errors = []
 	warnings = []
 
@@ -121,6 +185,28 @@ def import_variants(request):
 		size_name = str(row.get('size') or '').strip()
 		barcode = str(row.get('barcode') or '').strip()
 		fabric_name = str(row.get('fabric_type') or '').strip() or default_fabric
+		color_name = str(row.get('color') or '').strip()
+
+		if color_name:
+			# שורת צבע ממניפת הצבעים - נקלטת כ"צבע למוצר", ללא צורך במידה
+			color_rows_seen = True
+			try:
+				price = _parse_price(row.get('unit_price'))
+			except ValueError as exc:
+				errors.append(f'שורה {i}: {exc}')
+				continue
+			try:
+				with transaction.atomic():
+					if _import_color_row(product, row, color_name, price, barcode):
+						created += 1
+					else:
+						updated += 1
+			except ValueError as exc:
+				errors.append(f'שורה {i}: {exc}')
+			except Exception as exc:
+				errors.append(f'שורה {i}: {exc}')
+			continue
+
 		if not size_name:
 			errors.append(f'שורה {i}: חסרה מידה')
 			continue
@@ -176,7 +262,11 @@ def import_variants(request):
 			errors.append(f'שורה {i}: {exc}')
 
 	# Make the imported variants actually visible on the site.
-	if (created or updated) and not product.has_order_variants:
+	if color_rows_seen and (created or updated) and not product.has_color_variants:
+		product.has_color_variants = True
+		product.save(update_fields=['has_color_variants'])
+		warnings.append('המוצר סומן אוטומטית כ"הזמנה לפי מניפת צבעים"')
+	if (created or updated) and not color_rows_seen and not product.has_order_variants:
 		if product.has_color_variants:
 			warnings.append(
 				'המוצר מוגדר להזמנה לפי מניפת צבעים — הגרסאות נשמרו אך לא יוצגו '
