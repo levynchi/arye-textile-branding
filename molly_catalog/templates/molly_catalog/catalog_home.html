@@ -33,7 +33,7 @@
             {% endfor %}
 
             {% for product in standalone_products %}
-                <a href="{% url 'molly_catalog:standalone_product_detail' product.slug %}" class="molly-card">
+                <a href="{{ product.get_absolute_url }}" class="molly-card">
                     <div class="molly-card-image">
                         {% with img=product.get_main_image %}
                             {% if img %}

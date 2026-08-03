@@ -170,10 +170,10 @@ class GenerateVariantMatrixForm(forms.Form):
 
 @admin.register(MollyProduct)
 class MollyProductAdmin(admin.ModelAdmin):
-    list_display = ("name", "category", "is_orderable", "has_variants", "variant_count", "order", "updated")
+    list_display = ("name", "slug", "category", "is_orderable", "has_variants", "variant_count", "order", "updated")
     list_editable = ("order",)
     list_filter = ("category", "is_orderable", "has_variants")
-    search_fields = ("name", "description", "category__name")
+    search_fields = ("name", "slug", "description", "category__name")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("created", "updated")
     filter_horizontal = ("available_label_colors",)

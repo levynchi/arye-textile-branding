@@ -11,7 +11,7 @@ from functools import wraps
 import resend
 from django.conf import settings
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -290,21 +290,38 @@ def _product_detail_context(request, product, category=None):
 
 @require_molly_login
 def product_detail(request, product_slug, category_slug=None):
-    """Product detail page. Used both for standalone and category-bound products."""
-    if category_slug:
-        category = get_object_or_404(MollyCategory, slug=category_slug)
-        product = get_object_or_404(
-            MollyProduct, category=category, slug=product_slug
-        )
-    else:
-        category = None
-        product = get_object_or_404(
-            MollyProduct, slug=product_slug, category__isnull=True
-        )
+    """Product detail page. Used both for standalone and category-bound products.
+
+    Lookup is by product slug (unique). If the URL's category segment is missing
+    or stale, redirect to the canonical get_absolute_url() instead of 404.
+    """
+    from urllib.parse import unquote
+
+    from django.utils.text import slugify
+
+    product = (
+        MollyProduct.objects.select_related("category")
+        .filter(slug=product_slug)
+        .first()
+    )
+    if product is None:
+        # Slug may have drifted from the name; recover by slugifying names.
+        for candidate in MollyProduct.objects.select_related("category").all():
+            if slugify(candidate.name, allow_unicode=True) == product_slug:
+                product = candidate
+                break
+    if product is None:
+        raise Http404("No MollyProduct matches the given query.")
+
+    canonical = product.get_absolute_url()
+    current = unquote(request.path)
+    if current.rstrip("/") != unquote(canonical).rstrip("/"):
+        return redirect(canonical)
+
     return render(
         request,
         "molly_catalog/product_detail.html",
-        _product_detail_context(request, product, category),
+        _product_detail_context(request, product, product.category),
     )
 
 

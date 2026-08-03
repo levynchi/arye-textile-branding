@@ -23,7 +23,7 @@
 
         <div class="molly-grid">
             {% for product in products %}
-                <a href="{% url 'molly_catalog:category_product_detail' category.slug product.slug %}" class="molly-card">
+                <a href="{{ product.get_absolute_url }}" class="molly-card">
                     <div class="molly-card-image">
                         {% with img=product.get_main_image %}
                             {% if img %}
