@@ -169,6 +169,17 @@ class ImportColorVariantsTests(TestCase):
         self.assertEqual(len(data["errors"]), 1)
         self.assertIn("444", data["errors"][0])
 
+    def test_delete_color_variant_by_barcode(self):
+        color = WhiteColor.objects.create(name="אפור עשן בהיר")
+        WhiteColorVariant.objects.create(product=self.product, color=color, barcode="7297555022295")
+
+        response = self._post([{"barcode": "7297555022295", "delete": True}])
+
+        data = response.json()
+        self.assertEqual(data["errors"], [])
+        self.assertEqual(data["deleted"], 1)
+        self.assertFalse(WhiteColorVariant.objects.filter(barcode="7297555022295").exists())
+
     def test_size_rows_still_work_as_before(self):
         rows = [
             {"size": "0-3", "barcode": "555", "unit_price": "12.5"},

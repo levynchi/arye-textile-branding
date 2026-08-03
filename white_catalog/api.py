@@ -179,6 +179,7 @@ def import_variants(request):
 
 	created = 0
 	updated = 0
+	deleted = 0
 	color_rows_seen = False
 	errors = []
 	warnings = []
@@ -188,6 +189,27 @@ def import_variants(request):
 		barcode = str(row.get('barcode') or '').strip()
 		fabric_name = str(row.get('fabric_type') or '').strip() or default_fabric
 		color_name = str(row.get('color') or '').strip()
+
+		# מחיקת צבע למוצר לפי ברקוד (או לפי שם צבע אם אין ברקוד)
+		if row.get('delete') or str(row.get('action') or '').strip().lower() == 'delete':
+			try:
+				with transaction.atomic():
+					qs = WhiteColorVariant.objects.filter(product=product)
+					if barcode:
+						qs = qs.filter(barcode=barcode)
+					elif color_name:
+						qs = qs.filter(color__name=color_name)
+					else:
+						errors.append(f'שורה {i}: למחיקה נדרש ברקוד או שם צבע')
+						continue
+					count, _ = qs.delete()
+					if count:
+						deleted += count
+					else:
+						warnings.append(f'שורה {i}: לא נמצא צבע למחיקה')
+			except Exception as exc:
+				errors.append(f'שורה {i}: {exc}')
+			continue
 
 		if color_name:
 			# שורת צבע ממניפת הצבעים - נקלטת כ"צבע למוצר", ללא צורך במידה
@@ -292,6 +314,7 @@ def import_variants(request):
 		'product': product.name,
 		'created': created,
 		'updated': updated,
+		'deleted': deleted,
 		'errors': errors,
 		'warnings': warnings,
 	})
