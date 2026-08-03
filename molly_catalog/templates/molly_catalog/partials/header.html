@@ -9,6 +9,9 @@
         </a>
         <div class="molly-header-actions">
             {% if request.session.molly_catalog_user_id %}
+                <a href="{% url 'molly_catalog:mockups' %}" class="molly-header-link" aria-label="הדמיות">
+                    הדמיות
+                </a>
                 <a href="{% url 'molly_catalog:order_list' %}" class="molly-header-link" aria-label="ההזמנות שלי">
                     ההזמנות שלי
                 </a>

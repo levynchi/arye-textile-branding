@@ -23,6 +23,8 @@ from .models import (
     MollyCatalogUserActivity,
     MollyCategory,
     MollyLabelColor,
+    MollyMockup,
+    MollyMockupProduct,
     MollyOrder,
     MollyOrderItem,
     MollyProduct,
@@ -756,6 +758,91 @@ def order_confirm(request, order_number):
         "cart_count": _cart_count(request),
     }
     return render(request, "molly_catalog/order_confirm.html", context)
+
+
+# ---------------------------------------------------------------------------
+# Mockup studio (הדמיות)
+# ---------------------------------------------------------------------------
+
+@require_molly_login
+def mockup_studio(request):
+    """Mockup studio page: pick a product, upload a print, position & save."""
+    user = get_current_molly_user(request)
+    products = MollyMockupProduct.objects.filter(is_active=True)
+    mockups = MollyMockup.objects.filter(user=user).select_related("mockup_product")
+    context = {
+        **_nav_context(),
+        "mockup_products": products,
+        "saved_mockups": mockups,
+        "cart_count": _cart_count(request),
+    }
+    return render(request, "molly_catalog/mockup_studio.html", context)
+
+
+@require_POST
+@require_molly_login
+def mockup_save(request):
+    """Save a mockup: base product id + print file + composited result PNG."""
+    import json
+
+    user = get_current_molly_user(request)
+
+    try:
+        product = MollyMockupProduct.objects.get(
+            pk=request.POST.get("product_id"), is_active=True
+        )
+    except (MollyMockupProduct.DoesNotExist, TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "המוצר לא נמצא"}, status=400)
+
+    print_image = request.FILES.get("print_image")
+    result_image = request.FILES.get("result_image")
+    if not print_image or not result_image:
+        return JsonResponse({"ok": False, "error": "חסר קובץ הדפסה או תמונת הדמיה"}, status=400)
+
+    max_size = 15 * 1024 * 1024  # 15MB
+    if print_image.size > max_size or result_image.size > max_size:
+        return JsonResponse({"ok": False, "error": "הקובץ גדול מדי (מקסימום 15MB)"}, status=400)
+
+    try:
+        transform_data = json.loads(request.POST.get("transform_data") or "{}")
+        if not isinstance(transform_data, dict):
+            transform_data = {}
+    except (TypeError, ValueError):
+        transform_data = {}
+
+    mockup = MollyMockup.objects.create(
+        user=user,
+        mockup_product=product,
+        product_name=product.name,
+        print_image=print_image,
+        result_image=result_image,
+        transform_data=transform_data,
+    )
+
+    return JsonResponse({
+        "ok": True,
+        "mockup_id": mockup.id,
+        "result_url": mockup.result_image.url,
+        "product_name": mockup.product_name,
+        "created": mockup.created.strftime("%d/%m/%Y %H:%M"),
+        "delete_url": f"/molly/mockups/{mockup.id}/delete/",
+    })
+
+
+@require_POST
+@require_molly_login
+def mockup_delete(request, mockup_id):
+    """Delete one of the current user's saved mockups."""
+    user = get_current_molly_user(request)
+    try:
+        mockup = MollyMockup.objects.get(pk=mockup_id, user=user)
+    except MollyMockup.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "ההדמיה לא נמצאה"}, status=404)
+
+    mockup.print_image.delete(save=False)
+    mockup.result_image.delete(save=False)
+    mockup.delete()
+    return JsonResponse({"ok": True})
 
 
 @require_molly_login

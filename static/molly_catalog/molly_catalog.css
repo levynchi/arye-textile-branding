@@ -1116,6 +1116,274 @@ body.molly-body {
     align-self: center;
 }
 
+/* ---------- Mockup studio (הדמיות) ---------- */
+
+.molly-mockup-section {
+    background: var(--molly-card-bg);
+    border-radius: var(--molly-radius);
+    box-shadow: var(--molly-shadow);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.molly-mockup-step-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0 0 18px;
+}
+
+.molly-mockup-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--molly-accent);
+    color: var(--molly-primary-dark);
+    font-size: 1rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.molly-mockup-products {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+}
+
+.molly-mockup-product-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    padding: 12px;
+    background: var(--molly-bg);
+    border: 2px solid var(--molly-border);
+    border-radius: var(--molly-radius);
+    cursor: pointer;
+    font-family: var(--molly-font);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--molly-text);
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.molly-mockup-product-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--molly-shadow);
+}
+
+.molly-mockup-product-card.selected {
+    border-color: var(--molly-accent-dark);
+    background: var(--molly-accent-light);
+}
+
+.molly-mockup-product-card img {
+    width: 100%;
+    height: 130px;
+    object-fit: contain;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.molly-mockup-upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 32px 20px;
+    border: 2px dashed var(--molly-border);
+    border-radius: var(--molly-radius);
+    background: var(--molly-bg);
+    cursor: pointer;
+    color: var(--molly-text-soft);
+    font-weight: 600;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.molly-mockup-upload:hover,
+.molly-mockup-upload.dragging {
+    border-color: var(--molly-accent-dark);
+    background: var(--molly-accent-light);
+    color: var(--molly-text);
+}
+
+.molly-mockup-upload-icon {
+    font-size: 1.8rem;
+}
+
+.molly-mockup-editor {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.molly-mockup-stage-wrap {
+    flex: 1 1 380px;
+    min-width: 0;
+    text-align: center;
+}
+
+.molly-mockup-stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    border-radius: var(--molly-radius);
+    overflow: hidden;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--molly-border);
+}
+
+.molly-mockup-stage #mockup-base-img {
+    display: block;
+    max-width: 100%;
+    max-height: 70vh;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.molly-mockup-stage #mockup-print-img {
+    position: absolute;
+    cursor: move;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    outline: 1px dashed rgba(0, 0, 0, 0.25);
+    outline-offset: 2px;
+}
+
+.molly-mockup-stage #mockup-print-img.dragging {
+    outline-color: var(--molly-accent-dark);
+}
+
+.molly-mockup-controls {
+    flex: 0 1 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.molly-mockup-control label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.molly-mockup-control input[type="range"] {
+    width: 100%;
+    accent-color: var(--molly-accent-dark);
+}
+
+.molly-mockup-hint {
+    color: var(--molly-text-soft);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.molly-mockup-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.molly-mockup-status {
+    margin: 0;
+    font-weight: 600;
+    color: var(--molly-success);
+}
+
+.molly-mockup-status.error {
+    color: #b02a2a;
+}
+
+.molly-mockup-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.molly-mockup-gallery-card {
+    background: var(--molly-bg);
+    border: 1px solid var(--molly-border);
+    border-radius: var(--molly-radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.molly-mockup-gallery-card img {
+    width: 100%;
+    height: 160px;
+    object-fit: contain;
+    background: #fff;
+    display: block;
+}
+
+.molly-mockup-gallery-meta {
+    padding: 10px 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.85rem;
+}
+
+.molly-mockup-gallery-meta span {
+    color: var(--molly-text-soft);
+}
+
+.molly-mockup-gallery-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px 12px;
+}
+
+.molly-mockup-gallery-btn {
+    flex: 1;
+    text-align: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--molly-border);
+    background: #fff;
+    color: var(--molly-text);
+    font-family: var(--molly-font);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.molly-mockup-gallery-btn:hover {
+    background: var(--molly-primary-light);
+}
+
+.molly-mockup-gallery-btn.danger:hover {
+    background: var(--molly-danger-light);
+    color: #b02a2a;
+}
+
+.molly-mockup-empty {
+    color: var(--molly-text-soft);
+    margin: 8px 0 0;
+}
+
+@media (max-width: 640px) {
+    .molly-mockup-editor {
+        flex-direction: column;
+    }
+
+    .molly-mockup-controls {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+}
+
 /* ---------- Footer ---------- */
 
 .molly-footer {

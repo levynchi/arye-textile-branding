@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    {% include 'molly_catalog/partials/base_head.html' %}
+    <title>הדמיות &mdash; קטלוג מולי</title>
+</head>
+<body class="molly-body">
+    {% include 'molly_catalog/partials/header.html' %}
+
+    <main class="molly-main">
+        <div class="molly-breadcrumbs">
+            <a href="{% url 'molly_catalog:home' %}">דף הבית</a>
+            <span class="sep">›</span>
+            <span>הדמיות</span>
+        </div>
+
+        <h1 class="molly-page-title">הדמיות</h1>
+        <p class="molly-page-subtitle">בחרי מוצר, העלי קובץ הדפסה, מקמי אותו על הבגד ושמרי את ההדמיה.</p>
+
+        {% include 'molly_catalog/partials/messages.html' %}
+
+        <form id="mockup-csrf" style="display:none;">{% csrf_token %}</form>
+
+        {% if mockup_products %}
+        <!-- Step 1: pick a product -->
+        <section class="molly-mockup-section">
+            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">1</span> בחירת מוצר</h2>
+            <div class="molly-mockup-products">
+                {% for p in mockup_products %}
+                <button type="button" class="molly-mockup-product-card" data-product-id="{{ p.id }}" data-product-name="{{ p.name }}" data-product-image="{{ p.image.url }}">
+                    <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
+                    <span>{{ p.name }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Step 2: upload a print -->
+        <section class="molly-mockup-section" id="mockup-upload-section" hidden>
+            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">2</span> העלאת קובץ הדפסה</h2>
+            <label class="molly-mockup-upload" id="mockup-upload-label">
+                <input type="file" id="mockup-print-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
+                <span class="molly-mockup-upload-icon">⬆</span>
+                <span id="mockup-upload-text">לחצי לבחירת קובץ (PNG / JPG / SVG) או גררי לכאן</span>
+            </label>
+        </section>
+
+        <!-- Step 3: position on the garment -->
+        <section class="molly-mockup-section" id="mockup-editor-section" hidden>
+            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">3</span> מיקום ההדפסה</h2>
+            <div class="molly-mockup-editor">
+                <div class="molly-mockup-stage-wrap">
+                    <div class="molly-mockup-stage" id="mockup-stage">
+                        <img id="mockup-base-img" src="" alt="מוצר להדמיה" draggable="false">
+                        <img id="mockup-print-img" src="" alt="הדפסה" draggable="false" hidden>
+                    </div>
+                </div>
+                <div class="molly-mockup-controls">
+                    <div class="molly-mockup-control">
+                        <label for="mockup-scale">גודל ההדפסה</label>
+                        <input type="range" id="mockup-scale" min="5" max="90" value="35">
+                    </div>
+                    <button type="button" class="molly-button molly-button-secondary" id="mockup-center-btn">מרכוז ההדפסה</button>
+                    <p class="molly-mockup-hint">אפשר לגרור את ההדפסה עם העכבר או האצבע כדי למקם אותה.</p>
+                    <div class="molly-mockup-actions">
+                        <button type="button" class="molly-button" id="mockup-save-btn" disabled>שמירת ההדמיה</button>
+                        <button type="button" class="molly-button molly-button-secondary" id="mockup-download-btn" disabled>הורדה למחשב</button>
+                    </div>
+                    <p class="molly-mockup-status" id="mockup-status" hidden></p>
+                </div>
+            </div>
+        </section>
+        {% else %}
+        <div class="molly-empty" style="background:var(--molly-card-bg);border-radius:var(--molly-radius);box-shadow:var(--molly-shadow);">
+            <p>עדיין לא הוגדרו מוצרים להדמיה. נא לפנות לאריה.</p>
+        </div>
+        {% endif %}
+
+        <!-- Saved mockups -->
+        <section class="molly-mockup-section">
+            <h2 class="molly-mockup-step-title">ההדמיות שלי</h2>
+            <div class="molly-mockup-gallery" id="mockup-gallery">
+                {% for m in saved_mockups %}
+                <div class="molly-mockup-gallery-card" data-mockup-id="{{ m.id }}">
+                    <a href="{{ m.result_image.url }}" target="_blank" rel="noopener">
+                        <img src="{{ m.result_image.url }}" alt="{{ m.product_name }}" loading="lazy">
+                    </a>
+                    <div class="molly-mockup-gallery-meta">
+                        <strong>{{ m.product_name|default:"הדמיה" }}</strong>
+                        <span>{{ m.created|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    <div class="molly-mockup-gallery-actions">
+                        <a class="molly-mockup-gallery-btn" href="{{ m.result_image.url }}" download>הורדה</a>
+                        <button type="button" class="molly-mockup-gallery-btn danger" data-delete-url="{% url 'molly_catalog:mockup_delete' m.id %}">מחיקה</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <p class="molly-mockup-empty" id="mockup-gallery-empty" {% if saved_mockups %}hidden{% endif %}>עוד לא נשמרו הדמיות.</p>
+        </section>
+    </main>
+
+    {% include 'molly_catalog/partials/footer.html' %}
+
+    <script>
+    (function () {
+        'use strict';
+
+        var SAVE_URL = "{% url 'molly_catalog:mockup_save' %}";
+        var csrf = (document.querySelector('#mockup-csrf [name=csrfmiddlewaretoken]') || {}).value || '';
+
+        var uploadSection = document.getElementById('mockup-upload-section');
+        var editorSection = document.getElementById('mockup-editor-section');
+        var stage = document.getElementById('mockup-stage');
+        var baseImg = document.getElementById('mockup-base-img');
+        var printImg = document.getElementById('mockup-print-img');
+        var fileInput = document.getElementById('mockup-print-input');
+        var uploadLabel = document.getElementById('mockup-upload-label');
+        var uploadText = document.getElementById('mockup-upload-text');
+        var scaleSlider = document.getElementById('mockup-scale');
+        var centerBtn = document.getElementById('mockup-center-btn');
+        var saveBtn = document.getElementById('mockup-save-btn');
+        var downloadBtn = document.getElementById('mockup-download-btn');
+        var statusEl = document.getElementById('mockup-status');
+        var gallery = document.getElementById('mockup-gallery');
+        var galleryEmpty = document.getElementById('mockup-gallery-empty');
+
+        if (!stage) {
+            bindGalleryDeletes(document);
+            return;
+        }
+
+        // State: position/size of the print as fractions of the base image box.
+        var state = {
+            productId: null,
+            productName: '',
+            printFile: null,
+            printLoaded: false,
+            x: 0.5,        // center X (fraction of base width)
+            y: 0.45,       // center Y (fraction of base height)
+            width: 0.35    // print width (fraction of base width)
+        };
+
+        // --- Step 1: product selection ---
+        var productCards = document.querySelectorAll('.molly-mockup-product-card');
+        productCards.forEach(function (card) {
+            card.addEventListener('click', function () {
+                productCards.forEach(function (c) { c.classList.remove('selected'); });
+                card.classList.add('selected');
+                state.productId = card.dataset.productId;
+                state.productName = card.dataset.productName;
+                baseImg.src = card.dataset.productImage;
+                uploadSection.hidden = false;
+                if (state.printLoaded) {
+                    editorSection.hidden = false;
+                    requestAnimationFrame(applyTransform);
+                }
+                uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                updateButtons();
+            });
+        });
+
+        // --- Step 2: print upload (click + drag&drop) ---
+        fileInput.addEventListener('change', function () {
+            if (fileInput.files && fileInput.files[0]) loadPrintFile(fileInput.files[0]);
+        });
+        ['dragover', 'dragenter'].forEach(function (ev) {
+            uploadLabel.addEventListener(ev, function (e) {
+                e.preventDefault();
+                uploadLabel.classList.add('dragging');
+            });
+        });
+        ['dragleave', 'drop'].forEach(function (ev) {
+            uploadLabel.addEventListener(ev, function (e) {
+                e.preventDefault();
+                uploadLabel.classList.remove('dragging');
+            });
+        });
+        uploadLabel.addEventListener('drop', function (e) {
+            var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (f) loadPrintFile(f);
+        });
+
+        function loadPrintFile(file) {
+            if (!file.type.match(/^image\//)) {
+                showStatus('נא לבחור קובץ תמונה (PNG / JPG / SVG)', true);
+                return;
+            }
+            state.printFile = file;
+            var reader = new FileReader();
+            reader.onload = function () {
+                printImg.onload = function () {
+                    state.printLoaded = true;
+                    printImg.hidden = false;
+                    state.x = 0.5;
+                    state.y = 0.45;
+                    state.width = parseInt(scaleSlider.value, 10) / 100;
+                    editorSection.hidden = false;
+                    applyTransform();
+                    updateButtons();
+                    editorSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                };
+                printImg.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+            uploadText.textContent = file.name + ' — אפשר לבחור קובץ אחר';
+        }
+
+        // --- Step 3: positioning ---
+        function applyTransform() {
+            if (!state.printLoaded || !baseImg.clientWidth) return;
+            var bw = baseImg.clientWidth;
+            var bh = baseImg.clientHeight;
+            var ratio = printImg.naturalHeight / (printImg.naturalWidth || 1);
+            var w = state.width * bw;
+            var h = w * ratio;
+            printImg.style.width = w + 'px';
+            printImg.style.height = h + 'px';
+            printImg.style.left = (state.x * bw - w / 2) + 'px';
+            printImg.style.top = (state.y * bh - h / 2) + 'px';
+        }
+
+        var dragging = null;
+        printImg.addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            printImg.setPointerCapture(e.pointerId);
+            dragging = {
+                startX: e.clientX,
+                startY: e.clientY,
+                origX: state.x,
+                origY: state.y
+            };
+            printImg.classList.add('dragging');
+        });
+        printImg.addEventListener('pointermove', function (e) {
+            if (!dragging) return;
+            var bw = baseImg.clientWidth;
+            var bh = baseImg.clientHeight;
+            if (!bw || !bh) return;
+            state.x = clamp(dragging.origX + (e.clientX - dragging.startX) / bw, 0, 1);
+            state.y = clamp(dragging.origY + (e.clientY - dragging.startY) / bh, 0, 1);
+            applyTransform();
+        });
+        ['pointerup', 'pointercancel'].forEach(function (ev) {
+            printImg.addEventListener(ev, function () {
+                dragging = null;
+                printImg.classList.remove('dragging');
+            });
+        });
+
+        scaleSlider.addEventListener('input', function () {
+            state.width = parseInt(scaleSlider.value, 10) / 100;
+            applyTransform();
+        });
+
+        centerBtn.addEventListener('click', function () {
+            state.x = 0.5;
+            state.y = 0.45;
+            applyTransform();
+        });
+
+        window.addEventListener('resize', applyTransform);
+        baseImg.addEventListener('load', applyTransform);
+
+        function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+
+        function updateButtons() {
+            var ready = !!(state.productId && state.printLoaded);
+            saveBtn.disabled = !ready;
+            downloadBtn.disabled = !ready;
+        }
+
+        // --- Compose the final image on a canvas at natural resolution ---
+        function composeCanvas() {
+            var W = baseImg.naturalWidth;
+            var H = baseImg.naturalHeight;
+            var canvas = document.createElement('canvas');
+            canvas.width = W;
+            canvas.height = H;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(baseImg, 0, 0, W, H);
+            var ratio = printImg.naturalHeight / (printImg.naturalWidth || 1);
+            var w = state.width * W;
+            var h = w * ratio;
+            ctx.drawImage(printImg, state.x * W - w / 2, state.y * H - h / 2, w, h);
+            return canvas;
+        }
+
+        function safeFileName() {
+            return 'הדמיה-' + (state.productName || 'מוצר').replace(/[\\/:*?"<>|]/g, '') + '.png';
+        }
+
+        downloadBtn.addEventListener('click', function () {
+            composeCanvas().toBlob(function (blob) {
+                if (!blob) return;
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = safeFileName();
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+            }, 'image/png');
+        });
+
+        saveBtn.addEventListener('click', function () {
+            saveBtn.disabled = true;
+            showStatus('שומרת את ההדמיה...', false);
+            composeCanvas().toBlob(function (blob) {
+                if (!blob) {
+                    showStatus('שגיאה ביצירת התמונה', true);
+                    saveBtn.disabled = false;
+                    return;
+                }
+                var body = new FormData();
+                body.append('csrfmiddlewaretoken', csrf);
+                body.append('product_id', state.productId);
+                body.append('print_image', state.printFile, state.printFile.name);
+                body.append('result_image', blob, 'mockup.png');
+                body.append('transform_data', JSON.stringify({
+                    x: state.x, y: state.y, width: state.width
+                }));
+                fetch(SAVE_URL, { method: 'POST', body: body, credentials: 'same-origin' })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        saveBtn.disabled = false;
+                        if (!data.ok) {
+                            showStatus(data.error || 'שגיאה בשמירה', true);
+                            return;
+                        }
+                        showStatus('ההדמיה נשמרה בהצלחה!', false);
+                        addGalleryCard(data);
+                    })
+                    .catch(function () {
+                        saveBtn.disabled = false;
+                        showStatus('שגיאה בשמירה, נסי שוב', true);
+                    });
+            }, 'image/png');
+        });
+
+        function showStatus(text, isError) {
+            statusEl.textContent = text;
+            statusEl.hidden = false;
+            statusEl.classList.toggle('error', !!isError);
+        }
+
+        // --- Saved gallery ---
+        function addGalleryCard(data) {
+            galleryEmpty.hidden = true;
+            var card = document.createElement('div');
+            card.className = 'molly-mockup-gallery-card';
+            card.dataset.mockupId = data.mockup_id;
+            card.innerHTML =
+                '<a href="' + data.result_url + '" target="_blank" rel="noopener">' +
+                    '<img src="' + data.result_url + '" alt=""></a>' +
+                '<div class="molly-mockup-gallery-meta"><strong></strong><span>' + data.created + '</span></div>' +
+                '<div class="molly-mockup-gallery-actions">' +
+                    '<a class="molly-mockup-gallery-btn" href="' + data.result_url + '" download>הורדה</a>' +
+                    '<button type="button" class="molly-mockup-gallery-btn danger" data-delete-url="' + data.delete_url + '">מחיקה</button>' +
+                '</div>';
+            card.querySelector('strong').textContent = data.product_name || 'הדמיה';
+            gallery.prepend(card);
+            bindGalleryDeletes(card);
+        }
+
+        function bindGalleryDeletes(root) {
+            root.querySelectorAll('[data-delete-url]').forEach(function (btn) {
+                if (btn.dataset.bound) return;
+                btn.dataset.bound = '1';
+                btn.addEventListener('click', function () {
+                    if (!confirm('למחוק את ההדמיה?')) return;
+                    var body = new FormData();
+                    body.append('csrfmiddlewaretoken', csrf);
+                    fetch(btn.dataset.deleteUrl, { method: 'POST', body: body, credentials: 'same-origin' })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data.ok) {
+                                var card = btn.closest('.molly-mockup-gallery-card');
+                                if (card) card.remove();
+                                if (!gallery.children.length) galleryEmpty.hidden = false;
+                            }
+                        });
+                });
+            });
+        }
+
+        bindGalleryDeletes(document);
+    })();
+    </script>
+</body>
+</html>

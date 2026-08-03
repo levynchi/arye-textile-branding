@@ -23,6 +23,8 @@ from .models import (
     MollyCategory,
     MollyFabricType,
     MollyLabelColor,
+    MollyMockup,
+    MollyMockupProduct,
     MollyOrder,
     MollyOrderItem,
     MollyPrintDesign,
@@ -286,6 +288,79 @@ class MollyVariantAdmin(admin.ModelAdmin):
     )
     search_fields = ("product__name", "sku")
     autocomplete_fields = ("product", "background_color", "print_design", "fabric_type", "default_label_color")
+
+
+# ---------------------------------------------------------------------------
+# Mockups (הדמיות)
+# ---------------------------------------------------------------------------
+
+@admin.register(MollyMockupProduct)
+class MollyMockupProductAdmin(admin.ModelAdmin):
+    list_display = ("name", "image_thumb", "is_active", "order", "updated")
+    list_editable = ("is_active", "order")
+    search_fields = ("name",)
+    readonly_fields = ("image_large", "created", "updated")
+
+    fieldsets = (
+        (None, {
+            "fields": ("name", "image", "image_large", "order", "is_active"),
+        }),
+        ("מידע נוסף", {
+            "fields": ("created", "updated"),
+            "classes": ("collapse",),
+        }),
+    )
+
+    def image_thumb(self, obj):
+        if obj.image:
+            return mark_safe(
+                f'<img src="{obj.image.url}" '
+                'style="max-height:50px;max-width:80px;border-radius:4px;" />'
+            )
+        return "-"
+    image_thumb.short_description = "תצוגה"
+
+    def image_large(self, obj):
+        if obj.image:
+            return mark_safe(
+                f'<img src="{obj.image.url}" '
+                'style="max-height:300px;max-width:400px;border-radius:6px;" />'
+            )
+        return "אין תמונה"
+    image_large.short_description = "תצוגת המוצר"
+
+
+@admin.register(MollyMockup)
+class MollyMockupAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "product_name", "result_thumb", "created")
+    list_filter = ("user", "created")
+    search_fields = ("product_name", "user__display_name", "user__username")
+    readonly_fields = (
+        "user", "mockup_product", "product_name", "print_image",
+        "result_image", "result_large", "transform_data", "created",
+    )
+    date_hierarchy = "created"
+
+    def has_add_permission(self, request):
+        return False
+
+    def result_thumb(self, obj):
+        if obj.result_image:
+            return mark_safe(
+                f'<img src="{obj.result_image.url}" '
+                'style="max-height:50px;max-width:80px;border-radius:4px;" />'
+            )
+        return "-"
+    result_thumb.short_description = "הדמיה"
+
+    def result_large(self, obj):
+        if obj.result_image:
+            return mark_safe(
+                f'<img src="{obj.result_image.url}" '
+                'style="max-height:400px;max-width:500px;border-radius:6px;" />'
+            )
+        return "אין תמונה"
+    result_large.short_description = "תצוגת ההדמיה"
 
 
 # ---------------------------------------------------------------------------

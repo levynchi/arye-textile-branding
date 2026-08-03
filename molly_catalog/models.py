@@ -437,6 +437,81 @@ class MollyVariant(models.Model):
 
 
 # ---------------------------------------------------------------------------
+# Mockups (הדמיות) – admin-defined base products + customer-saved mockups
+# ---------------------------------------------------------------------------
+
+class MollyMockupProduct(models.Model):
+    """A base garment/product image the admin uploads for the mockup studio.
+
+    Kept separate from MollyProduct on purpose: the mockup list is curated
+    independently of the orderable catalog.
+    """
+
+    name = models.CharField("שם מוצר", max_length=200)
+    image = models.ImageField(
+        "תמונת מוצר",
+        upload_to="molly_catalog/mockup_products/",
+        help_text="תמונת הבגד/המוצר שעליה תמוקם ההדפסה.",
+    )
+    order = models.PositiveIntegerField("סדר תצוגה", default=0)
+    is_active = models.BooleanField("פעיל", default=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "molly_catalog"
+        ordering = ("order", "name")
+        verbose_name = "מוצר להדמיה"
+        verbose_name_plural = "מוצרים להדמיה"
+
+    def __str__(self):
+        return self.name
+
+
+class MollyMockup(models.Model):
+    """A mockup Molly saved: base product + uploaded print + final composite."""
+
+    user = models.ForeignKey(
+        MollyCatalogUser,
+        on_delete=models.CASCADE,
+        related_name="mockups",
+        verbose_name="משתמש",
+    )
+    mockup_product = models.ForeignKey(
+        MollyMockupProduct,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mockups",
+        verbose_name="מוצר להדמיה",
+    )
+    product_name = models.CharField(
+        "שם המוצר", max_length=200, blank=True,
+        help_text="שם המוצר בזמן השמירה (נשמר גם אם המוצר נמחק).",
+    )
+    print_image = models.ImageField(
+        "קובץ ההדפסה", upload_to="molly_catalog/mockups/prints/"
+    )
+    result_image = models.ImageField(
+        "תמונת ההדמיה", upload_to="molly_catalog/mockups/results/"
+    )
+    transform_data = models.JSONField(
+        "נתוני מיקום", default=dict, blank=True,
+        help_text="מיקום וגודל ההדפסה על המוצר (לעריכה עתידית).",
+    )
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "molly_catalog"
+        ordering = ("-created",)
+        verbose_name = "הדמיה"
+        verbose_name_plural = "הדמיות"
+
+    def __str__(self):
+        return f"הדמיה #{self.pk} — {self.product_name or 'ללא מוצר'} ({self.user.display_name})"
+
+
+# ---------------------------------------------------------------------------
 # Cart & orders – no money fields anywhere
 # ---------------------------------------------------------------------------
 
