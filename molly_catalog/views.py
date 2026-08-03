@@ -24,6 +24,7 @@ from .models import (
     MollyCategory,
     MollyLabelColor,
     MollyMockup,
+    MollyMockupLayer,
     MollyMockupProduct,
     MollyOrder,
     MollyOrderItem,
@@ -799,7 +800,7 @@ def mockup_studio(request):
 @require_POST
 @require_molly_login
 def mockup_save(request):
-    """Save a mockup: base product id + print file + composited result PNG."""
+    """Save a mockup: base product id + layer files + composited result PNG."""
     import json
 
     user = get_current_molly_user(request)
@@ -811,30 +812,37 @@ def mockup_save(request):
     except (MollyMockupProduct.DoesNotExist, TypeError, ValueError):
         return JsonResponse({"ok": False, "error": "המוצר לא נמצא"}, status=400)
 
-    print_image = request.FILES.get("print_image")
     result_image = request.FILES.get("result_image")
-    if not print_image or not result_image:
-        return JsonResponse({"ok": False, "error": "חסר קובץ הדפסה או תמונת הדמיה"}, status=400)
+    layer_images = request.FILES.getlist("layer_images")
+    if not result_image or not layer_images:
+        return JsonResponse({"ok": False, "error": "חסרות תמונות שכבה או תמונת הדמיה"}, status=400)
 
     max_size = 15 * 1024 * 1024  # 15MB
-    if print_image.size > max_size or result_image.size > max_size:
+    if result_image.size > max_size or any(f.size > max_size for f in layer_images):
         return JsonResponse({"ok": False, "error": "הקובץ גדול מדי (מקסימום 15MB)"}, status=400)
 
     try:
-        transform_data = json.loads(request.POST.get("transform_data") or "{}")
-        if not isinstance(transform_data, dict):
-            transform_data = {}
+        layers_data = json.loads(request.POST.get("layers_data") or "[]")
+        if not isinstance(layers_data, list):
+            layers_data = []
     except (TypeError, ValueError):
-        transform_data = {}
+        layers_data = []
 
     mockup = MollyMockup.objects.create(
         user=user,
         mockup_product=product,
         product_name=product.name,
-        print_image=print_image,
         result_image=result_image,
-        transform_data=transform_data,
+        transform_data={"layers": layers_data},
     )
+    for i, layer_file in enumerate(layer_images):
+        transform = layers_data[i] if i < len(layers_data) and isinstance(layers_data[i], dict) else {}
+        MollyMockupLayer.objects.create(
+            mockup=mockup,
+            image=layer_file,
+            transform_data=transform,
+            order=i,
+        )
 
     return JsonResponse({
         "ok": True,
@@ -856,7 +864,10 @@ def mockup_delete(request, mockup_id):
     except MollyMockup.DoesNotExist:
         return JsonResponse({"ok": False, "error": "ההדמיה לא נמצאה"}, status=404)
 
-    mockup.print_image.delete(save=False)
+    for layer in mockup.layers.all():
+        layer.image.delete(save=False)
+    if mockup.print_image:
+        mockup.print_image.delete(save=False)
     mockup.result_image.delete(save=False)
     mockup.delete()
     return JsonResponse({"ok": True})

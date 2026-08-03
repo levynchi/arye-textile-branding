@@ -490,7 +490,9 @@ class MollyMockup(models.Model):
         help_text="שם המוצר בזמן השמירה (נשמר גם אם המוצר נמחק).",
     )
     print_image = models.ImageField(
-        "קובץ ההדפסה", upload_to="molly_catalog/mockups/prints/"
+        "קובץ ההדפסה", upload_to="molly_catalog/mockups/prints/",
+        blank=True, null=True,
+        help_text="נשמר בהדמיות ישנות עם הדפסה אחת. הדמיות חדשות שומרות שכבות.",
     )
     result_image = models.ImageField(
         "תמונת ההדמיה", upload_to="molly_catalog/mockups/results/"
@@ -509,6 +511,34 @@ class MollyMockup(models.Model):
 
     def __str__(self):
         return f"הדמיה #{self.pk} — {self.product_name or 'ללא מוצר'} ({self.user.display_name})"
+
+
+class MollyMockupLayer(models.Model):
+    """One print layer inside a saved mockup (multiple layers per mockup)."""
+
+    mockup = models.ForeignKey(
+        MollyMockup,
+        on_delete=models.CASCADE,
+        related_name="layers",
+        verbose_name="הדמיה",
+    )
+    image = models.ImageField(
+        "תמונת השכבה", upload_to="molly_catalog/mockups/prints/"
+    )
+    transform_data = models.JSONField(
+        "נתוני מיקום", default=dict, blank=True,
+        help_text="מיקום וגודל השכבה על המוצר (x, y, width).",
+    )
+    order = models.PositiveIntegerField("סדר שכבה", default=0)
+
+    class Meta:
+        app_label = "molly_catalog"
+        ordering = ("order", "id")
+        verbose_name = "שכבת הדמיה"
+        verbose_name_plural = "שכבות הדמיה"
+
+    def __str__(self):
+        return f"שכבה {self.order + 1} של הדמיה #{self.mockup_id}"
 
 
 # ---------------------------------------------------------------------------

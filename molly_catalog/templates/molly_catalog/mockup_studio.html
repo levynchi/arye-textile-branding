@@ -15,7 +15,7 @@
         </div>
 
         <h1 class="molly-page-title">הדמיות</h1>
-        <p class="molly-page-subtitle">בחרי מוצר, העלי קובץ הדפסה, מקמי אותו על הבגד ושמרי את ההדמיה.</p>
+        <p class="molly-page-subtitle">בחרי מוצר, העלי תמונות הדפסה (אפשר כמה), מקמי אותן על הבגד ושמרי את ההדמיה.</p>
 
         {% include 'molly_catalog/partials/messages.html' %}
 
@@ -35,33 +35,53 @@
             </div>
         </section>
 
-        <!-- Step 2: upload a print -->
+        <!-- Step 2: upload prints (multiple = layers) -->
         <section class="molly-mockup-section" id="mockup-upload-section" hidden>
-            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">2</span> העלאת קובץ הדפסה</h2>
+            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">2</span> העלאת תמונות הדפסה</h2>
             <label class="molly-mockup-upload" id="mockup-upload-label">
-                <input type="file" id="mockup-print-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
+                <input type="file" id="mockup-print-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple hidden>
                 <span class="molly-mockup-upload-icon">⬆</span>
-                <span id="mockup-upload-text">לחצי לבחירת קובץ (PNG / JPG / SVG) או גררי לכאן</span>
+                <span id="mockup-upload-text">לחצי לבחירת קבצים (PNG / JPG / SVG) או גררי לכאן — כל תמונה נוספת נהיית שכבה חדשה</span>
             </label>
         </section>
 
-        <!-- Step 3: position on the garment -->
+        <!-- Step 3: position layers on the garment -->
         <section class="molly-mockup-section" id="mockup-editor-section" hidden>
-            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">3</span> מיקום ההדפסה</h2>
+            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">3</span> עריכת ההדמיה</h2>
             <div class="molly-mockup-editor">
                 <div class="molly-mockup-stage-wrap">
                     <div class="molly-mockup-stage" id="mockup-stage">
                         <img id="mockup-base-img" src="" alt="מוצר להדמיה" draggable="false">
-                        <img id="mockup-print-img" src="" alt="הדפסה" draggable="false" hidden>
                     </div>
                 </div>
                 <div class="molly-mockup-controls">
-                    <div class="molly-mockup-control">
-                        <label for="mockup-scale">גודל ההדפסה</label>
-                        <input type="range" id="mockup-scale" min="5" max="90" value="35">
+                    <div class="molly-mockup-panel">
+                        <div class="molly-mockup-panel-title">שכבות</div>
+                        <div class="molly-mockup-layers" id="mockup-layers-list"></div>
+                        <button type="button" class="molly-mockup-tool-btn" id="mockup-add-layer-btn">+ הוספת תמונה</button>
                     </div>
-                    <button type="button" class="molly-button molly-button-secondary" id="mockup-center-btn">מרכוז ההדפסה</button>
-                    <p class="molly-mockup-hint">אפשר לגרור את ההדפסה עם העכבר או האצבע כדי למקם אותה.</p>
+
+                    <div class="molly-mockup-panel" id="mockup-layer-tools" hidden>
+                        <div class="molly-mockup-panel-title">עריכת השכבה הנבחרת</div>
+                        <div class="molly-mockup-control">
+                            <label for="mockup-scale">גודל</label>
+                            <input type="range" id="mockup-scale" min="3" max="100" value="35">
+                        </div>
+                        <div class="molly-mockup-tool-row">
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-center-btn">מרכוז</button>
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-crop-btn">חיתוך</button>
+                        </div>
+                        <div class="molly-mockup-control">
+                            <label for="mockup-bg-tolerance">מחיקת רקע — רגישות</label>
+                            <input type="range" id="mockup-bg-tolerance" min="1" max="80" value="25">
+                        </div>
+                        <div class="molly-mockup-tool-row">
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-remove-bg-btn">מחיקת רקע</button>
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-restore-btn">שחזור מקור</button>
+                        </div>
+                    </div>
+
+                    <p class="molly-mockup-hint">גררי כל תמונה עם העכבר או האצבע. לחיצה על תמונה בוחרת אותה לעריכה.</p>
                     <div class="molly-mockup-actions">
                         <button type="button" class="molly-button" id="mockup-save-btn" disabled>שמירת ההדמיה</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-download-btn" disabled>הורדה למחשב</button>
@@ -100,6 +120,26 @@
         </section>
     </main>
 
+    <!-- Crop modal -->
+    <div class="molly-crop-overlay" id="crop-overlay" hidden>
+        <div class="molly-crop-modal">
+            <div class="molly-crop-title">חיתוך התמונה</div>
+            <div class="molly-crop-area" id="crop-area">
+                <img id="crop-img" src="" alt="" draggable="false">
+                <div class="molly-crop-rect" id="crop-rect">
+                    <div class="molly-crop-handle" data-handle="nw"></div>
+                    <div class="molly-crop-handle" data-handle="ne"></div>
+                    <div class="molly-crop-handle" data-handle="sw"></div>
+                    <div class="molly-crop-handle" data-handle="se"></div>
+                </div>
+            </div>
+            <div class="molly-crop-actions">
+                <button type="button" class="molly-button" id="crop-apply-btn">אישור החיתוך</button>
+                <button type="button" class="molly-button molly-button-secondary" id="crop-cancel-btn">ביטול</button>
+            </div>
+        </div>
+    </div>
+
     {% include 'molly_catalog/partials/footer.html' %}
 
     <script>
@@ -113,12 +153,18 @@
         var editorSection = document.getElementById('mockup-editor-section');
         var stage = document.getElementById('mockup-stage');
         var baseImg = document.getElementById('mockup-base-img');
-        var printImg = document.getElementById('mockup-print-img');
         var fileInput = document.getElementById('mockup-print-input');
         var uploadLabel = document.getElementById('mockup-upload-label');
         var uploadText = document.getElementById('mockup-upload-text');
+        var layersList = document.getElementById('mockup-layers-list');
+        var layerTools = document.getElementById('mockup-layer-tools');
+        var addLayerBtn = document.getElementById('mockup-add-layer-btn');
         var scaleSlider = document.getElementById('mockup-scale');
         var centerBtn = document.getElementById('mockup-center-btn');
+        var cropBtn = document.getElementById('mockup-crop-btn');
+        var bgToleranceSlider = document.getElementById('mockup-bg-tolerance');
+        var removeBgBtn = document.getElementById('mockup-remove-bg-btn');
+        var restoreBtn = document.getElementById('mockup-restore-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
         var statusEl = document.getElementById('mockup-status');
@@ -130,16 +176,23 @@
             return;
         }
 
-        // State: position/size of the print as fractions of the base image box.
-        var state = {
-            productId: null,
-            productName: '',
-            printFile: null,
-            printLoaded: false,
-            x: 0.5,        // center X (fraction of base width)
-            y: 0.45,       // center Y (fraction of base height)
-            width: 0.35    // print width (fraction of base width)
-        };
+        var state = { productId: null, productName: '' };
+
+        // Layers: order in array = z-order (first is bottom).
+        // Each layer: { id, name, original, working, current, el, x, y, width }
+        // - original: dataURL as uploaded (never changes)
+        // - working:  dataURL after crops (base for background removal)
+        // - current:  dataURL displayed (working + optional bg removal)
+        var layers = [];
+        var activeId = null;
+        var layerSeq = 0;
+
+        function activeLayer() {
+            for (var i = 0; i < layers.length; i++) {
+                if (layers[i].id === activeId) return layers[i];
+            }
+            return null;
+        }
 
         // --- Step 1: product selection ---
         var productCards = document.querySelectorAll('.molly-mockup-product-card');
@@ -151,19 +204,21 @@
                 state.productName = card.dataset.productName;
                 baseImg.src = card.dataset.productImage;
                 uploadSection.hidden = false;
-                if (state.printLoaded) {
+                if (layers.length) {
                     editorSection.hidden = false;
-                    requestAnimationFrame(applyTransform);
+                    requestAnimationFrame(applyAllTransforms);
                 }
                 uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 updateButtons();
             });
         });
 
-        // --- Step 2: print upload (click + drag&drop) ---
+        // --- Step 2: uploads (multiple files, drag & drop, add layer button) ---
         fileInput.addEventListener('change', function () {
-            if (fileInput.files && fileInput.files[0]) loadPrintFile(fileInput.files[0]);
+            addFiles(fileInput.files);
+            fileInput.value = '';
         });
+        addLayerBtn.addEventListener('click', function () { fileInput.click(); });
         ['dragover', 'dragenter'].forEach(function (ev) {
             uploadLabel.addEventListener(ev, function (e) {
                 e.preventDefault();
@@ -177,100 +232,415 @@
             });
         });
         uploadLabel.addEventListener('drop', function (e) {
-            var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-            if (f) loadPrintFile(f);
+            if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
         });
 
-        function loadPrintFile(file) {
-            if (!file.type.match(/^image\//)) {
-                showStatus('נא לבחור קובץ תמונה (PNG / JPG / SVG)', true);
-                return;
-            }
-            state.printFile = file;
-            var reader = new FileReader();
-            reader.onload = function () {
-                printImg.onload = function () {
-                    state.printLoaded = true;
-                    printImg.hidden = false;
-                    state.x = 0.5;
-                    state.y = 0.45;
-                    state.width = parseInt(scaleSlider.value, 10) / 100;
-                    editorSection.hidden = false;
-                    applyTransform();
-                    updateButtons();
-                    editorSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                };
-                printImg.src = reader.result;
-            };
-            reader.readAsDataURL(file);
-            uploadText.textContent = file.name + ' — אפשר לבחור קובץ אחר';
-        }
-
-        // --- Step 3: positioning ---
-        function applyTransform() {
-            if (!state.printLoaded || !baseImg.clientWidth) return;
-            var bw = baseImg.clientWidth;
-            var bh = baseImg.clientHeight;
-            var ratio = printImg.naturalHeight / (printImg.naturalWidth || 1);
-            var w = state.width * bw;
-            var h = w * ratio;
-            printImg.style.width = w + 'px';
-            printImg.style.height = h + 'px';
-            printImg.style.left = (state.x * bw - w / 2) + 'px';
-            printImg.style.top = (state.y * bh - h / 2) + 'px';
-        }
-
-        var dragging = null;
-        printImg.addEventListener('pointerdown', function (e) {
-            e.preventDefault();
-            printImg.setPointerCapture(e.pointerId);
-            dragging = {
-                startX: e.clientX,
-                startY: e.clientY,
-                origX: state.x,
-                origY: state.y
-            };
-            printImg.classList.add('dragging');
-        });
-        printImg.addEventListener('pointermove', function (e) {
-            if (!dragging) return;
-            var bw = baseImg.clientWidth;
-            var bh = baseImg.clientHeight;
-            if (!bw || !bh) return;
-            state.x = clamp(dragging.origX + (e.clientX - dragging.startX) / bw, 0, 1);
-            state.y = clamp(dragging.origY + (e.clientY - dragging.startY) / bh, 0, 1);
-            applyTransform();
-        });
-        ['pointerup', 'pointercancel'].forEach(function (ev) {
-            printImg.addEventListener(ev, function () {
-                dragging = null;
-                printImg.classList.remove('dragging');
+        function addFiles(fileList) {
+            var files = Array.prototype.slice.call(fileList || []);
+            files.forEach(function (file) {
+                if (!file.type.match(/^image\//)) {
+                    showStatus('הקובץ ' + file.name + ' אינו תמונה', true);
+                    return;
+                }
+                var reader = new FileReader();
+                reader.onload = function () { addLayerFromDataUrl(reader.result, file.name); };
+                reader.readAsDataURL(file);
             });
-        });
+        }
+
+        function addLayerFromDataUrl(dataUrl, name) {
+            var el = document.createElement('img');
+            el.className = 'molly-mockup-layer';
+            el.alt = name || 'שכבה';
+            el.draggable = false;
+            var layer = {
+                id: ++layerSeq,
+                name: name || ('תמונה ' + layerSeq),
+                original: dataUrl,
+                working: dataUrl,
+                current: dataUrl,
+                el: el,
+                x: 0.5,
+                y: 0.45,
+                width: 0.35
+            };
+            el.onload = function () {
+                el.onload = null;
+                layers.push(layer);
+                stage.appendChild(el);
+                attachLayerDrag(layer);
+                selectLayer(layer.id);
+                editorSection.hidden = false;
+                applyAllTransforms();
+                renderLayersPanel();
+                updateButtons();
+                uploadText.textContent = 'אפשר להוסיף עוד תמונות — כל אחת שכבה חדשה';
+                editorSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+            el.src = dataUrl;
+        }
+
+        function setLayerImage(layer, dataUrl, done) {
+            layer.el.onload = function () {
+                layer.el.onload = null;
+                layer.current = dataUrl;
+                applyAllTransforms();
+                renderLayersPanel();
+                if (done) done();
+            };
+            layer.el.src = dataUrl;
+        }
+
+        // --- Layer selection, ordering, deletion ---
+        function selectLayer(id) {
+            activeId = id;
+            layers.forEach(function (l) {
+                l.el.classList.toggle('active', l.id === id);
+            });
+            var layer = activeLayer();
+            layerTools.hidden = !layer;
+            if (layer) scaleSlider.value = Math.round(layer.width * 100);
+            renderLayersPanel();
+        }
+
+        function removeLayer(id) {
+            for (var i = 0; i < layers.length; i++) {
+                if (layers[i].id === id) {
+                    stage.removeChild(layers[i].el);
+                    layers.splice(i, 1);
+                    break;
+                }
+            }
+            if (activeId === id) {
+                activeId = layers.length ? layers[layers.length - 1].id : null;
+            }
+            if (!layers.length) {
+                editorSection.hidden = true;
+                uploadText.textContent = 'לחצי לבחירת קבצים (PNG / JPG / SVG) או גררי לכאן — כל תמונה נוספת נהיית שכבה חדשה';
+            }
+            selectLayer(activeId);
+            renderLayersPanel();
+            updateButtons();
+        }
+
+        function moveLayer(id, dir) {
+            var idx = -1;
+            for (var i = 0; i < layers.length; i++) {
+                if (layers[i].id === id) { idx = i; break; }
+            }
+            var target = idx + dir;
+            if (idx < 0 || target < 0 || target >= layers.length) return;
+            var tmp = layers[idx];
+            layers[idx] = layers[target];
+            layers[target] = tmp;
+            restackLayers();
+            renderLayersPanel();
+        }
+
+        function restackLayers() {
+            layers.forEach(function (l) { stage.appendChild(l.el); });
+        }
+
+        function renderLayersPanel() {
+            layersList.innerHTML = '';
+            // Show top layer first in the panel (more natural for users).
+            for (var i = layers.length - 1; i >= 0; i--) {
+                (function (layer, index) {
+                    var row = document.createElement('div');
+                    row.className = 'molly-mockup-layer-row' + (layer.id === activeId ? ' active' : '');
+                    var thumb = document.createElement('img');
+                    thumb.src = layer.current;
+                    thumb.alt = '';
+                    var label = document.createElement('span');
+                    label.className = 'molly-mockup-layer-name';
+                    label.textContent = layer.name;
+                    var actions = document.createElement('span');
+                    actions.className = 'molly-mockup-layer-actions';
+
+                    var upBtn = mkBtn('▲', 'העלאת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, +1); });
+                    var downBtn = mkBtn('▼', 'הורדת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, -1); });
+                    var delBtn = mkBtn('×', 'מחיקת שכבה', function (e) { e.stopPropagation(); removeLayer(layer.id); });
+                    delBtn.classList.add('danger');
+                    if (index === layers.length - 1) upBtn.disabled = true;
+                    if (index === 0) downBtn.disabled = true;
+                    actions.appendChild(upBtn);
+                    actions.appendChild(downBtn);
+                    actions.appendChild(delBtn);
+
+                    row.appendChild(thumb);
+                    row.appendChild(label);
+                    row.appendChild(actions);
+                    row.addEventListener('click', function () { selectLayer(layer.id); });
+                    layersList.appendChild(row);
+                })(layers[i], i);
+            }
+        }
+
+        function mkBtn(text, title, onClick) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'molly-mockup-layer-btn';
+            b.title = title;
+            b.textContent = text;
+            b.addEventListener('click', onClick);
+            return b;
+        }
+
+        // --- Positioning ---
+        function applyTransform(layer) {
+            if (!baseImg.clientWidth) return;
+            var bw = baseImg.clientWidth;
+            var bh = baseImg.clientHeight;
+            var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+            var w = layer.width * bw;
+            var h = w * ratio;
+            layer.el.style.width = w + 'px';
+            layer.el.style.height = h + 'px';
+            layer.el.style.left = (layer.x * bw - w / 2) + 'px';
+            layer.el.style.top = (layer.y * bh - h / 2) + 'px';
+        }
+
+        function applyAllTransforms() {
+            layers.forEach(applyTransform);
+        }
+
+        function attachLayerDrag(layer) {
+            var dragging = null;
+            layer.el.addEventListener('pointerdown', function (e) {
+                e.preventDefault();
+                selectLayer(layer.id);
+                layer.el.setPointerCapture(e.pointerId);
+                dragging = { startX: e.clientX, startY: e.clientY, origX: layer.x, origY: layer.y };
+                layer.el.classList.add('dragging');
+            });
+            layer.el.addEventListener('pointermove', function (e) {
+                if (!dragging) return;
+                var bw = baseImg.clientWidth;
+                var bh = baseImg.clientHeight;
+                if (!bw || !bh) return;
+                layer.x = clamp(dragging.origX + (e.clientX - dragging.startX) / bw, 0, 1);
+                layer.y = clamp(dragging.origY + (e.clientY - dragging.startY) / bh, 0, 1);
+                applyTransform(layer);
+            });
+            ['pointerup', 'pointercancel'].forEach(function (ev) {
+                layer.el.addEventListener(ev, function () {
+                    dragging = null;
+                    layer.el.classList.remove('dragging');
+                });
+            });
+        }
 
         scaleSlider.addEventListener('input', function () {
-            state.width = parseInt(scaleSlider.value, 10) / 100;
-            applyTransform();
+            var layer = activeLayer();
+            if (!layer) return;
+            layer.width = parseInt(scaleSlider.value, 10) / 100;
+            applyTransform(layer);
         });
 
         centerBtn.addEventListener('click', function () {
-            state.x = 0.5;
-            state.y = 0.45;
-            applyTransform();
+            var layer = activeLayer();
+            if (!layer) return;
+            layer.x = 0.5;
+            layer.y = 0.45;
+            applyTransform(layer);
         });
 
-        window.addEventListener('resize', applyTransform);
-        baseImg.addEventListener('load', applyTransform);
+        window.addEventListener('resize', applyAllTransforms);
+        baseImg.addEventListener('load', applyAllTransforms);
 
         function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
 
         function updateButtons() {
-            var ready = !!(state.productId && state.printLoaded);
+            var ready = !!(state.productId && layers.length);
             saveBtn.disabled = !ready;
             downloadBtn.disabled = !ready;
         }
 
-        // --- Compose the final image on a canvas at natural resolution ---
+        // --- Background removal (flood fill from image edges) ---
+        function dataUrlToCanvas(dataUrl, maxDim, done) {
+            var img = new Image();
+            img.onload = function () {
+                var w = img.naturalWidth;
+                var h = img.naturalHeight;
+                var scale = Math.min(1, maxDim / Math.max(w, h));
+                var canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(w * scale));
+                canvas.height = Math.max(1, Math.round(h * scale));
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                done(canvas);
+            };
+            img.src = dataUrl;
+        }
+
+        function removeBackground(dataUrl, tolerance, done) {
+            dataUrlToCanvas(dataUrl, 2500, function (canvas) {
+                var ctx = canvas.getContext('2d');
+                var W = canvas.width;
+                var H = canvas.height;
+                var imageData = ctx.getImageData(0, 0, W, H);
+                var d = imageData.data;
+                // Squared color distance threshold (tolerance 1-80).
+                var thr = tolerance * 6;
+                var thr2 = thr * thr;
+                var visited = new Uint8Array(W * H);
+                var queue = [];
+
+                function trySeed(x, y) {
+                    var p = y * W + x;
+                    if (!visited[p]) queue.push([p, d[p * 4], d[p * 4 + 1], d[p * 4 + 2]]);
+                }
+                // Seed the fill from every border pixel; each flood compares
+                // against its seed color so multi-shade backgrounds still work.
+                for (var x = 0; x < W; x++) { trySeed(x, 0); trySeed(x, H - 1); }
+                for (var y = 0; y < H; y++) { trySeed(0, y); trySeed(W - 1, y); }
+
+                while (queue.length) {
+                    var item = queue.pop();
+                    var p = item[0];
+                    if (visited[p]) continue;
+                    var i4 = p * 4;
+                    if (d[i4 + 3] === 0) { visited[p] = 1; continue; }
+                    var dr = d[i4] - item[1];
+                    var dg = d[i4 + 1] - item[2];
+                    var db = d[i4 + 2] - item[3];
+                    if (dr * dr + dg * dg + db * db > thr2) continue;
+                    visited[p] = 1;
+                    d[i4 + 3] = 0;
+                    var px = p % W;
+                    var py = (p - px) / W;
+                    if (px > 0) queue.push([p - 1, item[1], item[2], item[3]]);
+                    if (px < W - 1) queue.push([p + 1, item[1], item[2], item[3]]);
+                    if (py > 0) queue.push([p - W, item[1], item[2], item[3]]);
+                    if (py < H - 1) queue.push([p + W, item[1], item[2], item[3]]);
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                done(canvas.toDataURL('image/png'));
+            });
+        }
+
+        removeBgBtn.addEventListener('click', function () {
+            var layer = activeLayer();
+            if (!layer) return;
+            removeBgBtn.disabled = true;
+            showStatus('מוחקת רקע...', false);
+            removeBackground(layer.working, parseInt(bgToleranceSlider.value, 10), function (resultUrl) {
+                setLayerImage(layer, resultUrl, function () {
+                    removeBgBtn.disabled = false;
+                    showStatus('הרקע נמחק. אפשר לשנות רגישות וללחוץ שוב.', false);
+                });
+            });
+        });
+
+        bgToleranceSlider.addEventListener('change', function () {
+            var layer = activeLayer();
+            // Re-apply automatically only if bg removal is already active on the layer.
+            if (layer && layer.current !== layer.working) removeBgBtn.click();
+        });
+
+        restoreBtn.addEventListener('click', function () {
+            var layer = activeLayer();
+            if (!layer) return;
+            layer.working = layer.original;
+            setLayerImage(layer, layer.original);
+            showStatus('השכבה שוחזרה למקור.', false);
+        });
+
+        // --- Crop tool ---
+        var cropOverlay = document.getElementById('crop-overlay');
+        var cropArea = document.getElementById('crop-area');
+        var cropImg = document.getElementById('crop-img');
+        var cropRect = document.getElementById('crop-rect');
+        var cropApplyBtn = document.getElementById('crop-apply-btn');
+        var cropCancelBtn = document.getElementById('crop-cancel-btn');
+        var crop = { x: 0, y: 0, w: 0, h: 0 };
+
+        cropBtn.addEventListener('click', function () {
+            var layer = activeLayer();
+            if (!layer) return;
+            cropImg.onload = function () {
+                cropImg.onload = null;
+                cropOverlay.hidden = false;
+                requestAnimationFrame(function () {
+                    var iw = cropImg.clientWidth;
+                    var ih = cropImg.clientHeight;
+                    crop = { x: iw * 0.1, y: ih * 0.1, w: iw * 0.8, h: ih * 0.8 };
+                    layoutCropRect();
+                });
+            };
+            cropImg.src = layer.current;
+            if (cropImg.complete && cropImg.onload) cropImg.onload();
+        });
+
+        function layoutCropRect() {
+            cropRect.style.left = crop.x + 'px';
+            cropRect.style.top = crop.y + 'px';
+            cropRect.style.width = crop.w + 'px';
+            cropRect.style.height = crop.h + 'px';
+        }
+
+        (function setupCropInteractions() {
+            var mode = null; // 'move' or handle name
+            var start = null;
+            var MIN = 24;
+
+            cropRect.addEventListener('pointerdown', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                cropRect.setPointerCapture(e.pointerId);
+                var handle = e.target.dataset && e.target.dataset.handle;
+                mode = handle || 'move';
+                start = { x: e.clientX, y: e.clientY, rect: { x: crop.x, y: crop.y, w: crop.w, h: crop.h } };
+            });
+            cropRect.addEventListener('pointermove', function (e) {
+                if (!mode) return;
+                var dx = e.clientX - start.x;
+                var dy = e.clientY - start.y;
+                var iw = cropImg.clientWidth;
+                var ih = cropImg.clientHeight;
+                var r = start.rect;
+                if (mode === 'move') {
+                    crop.x = clamp(r.x + dx, 0, iw - r.w);
+                    crop.y = clamp(r.y + dy, 0, ih - r.h);
+                } else {
+                    var x1 = r.x, y1 = r.y, x2 = r.x + r.w, y2 = r.y + r.h;
+                    if (mode.indexOf('w') !== -1) x1 = clamp(r.x + dx, 0, x2 - MIN);
+                    if (mode.indexOf('e') !== -1) x2 = clamp(r.x + r.w + dx, x1 + MIN, iw);
+                    if (mode.indexOf('n') !== -1) y1 = clamp(r.y + dy, 0, y2 - MIN);
+                    if (mode.indexOf('s') !== -1) y2 = clamp(r.y + r.h + dy, y1 + MIN, ih);
+                    crop.x = x1; crop.y = y1; crop.w = x2 - x1; crop.h = y2 - y1;
+                }
+                layoutCropRect();
+            });
+            ['pointerup', 'pointercancel'].forEach(function (ev) {
+                cropRect.addEventListener(ev, function () { mode = null; });
+            });
+        })();
+
+        cropApplyBtn.addEventListener('click', function () {
+            var layer = activeLayer();
+            if (!layer) { cropOverlay.hidden = true; return; }
+            var scaleX = cropImg.naturalWidth / (cropImg.clientWidth || 1);
+            var scaleY = cropImg.naturalHeight / (cropImg.clientHeight || 1);
+            var sx = Math.round(crop.x * scaleX);
+            var sy = Math.round(crop.y * scaleY);
+            var sw = Math.max(1, Math.round(crop.w * scaleX));
+            var sh = Math.max(1, Math.round(crop.h * scaleY));
+            var canvas = document.createElement('canvas');
+            canvas.width = sw;
+            canvas.height = sh;
+            canvas.getContext('2d').drawImage(cropImg, sx, sy, sw, sh, 0, 0, sw, sh);
+            var croppedUrl = canvas.toDataURL('image/png');
+            // Crop bakes into the working image so bg removal keeps working on it.
+            layer.working = croppedUrl;
+            setLayerImage(layer, croppedUrl);
+            cropOverlay.hidden = true;
+            showStatus('התמונה נחתכה.', false);
+        });
+
+        cropCancelBtn.addEventListener('click', function () { cropOverlay.hidden = true; });
+
+        // --- Compose the final image at the base image's natural resolution ---
         function composeCanvas() {
             var W = baseImg.naturalWidth;
             var H = baseImg.naturalHeight;
@@ -279,10 +649,12 @@
             canvas.height = H;
             var ctx = canvas.getContext('2d');
             ctx.drawImage(baseImg, 0, 0, W, H);
-            var ratio = printImg.naturalHeight / (printImg.naturalWidth || 1);
-            var w = state.width * W;
-            var h = w * ratio;
-            ctx.drawImage(printImg, state.x * W - w / 2, state.y * H - h / 2, w, h);
+            layers.forEach(function (layer) {
+                var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+                var w = layer.width * W;
+                var h = w * ratio;
+                ctx.drawImage(layer.el, layer.x * W - w / 2, layer.y * H - h / 2, w, h);
+            });
             return canvas;
         }
 
@@ -303,6 +675,15 @@
             }, 'image/png');
         });
 
+        function dataUrlToBlob(dataUrl) {
+            var parts = dataUrl.split(',');
+            var mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/png';
+            var bin = atob(parts[1]);
+            var arr = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            return new Blob([arr], { type: mime });
+        }
+
         saveBtn.addEventListener('click', function () {
             saveBtn.disabled = true;
             showStatus('שומרת את ההדמיה...', false);
@@ -315,11 +696,13 @@
                 var body = new FormData();
                 body.append('csrfmiddlewaretoken', csrf);
                 body.append('product_id', state.productId);
-                body.append('print_image', state.printFile, state.printFile.name);
                 body.append('result_image', blob, 'mockup.png');
-                body.append('transform_data', JSON.stringify({
-                    x: state.x, y: state.y, width: state.width
-                }));
+                var layersData = [];
+                layers.forEach(function (layer, i) {
+                    body.append('layer_images', dataUrlToBlob(layer.current), 'layer-' + (i + 1) + '.png');
+                    layersData.push({ x: layer.x, y: layer.y, width: layer.width, name: layer.name });
+                });
+                body.append('layers_data', JSON.stringify(layersData));
                 fetch(SAVE_URL, { method: 'POST', body: body, credentials: 'same-origin' })
                     .then(function (r) { return r.json(); })
                     .then(function (data) {

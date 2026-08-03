@@ -1248,25 +1248,231 @@ body.molly-body {
     -webkit-user-drag: none;
 }
 
-.molly-mockup-stage #mockup-print-img {
+.molly-mockup-stage .molly-mockup-layer {
     position: absolute;
     cursor: move;
     touch-action: none;
     user-select: none;
     -webkit-user-drag: none;
-    outline: 1px dashed rgba(0, 0, 0, 0.25);
+    outline: 1px dashed rgba(0, 0, 0, 0.2);
     outline-offset: 2px;
 }
 
-.molly-mockup-stage #mockup-print-img.dragging {
-    outline-color: var(--molly-accent-dark);
+.molly-mockup-stage .molly-mockup-layer.active {
+    outline: 2px dashed var(--molly-accent-dark);
+}
+
+.molly-mockup-stage .molly-mockup-layer.dragging {
+    outline-color: var(--molly-primary-dark);
 }
 
 .molly-mockup-controls {
-    flex: 0 1 280px;
+    flex: 0 1 300px;
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+.molly-mockup-panel {
+    background: var(--molly-bg);
+    border: 1px solid var(--molly-border);
+    border-radius: var(--molly-radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.molly-mockup-panel-title {
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.molly-mockup-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.molly-mockup-layer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid var(--molly-border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.molly-mockup-layer-row.active {
+    border-color: var(--molly-accent-dark);
+    background: var(--molly-accent-light);
+}
+
+.molly-mockup-layer-row img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 12px 12px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.molly-mockup-layer-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.molly-mockup-layer-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.molly-mockup-layer-btn {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--molly-border);
+    border-radius: 6px;
+    background: #fff;
+    font-family: var(--molly-font);
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: var(--molly-text);
+    padding: 0;
+}
+
+.molly-mockup-layer-btn:hover:not(:disabled) {
+    background: var(--molly-primary-light);
+}
+
+.molly-mockup-layer-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.molly-mockup-layer-btn.danger:hover {
+    background: var(--molly-danger-light);
+    color: #b02a2a;
+}
+
+.molly-mockup-tool-row {
+    display: flex;
+    gap: 8px;
+}
+
+.molly-mockup-tool-btn {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--molly-border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--molly-text);
+    font-family: var(--molly-font);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.molly-mockup-tool-btn:hover:not(:disabled) {
+    background: var(--molly-primary-light);
+}
+
+.molly-mockup-tool-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* Crop modal */
+
+.molly-crop-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.molly-crop-overlay[hidden] {
+    display: none;
+}
+
+.molly-crop-modal {
+    background: var(--molly-card-bg);
+    border-radius: var(--molly-radius);
+    box-shadow: var(--molly-shadow-hover);
+    padding: 20px;
+    max-width: min(92vw, 760px);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.molly-crop-title {
+    font-weight: 800;
+    font-size: 1.1rem;
+}
+
+.molly-crop-area {
+    position: relative;
+    display: inline-block;
+    align-self: center;
+    max-width: 100%;
+    overflow: hidden;
+    background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 16px 16px;
+    border-radius: 6px;
+}
+
+.molly-crop-area img {
+    display: block;
+    max-width: min(84vw, 700px);
+    max-height: 58vh;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.molly-crop-rect {
+    position: absolute;
+    border: 2px dashed var(--molly-accent-dark);
+    background: rgba(232, 202, 165, 0.15);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+    cursor: move;
+    touch-action: none;
+}
+
+.molly-crop-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--molly-accent-dark);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    touch-action: none;
+}
+
+.molly-crop-handle[data-handle="nw"] { top: -9px; left: -9px; cursor: nwse-resize; }
+.molly-crop-handle[data-handle="ne"] { top: -9px; right: -9px; cursor: nesw-resize; }
+.molly-crop-handle[data-handle="sw"] { bottom: -9px; left: -9px; cursor: nesw-resize; }
+.molly-crop-handle[data-handle="se"] { bottom: -9px; right: -9px; cursor: nwse-resize; }
+
+.molly-crop-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-start;
 }
 
 .molly-mockup-control label {

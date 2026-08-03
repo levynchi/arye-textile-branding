@@ -24,6 +24,7 @@ from .models import (
     MollyFabricType,
     MollyLabelColor,
     MollyMockup,
+    MollyMockupLayer,
     MollyMockupProduct,
     MollyOrder,
     MollyOrderItem,
@@ -330,9 +331,29 @@ class MollyMockupProductAdmin(admin.ModelAdmin):
     image_large.short_description = "תצוגת המוצר"
 
 
+class MollyMockupLayerInline(admin.TabularInline):
+    model = MollyMockupLayer
+    extra = 0
+    can_delete = False
+    fields = ("layer_thumb", "image", "transform_data", "order")
+    readonly_fields = ("layer_thumb", "image", "transform_data", "order")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def layer_thumb(self, obj):
+        if obj.image:
+            return mark_safe(
+                f'<img src="{obj.image.url}" '
+                'style="max-height:50px;max-width:80px;border-radius:4px;" />'
+            )
+        return "-"
+    layer_thumb.short_description = "תצוגה"
+
+
 @admin.register(MollyMockup)
 class MollyMockupAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "product_name", "result_thumb", "created")
+    list_display = ("id", "user", "product_name", "result_thumb", "layer_count", "created")
     list_filter = ("user", "created")
     search_fields = ("product_name", "user__display_name", "user__username")
     readonly_fields = (
@@ -340,6 +361,11 @@ class MollyMockupAdmin(admin.ModelAdmin):
         "result_image", "result_large", "transform_data", "created",
     )
     date_hierarchy = "created"
+    inlines = [MollyMockupLayerInline]
+
+    def layer_count(self, obj):
+        return obj.layers.count()
+    layer_count.short_description = "שכבות"
 
     def has_add_permission(self, request):
         return False
