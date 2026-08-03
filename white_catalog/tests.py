@@ -169,6 +169,34 @@ class ImportColorVariantsTests(TestCase):
         self.assertEqual(len(data["errors"]), 1)
         self.assertIn("444", data["errors"][0])
 
+    def test_clear_image_keeps_hex_only_display(self):
+        rows = [{
+            "barcode": "222",
+            "unit_price": "21.3",
+            "color": "תכלת",
+            "color_hex": "#7387a8",
+            "image_base64": self._jpeg_b64(),
+            "image_format": "jpg",
+        }]
+        self._post(rows)
+        variant = WhiteColorVariant.objects.get(barcode="222")
+        self.assertTrue(variant.image)
+        self.assertTrue(variant.color.swatch_image)
+
+        response = self._post([{
+            "barcode": "222",
+            "unit_price": "21.3",
+            "color": "תכלת",
+            "color_hex": "#7387a8",
+            "clear_image": True,
+        }])
+        self.assertEqual(response.json()["errors"], [])
+        variant.refresh_from_db()
+        color = WhiteColor.objects.get(name="תכלת")
+        self.assertFalse(variant.image)
+        self.assertFalse(color.swatch_image)
+        self.assertEqual(color.hex_color, "#7387a8")
+
     def test_delete_color_variant_by_barcode(self):
         color = WhiteColor.objects.create(name="אפור עשן בהיר")
         WhiteColorVariant.objects.create(product=self.product, color=color, barcode="7297555022295")

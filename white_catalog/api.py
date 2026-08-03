@@ -109,6 +109,7 @@ def _import_color_row(product, row, color_name, price, barcode):
 		variant.unit_price = price
 
 	image_b64 = row.get('image_base64') or ''
+	clear_image = bool(row.get('clear_image'))
 	if image_b64:
 		try:
 			data = base64.b64decode(image_b64)
@@ -119,6 +120,13 @@ def _import_color_row(product, row, color_name, price, barcode):
 		variant.image.save(f'{safe_name}.{ext}', ContentFile(data), save=False)
 		# אותה תמונה משמשת גם כדוגמית הצבע במניפה (טקסטורת הבד במקום צבע אחיד)
 		color.swatch_image.save(f'swatch_{safe_name}.{ext}', ContentFile(data), save=True)
+	elif clear_image:
+		# הצגה לפי קוד HEX בלבד - מסירים תמונת בד/דוגמית אם קיימות
+		if variant.image:
+			variant.image.delete(save=False)
+		if color.swatch_image:
+			color.swatch_image.delete(save=False)
+			color.save(update_fields=['swatch_image'])
 
 	variant.save()
 
