@@ -97,8 +97,8 @@
                             <input type="range" id="mockup-scale" min="3" max="100" value="35">
                         </div>
                         <div class="molly-mockup-control" id="mockup-density-control" hidden>
-                            <label for="mockup-density">צפיפות אלמנטים</label>
-                            <input type="range" id="mockup-density" min="20" max="100" value="100">
+                            <label for="mockup-density">צפיפות אלמנטים <span id="mockup-density-value">רגיל</span></label>
+                            <input type="range" id="mockup-density" min="50" max="150" value="100" step="5">
                         </div>
                         <div class="molly-mockup-tool-row">
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-center-btn">מרכוז</button>
@@ -193,6 +193,7 @@
         var scaleLabel = document.getElementById('mockup-scale-label');
         var densityControl = document.getElementById('mockup-density-control');
         var densitySlider = document.getElementById('mockup-density');
+        var densityValueLabel = document.getElementById('mockup-density-value');
         var modeHint = document.getElementById('mockup-mode-hint');
         var centerBtn = document.getElementById('mockup-center-btn');
         var cropBtn = document.getElementById('mockup-crop-btn');
@@ -386,11 +387,22 @@
             layer.el.onload = function () {
                 layer.el.onload = null;
                 layer.current = dataUrl;
+                invalidateDensityCache(layer);
                 applyAllTransforms();
                 renderLayersPanel();
                 if (done) done();
             };
             layer.el.src = dataUrl;
+        }
+
+        function invalidateDensityCache(layer) {
+            layer._densityComps = null;
+            layer._densitySrcKey = null;
+            layer._densitySrcCanvas = null;
+            layer._spacingTileKey = null;
+            layer._spacingTileUrl = null;
+            layer._spacingTileW = null;
+            layer._spacingTileH = null;
         }
 
         // --- Layer selection, ordering, deletion, visibility ---
@@ -406,6 +418,20 @@
             renderLayersPanel();
         }
 
+        // Slider UI 50..150 (higher = denser) ↔ internal spacing 1.5..0.5
+        // spacing=1 original; <1 denser; >1 sparser. Motif pixel size stays fixed.
+        function densityUiToSpacing(ui) {
+            return clamp(2 - (parseInt(ui, 10) / 100), 0.5, 1.5);
+        }
+        function spacingToDensityUi(spacing) {
+            return Math.round((2 - (spacing == null ? 1 : spacing)) * 100);
+        }
+        function densityLabelText(spacing) {
+            if (spacing < 0.85) return 'צפוף';
+            if (spacing > 1.15) return 'מרווח';
+            return 'רגיל';
+        }
+
         function syncTools() {
             var layer = activeLayer();
             if (!layer) return;
@@ -415,10 +441,12 @@
             scaleLabel.textContent = allover ? 'גודל האריח' : 'גודל';
             scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
             if (densityControl) densityControl.hidden = !allover;
-            if (densitySlider) densitySlider.value = Math.round((layer.density || 1) * 100);
+            var spacing = layer.density == null ? 1 : layer.density;
+            if (densitySlider) densitySlider.value = String(spacingToDensityUi(spacing));
+            if (densityValueLabel) densityValueLabel.textContent = densityLabelText(spacing);
             centerBtn.textContent = allover ? 'איפוס מיקום' : 'מרכוז';
             modeHint.textContent = allover
-                ? 'הפאטרן חוזר על כל הבגד. גררי אותו כדי להזיז את ההיסט. צפיפות מרווחת או מצופפת בין האלמנטים.'
+                ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. הצפיפות מקרבת/מרחיקה אלמנטים בתוך הפאטרן (בלי רווחים בין גושים).'
                 : 'גררי את התמונה כדי למקם אותה על הבגד.';
         }
 
@@ -600,29 +628,300 @@
             }
         }
 
-        // Build one repeat cell: motif centered at `density`, transparent margins.
-        // density=1 fills the cell (legacy look); lower values space motifs apart.
-        function buildDensityTileCanvas(imgEl, tileW, tileH, density) {
-            var d = clamp(density == null ? 1 : density, 0.2, 1);
+        // --- Internal pattern density (motif spacing), not tile padding ---
+        // spacing < 1 denser, =1 original, >1 sparser. Motif pixel size fixed.
+        var DENSITY_MAX_SIDE = 900;
+        var DENSITY_MIN_PIXELS = 18;
+        var DENSITY_LAB_THRESH2 = 144; // ~12 Lab units squared
+
+        function wrapDelta(d, period) {
+            var half = period * 0.5;
+            var m = (d + half) % period;
+            if (m < 0) m += period;
+            return m - half;
+        }
+
+        function circularCentroid(xs, ys, w, h) {
+            var sx = 0, sy = 0, cx = 0, cy = 0, i;
+            for (i = 0; i < xs.length; i++) {
+                var ax = 2 * Math.PI * xs[i] / w;
+                var ay = 2 * Math.PI * ys[i] / h;
+                sx += Math.sin(ax); cx += Math.cos(ax);
+                sy += Math.sin(ay); cy += Math.cos(ay);
+            }
+            var n = xs.length || 1;
+            var ox = (Math.atan2(sx / n, cx / n) / (2 * Math.PI)) * w;
+            var oy = (Math.atan2(sy / n, cy / n) / (2 * Math.PI)) * h;
+            if (ox < 0) ox += w;
+            if (oy < 0) oy += h;
+            return { cx: ox, cy: oy };
+        }
+
+        function morphCloseMask(mask, w, h, radius) {
+            var cur = mask;
+            var r, x, y, i, n;
+            function dilate(src) {
+                var out = new Uint8Array(w * h);
+                for (y = 0; y < h; y++) {
+                    for (x = 0; x < w; x++) {
+                        var hit = 0;
+                        for (var dy = -1; dy <= 1 && !hit; dy++) {
+                            for (var dx = -1; dx <= 1; dx++) {
+                                if (src[((y + dy + h) % h) * w + ((x + dx + w) % w)]) { hit = 1; break; }
+                            }
+                        }
+                        out[y * w + x] = hit;
+                    }
+                }
+                return out;
+            }
+            function erode(src) {
+                var out = new Uint8Array(w * h);
+                for (y = 0; y < h; y++) {
+                    for (x = 0; x < w; x++) {
+                        var ok = 1;
+                        for (var dy = -1; dy <= 1 && ok; dy++) {
+                            for (var dx = -1; dx <= 1; dx++) {
+                                if (!src[((y + dy + h) % h) * w + ((x + dx + w) % w)]) { ok = 0; break; }
+                            }
+                        }
+                        out[y * w + x] = ok;
+                    }
+                }
+                return out;
+            }
+            for (r = 0; r < radius; r++) cur = dilate(cur);
+            for (r = 0; r < radius; r++) cur = erode(cur);
+            return cur;
+        }
+
+        function toroidalComponents(mask, w, h, minPixels) {
+            var visited = new Uint8Array(w * h);
+            var comps = [];
+            var neigh = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+            for (var y0 = 0; y0 < h; y0++) {
+                for (var x0 = 0; x0 < w; x0++) {
+                    var start = y0 * w + x0;
+                    if (!mask[start] || visited[start]) continue;
+                    var qx = [x0];
+                    var qy = [y0];
+                    visited[start] = 1;
+                    var xs = [];
+                    var ys = [];
+                    var qi = 0;
+                    while (qi < qx.length) {
+                        var x = qx[qi];
+                        var y = qy[qi];
+                        qi++;
+                        xs.push(x);
+                        ys.push(y);
+                        for (var ni = 0; ni < neigh.length; ni++) {
+                            var nx = (x + neigh[ni][0] + w) % w;
+                            var ny = (y + neigh[ni][1] + h) % h;
+                            var np = ny * w + nx;
+                            if (mask[np] && !visited[np]) {
+                                visited[np] = 1;
+                                qx.push(nx);
+                                qy.push(ny);
+                            }
+                        }
+                    }
+                    if (xs.length < minPixels) continue;
+                    var c = circularCentroid(xs, ys, w, h);
+                    comps.push({ xs: xs, ys: ys, cx: c.cx, cy: c.cy });
+                }
+            }
+            return comps;
+        }
+
+        function ensureDensitySource(layer) {
+            if (!layer.el.naturalWidth) return null;
+            if (layer._densitySrcKey === layer.current && layer._densitySrcCanvas) {
+                return layer._densitySrcCanvas;
+            }
+            var nw = layer.el.naturalWidth;
+            var nh = layer.el.naturalHeight;
+            var scale = Math.min(1, DENSITY_MAX_SIDE / Math.max(nw, nh));
+            var w = Math.max(32, Math.round(nw * scale));
+            var h = Math.max(32, Math.round(nh * scale));
             var canvas = document.createElement('canvas');
-            canvas.width = Math.max(4, Math.round(tileW));
-            canvas.height = Math.max(4, Math.round(tileH));
-            var ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            var dw = canvas.width * d;
-            var dh = canvas.height * d;
-            ctx.drawImage(imgEl, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(layer.el, 0, 0, w, h);
+            layer._densitySrcKey = layer.current;
+            layer._densitySrcCanvas = canvas;
+            layer._densityComps = null;
             return canvas;
         }
 
-        function getStagePatternTileUrl(layer, tileW, tileH) {
-            var density = layer.density == null ? 1 : layer.density;
-            var key = layer.current + '|' + Math.round(tileW) + 'x' + Math.round(tileH) + '|' + density.toFixed(3);
-            if (layer._patternTileKey === key && layer._patternTileUrl) return layer._patternTileUrl;
-            var canvas = buildDensityTileCanvas(layer.el, tileW, tileH, density);
-            layer._patternTileKey = key;
-            layer._patternTileUrl = canvas.toDataURL('image/png');
-            return layer._patternTileUrl;
+        function buildInkMaskFromImageData(imageData, w, h) {
+            var d = imageData.data;
+            var mask = new Uint8Array(w * h);
+            var opaque = 0;
+            var i, p;
+            for (p = 0, i = 0; p < w * h; p++, i += 4) {
+                if (d[i + 3] >= 40) {
+                    mask[p] = 1;
+                    opaque++;
+                }
+            }
+            // Already knocked-out tiles: use alpha. Opaque tiles: Lab vs plate.
+            if (opaque / (w * h) < 0.92) return mask;
+
+            var hist = buildColorHistogram(imageData, w, h);
+            if (!hist.total) return mask;
+            var ranked = Object.keys(hist.buckets).map(function (key) {
+                return { key: key, count: hist.buckets[key] };
+            });
+            ranked.sort(function (a, b) { return b.count - a.count; });
+            var plate = keyToRgb(ranked[0].key);
+            var plateLab = rgbToLab(plate.r, plate.g, plate.b);
+            mask = new Uint8Array(w * h);
+            for (p = 0, i = 0; p < w * h; p++, i += 4) {
+                if (d[i + 3] < 16) continue;
+                var lab = rgbToLab(d[i], d[i + 1], d[i + 2]);
+                if (labDist2(lab, plateLab) >= DENSITY_LAB_THRESH2) mask[p] = 1;
+            }
+            return mask;
+        }
+
+        function ensureDensityComponents(layer) {
+            var src = ensureDensitySource(layer);
+            if (!src) return null;
+            if (layer._densityComps && layer._densitySrcKey === layer.current) {
+                return { canvas: src, comps: layer._densityComps, w: src.width, h: src.height };
+            }
+            var w = src.width;
+            var h = src.height;
+            var ctx = src.getContext('2d');
+            var imageData = ctx.getImageData(0, 0, w, h);
+            var raw = buildInkMaskFromImageData(imageData, w, h);
+            var grouped = morphCloseMask(raw, w, h, 2);
+            var comps = toroidalComponents(grouped, w, h, DENSITY_MIN_PIXELS);
+            var filtered = [];
+            for (var ci = 0; ci < comps.length; ci++) {
+                var c = comps[ci];
+                var xs = [];
+                var ys = [];
+                for (var k = 0; k < c.xs.length; k++) {
+                    if (raw[c.ys[k] * w + c.xs[k]]) {
+                        xs.push(c.xs[k]);
+                        ys.push(c.ys[k]);
+                    }
+                }
+                if (xs.length < DENSITY_MIN_PIXELS) continue;
+                var cen = circularCentroid(xs, ys, w, h);
+                filtered.push({ xs: xs, ys: ys, cx: cen.cx, cy: cen.cy });
+            }
+            layer._densityComps = filtered;
+            return { canvas: src, comps: filtered, w: w, h: h };
+        }
+
+        function buildSpacingTileCanvas(layer, spacing) {
+            spacing = clamp(spacing == null ? 1 : spacing, 0.5, 1.5);
+            var src = ensureDensitySource(layer);
+            if (!src) return null;
+            // Original spacing: skip expensive component extraction.
+            if (Math.abs(spacing - 1) < 0.02) {
+                return { canvas: src, w: src.width, h: src.height, spacing: 1 };
+            }
+
+            var srcInfo = ensureDensityComponents(layer);
+            if (!srcInfo) return null;
+            var w = srcInfo.w;
+            var h = srcInfo.h;
+            var comps = srcInfo.comps;
+
+            if (!comps.length) {
+                return { canvas: src, w: w, h: h, spacing: 1 };
+            }
+
+            var newW = Math.max(32, Math.round(w * spacing));
+            var newH = Math.max(32, Math.round(h * spacing));
+            var out = document.createElement('canvas');
+            out.width = newW;
+            out.height = newH;
+            var octx = out.getContext('2d');
+            octx.clearRect(0, 0, newW, newH);
+            var outData = octx.createImageData(newW, newH);
+            var od = outData.data;
+            var sctx = src.getContext('2d');
+            var srcData = sctx.getImageData(0, 0, w, h);
+            var sd = srcData.data;
+
+            var cx0 = w * 0.5;
+            var cy0 = h * 0.5;
+            var ncx0 = newW * 0.5;
+            var ncy0 = newH * 0.5;
+
+            for (var ci = 0; ci < comps.length; ci++) {
+                var comp = comps[ci];
+                var dx = wrapDelta(comp.cx - cx0, w);
+                var dy = wrapDelta(comp.cy - cy0, h);
+                var newCx = (ncx0 + dx * spacing) % newW;
+                var newCy = (ncy0 + dy * spacing) % newH;
+                if (newCx < 0) newCx += newW;
+                if (newCy < 0) newCy += newH;
+                for (var k = 0; k < comp.xs.length; k++) {
+                    var x = comp.xs[k];
+                    var y = comp.ys[k];
+                    var ox = wrapDelta(x - comp.cx, w);
+                    var oy = wrapDelta(y - comp.cy, h);
+                    var nx = Math.round(newCx + ox) % newW;
+                    var ny = Math.round(newCy + oy) % newH;
+                    if (nx < 0) nx += newW;
+                    if (ny < 0) ny += newH;
+                    var si = (y * w + x) * 4;
+                    var oi = (ny * newW + nx) * 4;
+                    od[oi] = sd[si];
+                    od[oi + 1] = sd[si + 1];
+                    od[oi + 2] = sd[si + 2];
+                    od[oi + 3] = sd[si + 3];
+                }
+            }
+            octx.putImageData(outData, 0, 0);
+            return { canvas: out, w: newW, h: newH, spacing: spacing };
+        }
+
+        function getSpacingPatternTile(layer) {
+            var spacing = clamp(layer.density == null ? 1 : layer.density, 0.5, 1.5);
+            var key = layer.current + '|sp' + spacing.toFixed(3);
+            if (layer._spacingTileKey === key && layer._spacingTileUrl) {
+                return {
+                    url: layer._spacingTileUrl,
+                    w: layer._spacingTileW,
+                    h: layer._spacingTileH,
+                    srcW: layer._densitySrcCanvas ? layer._densitySrcCanvas.width : layer.el.naturalWidth,
+                    srcH: layer._densitySrcCanvas ? layer._densitySrcCanvas.height : layer.el.naturalHeight,
+                    spacing: spacing
+                };
+            }
+            var built = buildSpacingTileCanvas(layer, spacing);
+            if (!built) {
+                return {
+                    url: layer.current,
+                    w: layer.el.naturalWidth,
+                    h: layer.el.naturalHeight,
+                    srcW: layer.el.naturalWidth,
+                    srcH: layer.el.naturalHeight,
+                    spacing: 1
+                };
+            }
+            var url = (Math.abs(built.spacing - 1) < 0.02)
+                ? layer.current
+                : built.canvas.toDataURL('image/png');
+            layer._spacingTileKey = key;
+            layer._spacingTileUrl = url;
+            layer._spacingTileW = built.w;
+            layer._spacingTileH = built.h;
+            return {
+                url: url,
+                w: built.w,
+                h: built.h,
+                srcW: layer._densitySrcCanvas.width,
+                srcH: layer._densitySrcCanvas.height,
+                spacing: built.spacing
+            };
         }
 
         // --- Positioning / rendering on the stage ---
@@ -644,18 +943,21 @@
                 layer.el.style.left = (layer.x * bw - w / 2) + 'px';
                 layer.el.style.top = (layer.y * bh - h / 2) + 'px';
             } else {
-                var ratioA = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
-                var tileW = Math.max(4, layer.tile * bw);
-                var tileH = Math.max(4, tileW * ratioA);
-                var tileUrl = getStagePatternTileUrl(layer, tileW, tileH);
+                // layer.tile = CSS size of one *original* period. Scale CSS period
+                // by (periodW/srcW) so motif pixel size stays constant when denser.
+                var baseTileW = Math.max(4, layer.tile * bw);
+                var tile = getSpacingPatternTile(layer);
+                var srcW = tile.srcW || layer.el.naturalWidth || 1;
+                var cssTileW = Math.max(4, baseTileW * (tile.w / srcW));
+                var cssTileH = Math.max(4, cssTileW * (tile.h / (tile.w || 1)));
                 var p = layer.patEl.style;
                 p.left = '0px';
                 p.top = '0px';
                 p.width = bw + 'px';
                 p.height = bh + 'px';
-                p.backgroundImage = 'url("' + tileUrl + '")';
+                p.backgroundImage = 'url("' + tile.url + '")';
                 p.backgroundRepeat = 'repeat';
-                p.backgroundSize = tileW + 'px ' + tileH + 'px';
+                p.backgroundSize = cssTileW + 'px ' + cssTileH + 'px';
                 p.backgroundPosition = (layer.offsetX * bw) + 'px ' + (layer.offsetY * bh) + 'px';
                 // Dark ink (green clovers) → multiply so fabric shading shows.
                 // Light ink (white rabbits) → normal, otherwise multiply eats white.
@@ -741,12 +1043,19 @@
             applyTransform(layer);
         });
 
+        var densitySliderTimer = null;
         if (densitySlider) {
             densitySlider.addEventListener('input', function () {
                 var layer = activeLayer();
                 if (!layer || layer.mode !== 'allover') return;
-                layer.density = parseInt(densitySlider.value, 10) / 100;
-                applyTransform(layer);
+                layer.density = densityUiToSpacing(densitySlider.value);
+                if (densityValueLabel) densityValueLabel.textContent = densityLabelText(layer.density);
+                // Debounce rebuild — component extract is cached; blit still costs.
+                if (densitySliderTimer) clearTimeout(densitySliderTimer);
+                densitySliderTimer = setTimeout(function () {
+                    densitySliderTimer = null;
+                    applyTransform(layer);
+                }, 40);
             });
         }
 
@@ -1237,28 +1546,51 @@
         }
 
         function drawAlloverLayer(ctx, layer, W, H) {
-            // 1. Tile cell with motif centered by density (transparent margins)
-            var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
-            var tileW = Math.max(4, Math.round(layer.tile * W));
-            var tileH = Math.max(4, Math.round(tileW * ratio));
-            var tileCanvas = buildDensityTileCanvas(
-                layer.el, tileW, tileH, layer.density == null ? 1 : layer.density
-            );
+            // Internal spacing tile: motif size fixed; period shrinks/grows with density.
+            var spacing = clamp(layer.density == null ? 1 : layer.density, 0.5, 1.5);
+            var built = buildSpacingTileCanvas(layer, spacing);
+            var periodCanvas;
+            var periodW;
+            var periodH;
+            var srcW;
+            if (built) {
+                periodCanvas = built.canvas;
+                periodW = built.w;
+                periodH = built.h;
+                srcW = layer._densitySrcCanvas ? layer._densitySrcCanvas.width : layer.el.naturalWidth;
+            } else {
+                var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+                periodW = Math.max(4, Math.round(layer.tile * W));
+                periodH = Math.max(4, Math.round(periodW * ratio));
+                periodCanvas = document.createElement('canvas');
+                periodCanvas.width = periodW;
+                periodCanvas.height = periodH;
+                periodCanvas.getContext('2d').drawImage(layer.el, 0, 0, periodW, periodH);
+                srcW = periodW;
+            }
 
-            // 2. Pattern over the full base area, on its own canvas
+            // CSS-equivalent: original period would be layer.tile*W; scale by period/src.
+            var baseTileW = Math.max(4, Math.round(layer.tile * W));
+            var tileW = Math.max(4, Math.round(baseTileW * (periodW / (srcW || 1))));
+            var tileH = Math.max(4, Math.round(tileW * (periodH / (periodW || 1))));
+
+            // Scale period bitmap into the display tile cell (uniform), then repeat.
+            var cell = document.createElement('canvas');
+            cell.width = tileW;
+            cell.height = tileH;
+            cell.getContext('2d').drawImage(periodCanvas, 0, 0, tileW, tileH);
+
             var layerCanvas = document.createElement('canvas');
             layerCanvas.width = W;
             layerCanvas.height = H;
             var lctx = layerCanvas.getContext('2d');
-            var pattern = lctx.createPattern(tileCanvas, 'repeat');
+            var pattern = lctx.createPattern(cell, 'repeat');
             lctx.save();
             lctx.translate(layer.offsetX * W, layer.offsetY * H);
             lctx.fillStyle = pattern;
             lctx.fillRect(-layer.offsetX * W - tileW, -layer.offsetY * H - tileH, W + 2 * tileW, H + 2 * tileH);
             lctx.restore();
 
-            // 3. Clip to the garment shape using the auto-generated mask
-            //    (falls back to the raw product image if unavailable)
             lctx.globalCompositeOperation = 'destination-in';
             if (garmentMask.src === baseImg.src && garmentMask.canvas) {
                 lctx.drawImage(garmentMask.canvas, 0, 0, W, H);
@@ -1266,7 +1598,6 @@
                 lctx.drawImage(baseImg, 0, 0, W, H);
             }
 
-            // 4. Dark ink → multiply (fabric shading); light ink → normal
             ctx.globalCompositeOperation = (layer.blend === 'normal') ? 'source-over' : 'multiply';
             ctx.drawImage(layerCanvas, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
