@@ -1652,6 +1652,36 @@ body.molly-body {
     margin-bottom: 6px;
 }
 
+.molly-mockup-control-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.molly-mockup-control-head label {
+    margin-bottom: 0;
+}
+
+.molly-mockup-reset-link {
+    border: none;
+    background: transparent;
+    color: var(--molly-accent-dark, #666);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    white-space: nowrap;
+}
+
+.molly-mockup-reset-link:hover {
+    color: var(--molly-primary-dark, #222);
+}
+
 .molly-mockup-control input[type="range"] {
     width: 100%;
     accent-color: var(--molly-accent-dark);

@@ -77,11 +77,17 @@
                         </div>
 
                         <div class="molly-mockup-control">
-                            <label for="mockup-scale" id="mockup-scale-label">גודל</label>
+                            <div class="molly-mockup-control-head">
+                                <label for="mockup-scale" id="mockup-scale-label">גודל</label>
+                                <button type="button" class="molly-mockup-reset-link" id="mockup-scale-reset-btn">איפוס גודל</button>
+                            </div>
                             <input type="range" id="mockup-scale" min="3" max="100" value="35">
                         </div>
                         <div class="molly-mockup-control" id="mockup-density-control" hidden>
-                            <label for="mockup-density">צפיפות אלמנטים <span id="mockup-density-value">רגיל</span></label>
+                            <div class="molly-mockup-control-head">
+                                <label for="mockup-density">צפיפות אלמנטים <span id="mockup-density-value">רגיל</span></label>
+                                <button type="button" class="molly-mockup-reset-link" id="mockup-density-reset-btn">איפוס צפיפות</button>
+                            </div>
                             <input type="range" id="mockup-density" min="50" max="150" value="100" step="5">
                         </div>
                         <div class="molly-mockup-control" id="mockup-color-control" hidden>
@@ -112,6 +118,10 @@
                         <div class="molly-mockup-tool-row">
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-center-btn">מרכוז</button>
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-crop-btn">חיתוך</button>
+                        </div>
+                        <div class="molly-mockup-tool-row">
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-extract-btn">חלץ לשכבה</button>
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-duplicate-btn">שכפל שכבה</button>
                         </div>
                         <p class="molly-mockup-hint" id="mockup-mode-hint">גררי את התמונה כדי למקם אותה על הבגד.</p>
                     </div>
@@ -157,7 +167,8 @@
     <!-- Crop modal -->
     <div class="molly-crop-overlay" id="crop-overlay" hidden>
         <div class="molly-crop-modal">
-            <div class="molly-crop-title">חיתוך התמונה</div>
+            <div class="molly-crop-title" id="crop-title">חיתוך התמונה</div>
+            <p class="molly-mockup-hint" id="crop-hint" hidden>סמני את החלק שיהפוך לשכבת פרינט ממוקד חדשה על הבגד.</p>
             <div class="molly-crop-area" id="crop-area">
                 <img id="crop-img" src="" alt="" draggable="false">
                 <div class="molly-crop-rect" id="crop-rect">
@@ -197,9 +208,14 @@
         var modeAlloverBtn = document.getElementById('mockup-mode-allover');
         var scaleSlider = document.getElementById('mockup-scale');
         var scaleLabel = document.getElementById('mockup-scale-label');
+        var scaleResetBtn = document.getElementById('mockup-scale-reset-btn');
         var densityControl = document.getElementById('mockup-density-control');
         var densitySlider = document.getElementById('mockup-density');
         var densityValueLabel = document.getElementById('mockup-density-value');
+        var densityResetBtn = document.getElementById('mockup-density-reset-btn');
+        var DEFAULT_FOCUSED_WIDTH = 0.35;
+        var DEFAULT_ALLOVER_TILE = 0.25;
+        var DEFAULT_DENSITY = 1;
         var colorControl = document.getElementById('mockup-color-control');
         var colorSwatches = document.getElementById('mockup-color-swatches');
         var customColorInput = document.getElementById('mockup-custom-color');
@@ -207,6 +223,8 @@
         var modeHint = document.getElementById('mockup-mode-hint');
         var centerBtn = document.getElementById('mockup-center-btn');
         var cropBtn = document.getElementById('mockup-crop-btn');
+        var extractBtn = document.getElementById('mockup-extract-btn');
+        var duplicateBtn = document.getElementById('mockup-duplicate-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
         var statusEl = document.getElementById('mockup-status');
@@ -307,7 +325,8 @@
             });
         }
 
-        function addLayerFromDataUrl(dataUrl, name) {
+        function addLayerFromDataUrl(dataUrl, name, opts) {
+            opts = opts || {};
             var el = document.createElement('img');
             el.className = 'molly-mockup-layer';
             el.alt = name || 'שכבה';
@@ -317,26 +336,27 @@
             patEl.className = 'molly-mockup-pattern';
             patEl.style.display = 'none';
 
-            var mode = state.uploadMode || 'focused';
+            var mode = opts.mode || state.uploadMode || 'focused';
             var layer = {
                 id: ++layerSeq,
                 name: name || ('תמונה ' + layerSeq),
-                original: dataUrl,
-                working: dataUrl,
+                original: opts.original || dataUrl,
+                working: opts.working || dataUrl,
                 current: dataUrl,
                 el: el,
                 patEl: patEl,
                 mode: mode,
-                visible: true,
-                blend: 'multiply',
-                patternPrepared: false,
-                x: 0.5,
-                y: 0.45,
-                width: 0.35,
-                tile: 0.25,
-                density: 1,
-                offsetX: 0,
-                offsetY: 0
+                visible: opts.visible == null ? true : !!opts.visible,
+                blend: opts.blend || 'multiply',
+                patternPrepared: !!opts.patternPrepared,
+                recolorSource: opts.recolorSource || null,
+                x: opts.x == null ? 0.5 : opts.x,
+                y: opts.y == null ? 0.45 : opts.y,
+                width: opts.width == null ? DEFAULT_FOCUSED_WIDTH : opts.width,
+                tile: opts.tile == null ? DEFAULT_ALLOVER_TILE : opts.tile,
+                density: opts.density == null ? DEFAULT_DENSITY : opts.density,
+                offsetX: opts.offsetX == null ? 0 : opts.offsetX,
+                offsetY: opts.offsetY == null ? 0 : opts.offsetY
             };
             el.onload = function () {
                 el.onload = null;
@@ -351,12 +371,42 @@
                 renderLayersPanel();
                 updateButtons();
                 uploadText.textContent = DEFAULT_UPLOAD_HINT + ' — אפשר להוסיף עוד שכבות';
-                editorSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (layer.mode === 'allover') {
+                if (!opts.skipScroll) {
+                    editorSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                if (layer.mode === 'allover' && !layer.patternPrepared) {
                     prepareAlloverPattern(layer);
                 }
+                if (opts.onReady) opts.onReady(layer);
             };
             el.src = dataUrl;
+        }
+
+        function duplicateLayer(id) {
+            var src = null;
+            for (var i = 0; i < layers.length; i++) {
+                if (layers[i].id === id) { src = layers[i]; break; }
+            }
+            if (!src) return;
+            addLayerFromDataUrl(src.current, src.name + ' (עותק)', {
+                mode: src.mode,
+                original: src.original,
+                working: src.working,
+                blend: src.blend,
+                patternPrepared: src.patternPrepared,
+                recolorSource: src.recolorSource || null,
+                x: clamp((src.x == null ? 0.5 : src.x) + 0.08, 0.05, 0.95),
+                y: clamp((src.y == null ? 0.45 : src.y) + 0.06, 0.05, 0.95),
+                width: src.width,
+                tile: src.tile,
+                density: src.density,
+                offsetX: (src.offsetX || 0) + 0.04,
+                offsetY: (src.offsetY || 0) + 0.04,
+                skipScroll: true,
+                onReady: function () {
+                    showStatus('השכבה שוכפלה — גררי אותה למקום הרצוי.', false);
+                }
+            });
         }
 
         function setLayerImage(layer, dataUrl, done, opts) {
@@ -451,7 +501,7 @@
             var allover = layer.mode === 'allover';
             modeFocusedBtn.classList.toggle('active', !allover);
             modeAlloverBtn.classList.toggle('active', allover);
-            scaleLabel.textContent = allover ? 'גודל האריח' : 'גודל';
+            scaleLabel.textContent = allover ? 'גודל הפאטרן' : 'גודל';
             scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
             if (densityControl) densityControl.hidden = !allover;
             if (colorControl) colorControl.hidden = !allover;
@@ -574,6 +624,7 @@
             });
             var upBtn = mkBtn('▲', 'העלאת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, +1); });
             var downBtn = mkBtn('▼', 'הורדת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, -1); });
+            var dupBtn = mkBtn('⧉', 'שכפול שכבה', function (e) { e.stopPropagation(); duplicateLayer(layer.id); });
             var delBtn = mkBtn('×', 'מחיקת שכבה', function (e) { e.stopPropagation(); removeLayer(layer.id); });
             delBtn.classList.add('danger');
             if (index === layers.length - 1) upBtn.disabled = true;
@@ -581,6 +632,7 @@
             actions.appendChild(eyeBtn);
             actions.appendChild(upBtn);
             actions.appendChild(downBtn);
+            actions.appendChild(dupBtn);
             actions.appendChild(delBtn);
 
             row.appendChild(handle);
@@ -1057,6 +1109,20 @@
             applyTransform(layer);
         });
 
+        if (scaleResetBtn) {
+            scaleResetBtn.addEventListener('click', function () {
+                var layer = activeLayer();
+                if (!layer) return;
+                if (layer.mode === 'allover') {
+                    layer.tile = DEFAULT_ALLOVER_TILE;
+                } else {
+                    layer.width = DEFAULT_FOCUSED_WIDTH;
+                }
+                syncTools();
+                applyTransform(layer);
+            });
+        }
+
         var densitySliderTimer = null;
         if (densitySlider) {
             densitySlider.addEventListener('input', function () {
@@ -1070,6 +1136,18 @@
                     densitySliderTimer = null;
                     applyTransform(layer);
                 }, 40);
+            });
+        }
+
+        if (densityResetBtn) {
+            densityResetBtn.addEventListener('click', function () {
+                var layer = activeLayer();
+                if (!layer || layer.mode !== 'allover') return;
+                layer.density = DEFAULT_DENSITY;
+                layer._spacingTileKey = null;
+                layer._spacingTileUrl = null;
+                syncTools();
+                applyTransform(layer);
             });
         }
 
@@ -1570,18 +1648,31 @@
             });
         }
 
-        // --- Crop tool ---
+        // --- Crop tool (replace current layer) / Extract tool (new focused layer) ---
         var cropOverlay = document.getElementById('crop-overlay');
         var cropArea = document.getElementById('crop-area');
         var cropImg = document.getElementById('crop-img');
         var cropRect = document.getElementById('crop-rect');
+        var cropTitle = document.getElementById('crop-title');
+        var cropHint = document.getElementById('crop-hint');
         var cropApplyBtn = document.getElementById('crop-apply-btn');
         var cropCancelBtn = document.getElementById('crop-cancel-btn');
         var crop = { x: 0, y: 0, w: 0, h: 0 };
+        var cropMode = 'replace'; // 'replace' | 'extract'
+        var cropSourceLayerId = null;
 
-        cropBtn.addEventListener('click', function () {
+        function openCropModal(mode) {
             var layer = activeLayer();
             if (!layer) return;
+            cropMode = mode === 'extract' ? 'extract' : 'replace';
+            cropSourceLayerId = layer.id;
+            if (cropTitle) {
+                cropTitle.textContent = cropMode === 'extract' ? 'חילוץ חלק לשכבה חדשה' : 'חיתוך התמונה';
+            }
+            if (cropHint) cropHint.hidden = cropMode !== 'extract';
+            if (cropApplyBtn) {
+                cropApplyBtn.textContent = cropMode === 'extract' ? 'חלץ לשכבה חדשה' : 'אישור החיתוך';
+            }
             cropImg.onload = function () {
                 cropImg.onload = null;
                 cropOverlay.hidden = false;
@@ -1594,7 +1685,19 @@
             };
             cropImg.src = layer.current;
             if (cropImg.complete && cropImg.onload) cropImg.onload();
-        });
+        }
+
+        cropBtn.addEventListener('click', function () { openCropModal('replace'); });
+        if (extractBtn) {
+            extractBtn.addEventListener('click', function () { openCropModal('extract'); });
+        }
+        if (duplicateBtn) {
+            duplicateBtn.addEventListener('click', function () {
+                var layer = activeLayer();
+                if (!layer) return;
+                duplicateLayer(layer.id);
+            });
+        }
 
         function layoutCropRect() {
             cropRect.style.left = crop.x + 'px';
@@ -1641,9 +1744,7 @@
             });
         })();
 
-        cropApplyBtn.addEventListener('click', function () {
-            var layer = activeLayer();
-            if (!layer) { cropOverlay.hidden = true; return; }
+        function getCroppedDataUrl() {
             var scaleX = cropImg.naturalWidth / (cropImg.clientWidth || 1);
             var scaleY = cropImg.naturalHeight / (cropImg.clientHeight || 1);
             var sx = Math.round(crop.x * scaleX);
@@ -1654,15 +1755,48 @@
             canvas.width = sw;
             canvas.height = sh;
             canvas.getContext('2d').drawImage(cropImg, sx, sy, sw, sh, 0, 0, sw, sh);
-            var croppedUrl = canvas.toDataURL('image/png');
+            return canvas.toDataURL('image/png');
+        }
+
+        cropApplyBtn.addEventListener('click', function () {
+            var layer = activeLayer();
+            if (!layer || layer.id !== cropSourceLayerId) {
+                // Prefer the layer that opened the modal, if still present.
+                for (var i = 0; i < layers.length; i++) {
+                    if (layers[i].id === cropSourceLayerId) { layer = layers[i]; break; }
+                }
+            }
+            if (!layer) { cropOverlay.hidden = true; return; }
+            var croppedUrl = getCroppedDataUrl();
+            cropOverlay.hidden = true;
+
+            if (cropMode === 'extract') {
+                var baseName = layer.name || 'פאטרן';
+                addLayerFromDataUrl(croppedUrl, 'חלק מ-' + baseName, {
+                    mode: 'focused',
+                    x: 0.42,
+                    y: 0.4,
+                    width: DEFAULT_FOCUSED_WIDTH,
+                    blend: layer.blend || 'multiply',
+                    skipScroll: true,
+                    onReady: function () {
+                        showStatus('נוצרה שכבה חדשה — גררי אותה על הבגד. אפשר גם לשכפל.', false);
+                    }
+                });
+                return;
+            }
+
             // Crop bakes into the working image so bg removal keeps working on it.
             layer.working = croppedUrl;
             setLayerImage(layer, croppedUrl);
-            cropOverlay.hidden = true;
             showStatus('התמונה נחתכה.', false);
         });
 
-        cropCancelBtn.addEventListener('click', function () { cropOverlay.hidden = true; });
+        cropCancelBtn.addEventListener('click', function () {
+            cropOverlay.hidden = true;
+            cropMode = 'replace';
+            cropSourceLayerId = null;
+        });
 
         // --- Compose the final image at the base image's natural resolution ---
         function composeCanvas() {
