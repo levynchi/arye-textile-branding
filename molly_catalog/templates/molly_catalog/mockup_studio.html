@@ -100,10 +100,29 @@
                             <label for="mockup-density">צפיפות אלמנטים <span id="mockup-density-value">רגיל</span></label>
                             <input type="range" id="mockup-density" min="50" max="150" value="100" step="5">
                         </div>
-                        <div class="molly-mockup-control" id="mockup-ai-control" hidden>
-                            <label for="mockup-ai-prompt">שינוי צבע עם AI</label>
-                            <textarea id="mockup-ai-prompt" class="molly-mockup-ai-prompt" rows="2" maxlength="400" placeholder="לדוגמה: שנה את העצים לוורוד"></textarea>
-                            <button type="button" class="molly-mockup-tool-btn" id="mockup-ai-apply-btn">החל פרומפט</button>
+                        <div class="molly-mockup-control" id="mockup-color-control" hidden>
+                            <label>צבע המוטיבים</label>
+                            <div class="molly-mockup-swatches" id="mockup-color-swatches" role="listbox" aria-label="פלטת צבעים">
+                                <button type="button" class="molly-mockup-swatch" data-hex="#e53935" title="אדום" style="background:#e53935"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#f4a0c0" title="ורוד" style="background:#f4a0c0"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#fb8c00" title="כתום" style="background:#fb8c00"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#fdd835" title="צהוב" style="background:#fdd835"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#43a047" title="ירוק" style="background:#43a047"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#80cbc4" title="מנטה" style="background:#80cbc4"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#1e88e5" title="כחול" style="background:#1e88e5"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#4fc3f7" title="תכלת" style="background:#4fc3f7"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#8e24aa" title="סגול" style="background:#8e24aa"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#8d6e63" title="חום" style="background:#8d6e63"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#212121" title="שחור" style="background:#212121"></button>
+                                <button type="button" class="molly-mockup-swatch" data-hex="#fafafa" title="לבן" style="background:#fafafa"></button>
+                            </div>
+                            <div class="molly-mockup-color-row">
+                                <label class="molly-mockup-custom-color" for="mockup-custom-color">
+                                    <span>בחירה חופשית</span>
+                                    <input type="color" id="mockup-custom-color" value="#f4a0c0">
+                                </label>
+                                <button type="button" class="molly-mockup-tool-btn" id="mockup-color-reset-btn">צבע מקורי</button>
+                            </div>
                             <p class="molly-mockup-hint">משנה רק את צבע המוטיבים — הצורה והבגד נשארים.</p>
                         </div>
                         <div class="molly-mockup-tool-row">
@@ -178,7 +197,6 @@
         'use strict';
 
         var SAVE_URL = "{% url 'molly_catalog:mockup_save' %}";
-        var AI_RECOLOR_URL = "{% url 'molly_catalog:mockup_ai_recolor' %}";
         var csrf = (document.querySelector('#mockup-csrf [name=csrfmiddlewaretoken]') || {}).value || '';
 
         var modeSection = document.getElementById('mockup-mode-section');
@@ -201,9 +219,10 @@
         var densityControl = document.getElementById('mockup-density-control');
         var densitySlider = document.getElementById('mockup-density');
         var densityValueLabel = document.getElementById('mockup-density-value');
-        var aiControl = document.getElementById('mockup-ai-control');
-        var aiPrompt = document.getElementById('mockup-ai-prompt');
-        var aiApplyBtn = document.getElementById('mockup-ai-apply-btn');
+        var colorControl = document.getElementById('mockup-color-control');
+        var colorSwatches = document.getElementById('mockup-color-swatches');
+        var customColorInput = document.getElementById('mockup-custom-color');
+        var colorResetBtn = document.getElementById('mockup-color-reset-btn');
         var modeHint = document.getElementById('mockup-mode-hint');
         var centerBtn = document.getElementById('mockup-center-btn');
         var cropBtn = document.getElementById('mockup-crop-btn');
@@ -393,10 +412,14 @@
             el.src = dataUrl;
         }
 
-        function setLayerImage(layer, dataUrl, done) {
+        function setLayerImage(layer, dataUrl, done, opts) {
+            opts = opts || {};
             layer.el.onload = function () {
                 layer.el.onload = null;
                 layer.current = dataUrl;
+                if (!opts.keepRecolorSource) {
+                    layer.recolorSource = null;
+                }
                 invalidateDensityCache(layer);
                 applyAllTransforms();
                 renderLayersPanel();
@@ -413,6 +436,39 @@
             layer._spacingTileUrl = null;
             layer._spacingTileW = null;
             layer._spacingTileH = null;
+        }
+
+        function markSwatchActive(hex) {
+            if (!colorSwatches) return;
+            var buttons = colorSwatches.querySelectorAll('.molly-mockup-swatch');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].classList.toggle('active', (buttons[i].getAttribute('data-hex') || '').toLowerCase() === (hex || '').toLowerCase());
+            }
+        }
+
+        function applyMotifColor(hex) {
+            var layer = activeLayer();
+            if (!layer || layer.mode !== 'allover') {
+                showStatus('בחרי שכבת אול אובר כדי לשנות צבע.', true);
+                return;
+            }
+            if (!hex) return;
+            if (!layer.recolorSource) {
+                layer.recolorSource = layer.working || layer.current;
+            }
+            showStatus('משנה צבע...', false);
+            recolorInkToHex(layer.recolorSource, hex, function (url) {
+                if (!url) {
+                    showStatus('שגיאה בצביעת הפאטרן', true);
+                    return;
+                }
+                layer.working = url;
+                markSwatchActive(hex);
+                if (customColorInput) customColorInput.value = hex.length === 7 ? hex : customColorInput.value;
+                setLayerImage(layer, url, function () {
+                    showStatus('הצבע עודכן — הצורה והבגד לא השתנו.', false);
+                }, { keepRecolorSource: true });
+            });
         }
 
         // --- Layer selection, ordering, deletion, visibility ---
@@ -451,13 +507,13 @@
             scaleLabel.textContent = allover ? 'גודל האריח' : 'גודל';
             scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
             if (densityControl) densityControl.hidden = !allover;
-            if (aiControl) aiControl.hidden = !allover;
+            if (colorControl) colorControl.hidden = !allover;
             var spacing = layer.density == null ? 1 : layer.density;
             if (densitySlider) densitySlider.value = String(spacingToDensityUi(spacing));
             if (densityValueLabel) densityValueLabel.textContent = densityLabelText(spacing);
             centerBtn.textContent = allover ? 'איפוס מיקום' : 'מרכוז';
             modeHint.textContent = allover
-                ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים בין אלמנטים. אפשר גם לשנות צבע בפרומפט.'
+                ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים. פלטת הצבעים משנה את צבע המוטיבים.'
                 : 'גררי את התמונה כדי למקם אותה על הבגד.';
         }
 
@@ -1167,57 +1223,34 @@
             img.src = dataUrl;
         }
 
-        if (aiApplyBtn) {
-            aiApplyBtn.addEventListener('click', function () {
+        if (colorSwatches) {
+            colorSwatches.addEventListener('click', function (e) {
+                var btn = e.target.closest('.molly-mockup-swatch');
+                if (!btn) return;
+                applyMotifColor(btn.getAttribute('data-hex'));
+            });
+        }
+        var customColorTimer = null;
+        if (customColorInput) {
+            customColorInput.addEventListener('input', function () {
+                if (customColorTimer) clearTimeout(customColorTimer);
+                customColorTimer = setTimeout(function () {
+                    applyMotifColor(customColorInput.value);
+                }, 80);
+            });
+        }
+        if (colorResetBtn) {
+            colorResetBtn.addEventListener('click', function () {
                 var layer = activeLayer();
-                if (!layer || layer.mode !== 'allover') {
-                    showStatus('בחרי שכבת אול אובר כדי לשנות צבע.', true);
-                    return;
-                }
-                var prompt = (aiPrompt && aiPrompt.value || '').trim();
-                if (!prompt) {
-                    showStatus('כתבי מה לשנות, למשל: שנה את העצים לוורוד', true);
-                    return;
-                }
-                aiApplyBtn.disabled = true;
-                showStatus('מפרש את הפרומפט...', false);
-                fetch(AI_RECOLOR_URL, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrf
-                    },
-                    body: JSON.stringify({ prompt: prompt })
-                })
-                    .then(function (r) { return r.json().then(function (data) { return { okHttp: r.ok, data: data }; }); })
-                    .then(function (res) {
-                        if (!res.data || !res.data.ok || !res.data.target_hex) {
-                            showStatus((res.data && res.data.error) || 'לא הצלחתי להבין את הפרומפט', true);
-                            aiApplyBtn.disabled = false;
-                            return;
-                        }
-                        showStatus('משנה צבע ל' + (res.data.label || res.data.target_hex) + '...', false);
-                        recolorInkToHex(layer.current, res.data.target_hex, function (url) {
-                            aiApplyBtn.disabled = false;
-                            if (!url) {
-                                showStatus('שגיאה בצביעת הפאטרן', true);
-                                return;
-                            }
-                            layer.working = url;
-                            setLayerImage(layer, url, function () {
-                                showStatus(
-                                    'הצבע עודכן ל' + (res.data.label || res.data.target_hex) +
-                                    ' — הצורה והבגד לא השתנו.',
-                                    false
-                                );
-                            });
-                        });
-                    })
-                    .catch(function () {
-                        aiApplyBtn.disabled = false;
-                        showStatus('שגיאת רשת בפרומפט', true);
-                    });
+                if (!layer || layer.mode !== 'allover') return;
+                var source = layer.recolorSource || layer.working || layer.original;
+                if (!source) return;
+                markSwatchActive('');
+                setLayerImage(layer, source, function () {
+                    layer.working = source;
+                    layer.recolorSource = source;
+                    showStatus('חזרה לצבע המקורי של הפאטרן.', false);
+                }, { keepRecolorSource: true });
             });
         }
 
