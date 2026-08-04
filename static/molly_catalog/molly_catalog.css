@@ -1291,6 +1291,13 @@ body.molly-body {
     outline-color: var(--molly-primary-dark);
 }
 
+/* Fabric shading overlay above an all-over pattern */
+.molly-mockup-stage .molly-mockup-shade {
+    position: absolute;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+}
+
 .molly-mockup-controls {
     flex: 0 1 280px;
     display: flex;

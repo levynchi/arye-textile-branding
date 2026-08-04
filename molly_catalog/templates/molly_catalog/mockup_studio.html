@@ -278,6 +278,11 @@
             patEl.className = 'molly-mockup-pattern';
             patEl.style.display = 'none';
 
+            // Fabric shading overlay shown above the pattern in all-over mode.
+            var shadeEl = document.createElement('div');
+            shadeEl.className = 'molly-mockup-shade';
+            shadeEl.style.display = 'none';
+
             var layer = {
                 id: ++layerSeq,
                 name: name || ('תמונה ' + layerSeq),
@@ -286,6 +291,7 @@
                 current: dataUrl,
                 el: el,
                 patEl: patEl,
+                shadeEl: shadeEl,
                 mode: 'focused',
                 visible: true,
                 x: 0.5,
@@ -300,6 +306,7 @@
                 layers.push(layer);
                 stage.appendChild(el);
                 stage.appendChild(patEl);
+                stage.appendChild(shadeEl);
                 attachLayerDrag(layer);
                 attachPatternDrag(layer);
                 selectLayer(layer.id);
@@ -362,6 +369,7 @@
                 if (layers[i].id === id) {
                     stage.removeChild(layers[i].el);
                     stage.removeChild(layers[i].patEl);
+                    stage.removeChild(layers[i].shadeEl);
                     layers.splice(i, 1);
                     break;
                 }
@@ -411,6 +419,7 @@
             layers.forEach(function (l) {
                 stage.appendChild(l.el);
                 stage.appendChild(l.patEl);
+                stage.appendChild(l.shadeEl);
             });
         }
 
@@ -534,6 +543,8 @@
 
             layer.el.style.display = (layer.visible && focused) ? '' : 'none';
             layer.patEl.style.display = (layer.visible && !focused) ? '' : 'none';
+            var hasShade = garmentShade.src === baseImg.src && garmentShade.dataUrl;
+            layer.shadeEl.style.display = (layer.visible && !focused && hasShade) ? '' : 'none';
 
             if (focused) {
                 var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
@@ -553,6 +564,10 @@
                 p.backgroundRepeat = 'repeat';
                 p.backgroundSize = (layer.tile * bw) + 'px auto';
                 p.backgroundPosition = (layer.offsetX * bw) + 'px ' + (layer.offsetY * bh) + 'px';
+                // With a shading map the pattern keeps its true colors and
+                // only the fabric shadows multiply on top of it; without one
+                // fall back to multiplying the whole pattern.
+                p.mixBlendMode = hasShade ? 'normal' : 'multiply';
                 // Clip the pattern to the garment shape. For product photos
                 // on a solid background we use the auto-generated mask.
                 var maskUrl = (garmentMask.src === baseImg.src && garmentMask.dataUrl)
@@ -563,6 +578,20 @@
                 p.maskImage = mask;
                 p.webkitMaskSize = '100% 100%';
                 p.maskSize = '100% 100%';
+
+                if (hasShade) {
+                    var s = layer.shadeEl.style;
+                    s.left = '0px';
+                    s.top = '0px';
+                    s.width = bw + 'px';
+                    s.height = bh + 'px';
+                    s.backgroundImage = 'url("' + garmentShade.dataUrl + '")';
+                    s.backgroundSize = '100% 100%';
+                    s.webkitMaskImage = mask;
+                    s.maskImage = mask;
+                    s.webkitMaskSize = '100% 100%';
+                    s.maskSize = '100% 100%';
+                }
             }
         }
 
@@ -660,6 +689,49 @@
         // once per product and use the result as the pattern mask.
         var garmentMask = { src: null, dataUrl: null, canvas: null };
 
+        // Fabric shading map: grayscale image where the base fabric tone is
+        // white (no change) and folds/shadows are darker. Multiplying it over
+        // an opaque pattern keeps the pattern's true colors while preserving
+        // the garment's texture, instead of tinting the pattern with the
+        // garment color.
+        var garmentShade = { src: null, dataUrl: null, canvas: null };
+
+        function buildShade(imageData, W, H, src) {
+            var d = imageData.data;
+            var lums = [];
+            for (var p = 0; p < d.length; p += 16) {
+                if (d[p + 3] > 16) {
+                    lums.push(0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2]);
+                }
+            }
+            if (!lums.length) {
+                garmentShade = { src: src, dataUrl: null, canvas: null };
+                return;
+            }
+            lums.sort(function (a, b) { return a - b; });
+            // The base fabric tone: a bright percentile, so shadows don't
+            // drag it down and most of the fabric maps to ~white.
+            var base = Math.max(1, lums[Math.floor(lums.length * 0.8)]);
+            var out = document.createElement('canvas');
+            out.width = W;
+            out.height = H;
+            var octx = out.getContext('2d');
+            var od = octx.createImageData(W, H);
+            for (var i = 0; i < d.length; i += 4) {
+                var v = 255;
+                if (d[i + 3] > 16) {
+                    var L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                    v = Math.min(255, Math.round(255 * L / base));
+                }
+                od.data[i] = v;
+                od.data[i + 1] = v;
+                od.data[i + 2] = v;
+                od.data[i + 3] = 255;
+            }
+            octx.putImageData(od, 0, 0);
+            garmentShade = { src: src, dataUrl: out.toDataURL('image/png'), canvas: out };
+        }
+
         function buildGarmentMask() {
             var src = baseImg.src;
             if (!src || !baseImg.naturalWidth || garmentMask.src === src) return;
@@ -679,12 +751,14 @@
             } catch (err) {
                 // Cross-origin image: fall back to the raw product image.
                 garmentMask = { src: src, dataUrl: null, canvas: null };
+                garmentShade = { src: src, dataUrl: null, canvas: null };
                 return;
             }
 
             if (borderMostlyTransparent(imageData, W, H)) {
                 // Transparent-background PNG: the image itself is the mask.
                 garmentMask = { src: src, dataUrl: src, canvas: canvas };
+                buildShade(imageData, W, H, src);
                 applyAllTransforms();
                 return;
             }
@@ -704,10 +778,14 @@
             if (chosen) {
                 ctx.putImageData(chosen, 0, 0);
                 garmentMask = { src: src, dataUrl: canvas.toDataURL('image/png'), canvas: canvas };
+                // chosen keeps the original colors, only background alpha was
+                // erased - exactly what the shading map needs.
+                buildShade(chosen, W, H, src);
             } else {
                 // Could not isolate the garment; show the pattern unclipped
                 // rather than hiding it entirely.
                 garmentMask = { src: src, dataUrl: null, canvas: null };
+                buildShade(imageData, W, H, src);
             }
             applyAllTransforms();
         }
@@ -976,7 +1054,17 @@
             lctx.fillRect(-layer.offsetX * W - tileW, -layer.offsetY * H - tileH, W + 2 * tileW, H + 2 * tileH);
             lctx.restore();
 
-            // 3. Clip to the garment shape using the auto-generated mask
+            // 3. Multiply the fabric shading map over the pattern so folds
+            //    and shadows show through while the pattern keeps its colors
+            var shadeCanvas = (garmentShade.src === baseImg.src && garmentShade.canvas)
+                ? garmentShade.canvas
+                : null;
+            if (shadeCanvas) {
+                lctx.globalCompositeOperation = 'multiply';
+                lctx.drawImage(shadeCanvas, 0, 0, W, H);
+            }
+
+            // 4. Clip to the garment shape using the auto-generated mask
             //    (falls back to the raw product image if unavailable)
             lctx.globalCompositeOperation = 'destination-in';
             if (garmentMask.src === baseImg.src && garmentMask.canvas) {
@@ -985,8 +1073,9 @@
                 lctx.drawImage(baseImg, 0, 0, W, H);
             }
 
-            // 4. Multiply onto the result so the fabric shading shows through
-            ctx.globalCompositeOperation = 'multiply';
+            // 5. Draw onto the result. With a shading map the pattern is
+            //    drawn as-is; otherwise fall back to multiply blending.
+            ctx.globalCompositeOperation = shadeCanvas ? 'source-over' : 'multiply';
             ctx.drawImage(layerCanvas, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
         }
