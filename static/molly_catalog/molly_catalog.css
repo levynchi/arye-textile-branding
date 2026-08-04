@@ -1272,14 +1272,12 @@ body.molly-body {
     outline-color: var(--molly-primary-dark);
 }
 
-/* All-over pattern overlay — normal blend so light motifs (e.g. white
-   rabbits) keep their real color after the pattern background is removed */
+/* All-over pattern overlay — blend mode set in JS (multiply for dark ink, normal for light) */
 .molly-mockup-stage .molly-mockup-pattern {
     position: absolute;
     cursor: move;
     touch-action: none;
     user-select: none;
-    mix-blend-mode: normal;
     outline: 1px dashed rgba(0, 0, 0, 0.2);
     outline-offset: -1px;
 }
