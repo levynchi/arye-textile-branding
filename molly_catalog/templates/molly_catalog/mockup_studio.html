@@ -15,7 +15,7 @@
         </div>
 
         <h1 class="molly-page-title">הדמיות</h1>
-        <p class="molly-page-subtitle">בחרי מוצר, בחרי מצב הדפסה (ממוקד או אול אובר), העלי תמונה ושמרי את ההדמיה.</p>
+        <p class="molly-page-subtitle">בחרי מוצר, העלי תמונה, ערכי מצב הדפסה (ממוקד או אול אובר) ושמרי את ההדמיה.</p>
 
         {% include 'molly_catalog/partials/messages.html' %}
 
@@ -35,35 +35,19 @@
             </div>
         </section>
 
-        <!-- Step 2: choose print mode before upload -->
-        <section class="molly-mockup-section" id="mockup-mode-section" hidden>
-            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">2</span> בחירת מצב הדפסה</h2>
-            <p class="molly-mockup-mode-intro">בחרי איך ההדפסה תופיע על הבגד — רק אחר כך אפשר להעלות קובץ.</p>
-            <div class="molly-mockup-mode-pick" id="mockup-mode-pick">
-                <button type="button" class="molly-mockup-mode-card" data-mode="focused" id="mockup-pick-focused">
-                    <strong>פרינט ממוקד</strong>
-                    <span>תמונה אחת במקום שבחרת על הבגד — גרירה ושינוי גודל.</span>
-                </button>
-                <button type="button" class="molly-mockup-mode-card" data-mode="allover" id="mockup-pick-allover">
-                    <strong>אול אובר</strong>
-                    <span>הפאטרן חוזר על כל הבגד. רקע הפאטרן יוסר אוטומטית אחרי ההעלאה.</span>
-                </button>
-            </div>
-        </section>
-
-        <!-- Step 3: upload prints (multiple = layers) -->
+        <!-- Step 2: upload prints (multiple = layers) -->
         <section class="molly-mockup-section" id="mockup-upload-section" hidden>
-            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">3</span> העלאת תמונות הדפסה</h2>
+            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">2</span> העלאת תמונות הדפסה</h2>
             <label class="molly-mockup-upload" id="mockup-upload-label">
                 <input type="file" id="mockup-print-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple hidden>
                 <span class="molly-mockup-upload-icon">⬆</span>
-                <span id="mockup-upload-text">לחצי לבחירת קבצים (PNG / JPG / SVG) או גררי לכאן — כל תמונה נוספת נהיית שכבה חדשה</span>
+                <span id="mockup-upload-text">לחצי לבחירת קבצים (PNG / JPG / SVG) או גררי לכאן — כל תמונה נוספת נהיית שכבה חדשה. אפשר לשנות מצב הדפסה בעריכה.</span>
             </label>
         </section>
 
-        <!-- Step 4: the editor: layers (right) / stage (center) / tools (left) -->
+        <!-- Step 3: the editor: layers (right) / stage (center) / tools (left) -->
         <section class="molly-mockup-section" id="mockup-editor-section" hidden>
-            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">4</span> עריכת ההדמיה</h2>
+            <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">3</span> עריכת ההדמיה</h2>
             <div class="molly-mockup-editor">
 
                 <aside class="molly-mockup-layers-sidebar">
@@ -199,7 +183,6 @@
         var SAVE_URL = "{% url 'molly_catalog:mockup_save' %}";
         var csrf = (document.querySelector('#mockup-csrf [name=csrfmiddlewaretoken]') || {}).value || '';
 
-        var modeSection = document.getElementById('mockup-mode-section');
         var uploadSection = document.getElementById('mockup-upload-section');
         var editorSection = document.getElementById('mockup-editor-section');
         var stage = document.getElementById('mockup-stage');
@@ -210,8 +193,6 @@
         var layersList = document.getElementById('mockup-layers-list');
         var layerTools = document.getElementById('mockup-layer-tools');
         var addLayerBtn = document.getElementById('mockup-add-layer-btn');
-        var pickFocusedBtn = document.getElementById('mockup-pick-focused');
-        var pickAlloverBtn = document.getElementById('mockup-pick-allover');
         var modeFocusedBtn = document.getElementById('mockup-mode-focused');
         var modeAlloverBtn = document.getElementById('mockup-mode-allover');
         var scaleSlider = document.getElementById('mockup-scale');
@@ -237,7 +218,8 @@
             return;
         }
 
-        var state = { productId: null, productName: '', uploadMode: null };
+        // Default new layers to focused; user can switch to all-over in the editor.
+        var state = { productId: null, productName: '', uploadMode: 'focused' };
 
         // Layers: order in array = z-order (first is bottom).
         // Each layer: { id, name, original, working, current, el, patEl,
@@ -258,25 +240,7 @@
             return null;
         }
 
-        function uploadHintForMode(mode) {
-            if (mode === 'allover') {
-                return 'העלי פאטרן (PNG / JPG / SVG) — רקע הפאטרן יוסר אוטומטית והוא ימלא את כל הבגד';
-            }
-            if (mode === 'focused') {
-                return 'העלי תמונת הדפסה (PNG / JPG / SVG) — אפשר לגרור ולשנות גודל על הבגד';
-            }
-            return 'לחצי לבחירת קבצים (PNG / JPG / SVG) או גררי לכאן — כל תמונה נוספת נהיית שכבה חדשה';
-        }
-
-        function setUploadMode(mode) {
-            if (mode !== 'focused' && mode !== 'allover') return;
-            state.uploadMode = mode;
-            if (pickFocusedBtn) pickFocusedBtn.classList.toggle('selected', mode === 'focused');
-            if (pickAlloverBtn) pickAlloverBtn.classList.toggle('selected', mode === 'allover');
-            uploadSection.hidden = false;
-            uploadText.textContent = uploadHintForMode(mode);
-            uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        var DEFAULT_UPLOAD_HINT = 'לחצי לבחירת קבצים (PNG / JPG / SVG) או גררי לכאן — כל תמונה נוספת נהיית שכבה חדשה. אפשר לשנות מצב הדפסה בעריכה.';
 
         // --- Step 1: product selection ---
         var productCards = document.querySelectorAll('.molly-mockup-product-card');
@@ -287,41 +251,25 @@
                 state.productId = card.dataset.productId;
                 state.productName = card.dataset.productName;
                 baseImg.src = card.dataset.productImage;
-                modeSection.hidden = false;
-                if (state.uploadMode) {
-                    uploadSection.hidden = false;
-                    uploadText.textContent = uploadHintForMode(state.uploadMode);
-                } else {
-                    uploadSection.hidden = true;
-                }
+                uploadSection.hidden = false;
+                uploadText.textContent = DEFAULT_UPLOAD_HINT;
                 if (layers.length) {
                     editorSection.hidden = false;
                     requestAnimationFrame(applyAllTransforms);
                 }
-                (state.uploadMode ? uploadSection : modeSection).scrollIntoView({
-                    behavior: 'smooth', block: 'center'
-                });
+                uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 updateButtons();
             });
         });
 
-        // --- Step 2: choose print mode before upload ---
-        if (pickFocusedBtn) {
-            pickFocusedBtn.addEventListener('click', function () { setUploadMode('focused'); });
-        }
-        if (pickAlloverBtn) {
-            pickAlloverBtn.addEventListener('click', function () { setUploadMode('allover'); });
-        }
-
-        // --- Step 3: uploads (multiple files, drag & drop, add layer button) ---
+        // --- Step 2: uploads (multiple files, drag & drop, add layer button) ---
         fileInput.addEventListener('change', function () {
             addFiles(fileInput.files);
             fileInput.value = '';
         });
         addLayerBtn.addEventListener('click', function () {
-            if (!state.uploadMode) {
-                showStatus('בחרי קודם מצב הדפסה — ממוקד או אול אובר.', true);
-                if (modeSection) modeSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (!state.productId) {
+                showStatus('בחרי קודם מוצר.', true);
                 return;
             }
             fileInput.click();
@@ -343,9 +291,8 @@
         });
 
         function addFiles(fileList) {
-            if (!state.uploadMode) {
-                showStatus('בחרי קודם מצב הדפסה — ממוקד או אול אובר.', true);
-                if (modeSection) modeSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (!state.productId) {
+                showStatus('בחרי קודם מוצר.', true);
                 return;
             }
             var files = Array.prototype.slice.call(fileList || []);
@@ -403,7 +350,7 @@
                 applyAllTransforms();
                 renderLayersPanel();
                 updateButtons();
-                uploadText.textContent = uploadHintForMode(state.uploadMode) + ' — אפשר להוסיף עוד שכבות';
+                uploadText.textContent = DEFAULT_UPLOAD_HINT + ' — אפשר להוסיף עוד שכבות';
                 editorSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 if (layer.mode === 'allover') {
                     prepareAlloverPattern(layer);
@@ -537,7 +484,7 @@
             }
             if (!layers.length) {
                 editorSection.hidden = true;
-                uploadText.textContent = uploadHintForMode(state.uploadMode);
+                uploadText.textContent = DEFAULT_UPLOAD_HINT;
             }
             selectLayer(activeId);
             renderLayersPanel();
