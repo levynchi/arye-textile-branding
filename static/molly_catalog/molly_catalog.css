@@ -1657,6 +1657,28 @@ body.molly-body {
     accent-color: var(--molly-accent-dark);
 }
 
+.molly-mockup-ai-prompt {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 56px;
+    padding: 8px 10px;
+    border: 1px solid var(--molly-border);
+    border-radius: 8px;
+    font: inherit;
+    background: #fff;
+    margin-bottom: 8px;
+}
+
+.molly-mockup-ai-prompt:focus {
+    outline: 2px solid var(--molly-accent-dark);
+    outline-offset: 1px;
+}
+
+#mockup-ai-control .molly-mockup-tool-btn {
+    width: 100%;
+}
+
 .molly-mockup-hint {
     color: var(--molly-text-soft);
     font-size: 0.85rem;

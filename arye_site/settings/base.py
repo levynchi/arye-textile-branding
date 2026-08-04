@@ -147,6 +147,9 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 CONTACT_EMAIL = 'levynchi@gmail.com'
 MOLLY_ORDER_NOTIFY_EMAIL = os.environ.get('MOLLY_ORDER_NOTIFY_EMAIL', 'levynchi@gmail.com')
 
+# OpenAI — mockup studio all-over prompt recolor (optional; local color fallback if empty)
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+
 if not DEBUG:
     SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'true').lower() in ('1', 'true', 'yes', 'on')
     SESSION_COOKIE_SECURE = True

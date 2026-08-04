@@ -818,6 +818,142 @@ def mockup_product_image(request, product_id):
     return response
 
 
+# Hebrew / English color names for offline prompt parsing (no API key).
+_LOCAL_RECOLOR_COLORS = {
+    "ורוד": ("#f4a0c0", "ורוד"),
+    "פוקסיה": ("#e91e8c", "פוקסיה"),
+    "אדום": ("#e53935", "אדום"),
+    "בורדו": ("#800020", "בורדו"),
+    "כתום": ("#fb8c00", "כתום"),
+    "צהוב": ("#fdd835", "צהוב"),
+    "זהב": ("#d4af37", "זהב"),
+    "ירוק": ("#43a047", "ירוק"),
+    "מנטה": ("#80cbc4", "מנטה"),
+    "תכלת": ("#4fc3f7", "תכלת"),
+    "כחול": ("#1e88e5", "כחול"),
+    "סגול": ("#8e24aa", "סגול"),
+    "לבנדר": ("#b39ddb", "לבנדר"),
+    "חום": ("#8d6e63", "חום"),
+    "בז": ("#d7ccc8", "בז"),
+    "שחור": ("#212121", "שחור"),
+    "אפור": ("#9e9e9e", "אפור"),
+    "לבן": ("#fafafa", "לבן"),
+    "pink": ("#f4a0c0", "pink"),
+    "red": ("#e53935", "red"),
+    "orange": ("#fb8c00", "orange"),
+    "yellow": ("#fdd835", "yellow"),
+    "green": ("#43a047", "green"),
+    "blue": ("#1e88e5", "blue"),
+    "purple": ("#8e24aa", "purple"),
+    "black": ("#212121", "black"),
+    "white": ("#fafafa", "white"),
+    "brown": ("#8d6e63", "brown"),
+}
+
+
+def _local_recolor_from_prompt(prompt: str):
+    """Return (hex, label) from a simple color keyword in the prompt, or None."""
+    text = (prompt or "").strip()
+    if not text:
+        return None
+    text_l = text.lower()
+    # Prefer longer keys first (e.g. לבנדר before shorter overlaps)
+    for key, value in sorted(_LOCAL_RECOLOR_COLORS.items(), key=lambda kv: -len(kv[0])):
+        if key.isascii():
+            if key.lower() in text_l:
+                return value
+        elif key in text:
+            return value
+    return None
+
+
+def _openai_recolor_from_prompt(prompt: str):
+    """Ask OpenAI for a target hex color. Raises on failure."""
+    from openai import OpenAI
+
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    system = (
+        "You parse short Hebrew or English requests about recoloring a seamless "
+        "textile pattern motif (trees, leaves, flowers, animals, etc.). "
+        "Return ONLY JSON with keys: target_hex (string like #rrggbb), "
+        "label (short Hebrew or English color name). "
+        "Do not change shape, layout, or garment — color only. "
+        "If the user does not ask for a color change, return "
+        '{"target_hex":"","label":"","error":"not_a_recolor"}.'
+    )
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    import json
+
+    raw = response.choices[0].message.content or "{}"
+    data = json.loads(raw)
+    hex_color = (data.get("target_hex") or "").strip()
+    label = (data.get("label") or "").strip()
+    if data.get("error") == "not_a_recolor" or not hex_color:
+        return None
+    if not hex_color.startswith("#"):
+        hex_color = "#" + hex_color
+    if len(hex_color) not in (4, 7):
+        raise ValueError("invalid hex from model")
+    return hex_color, label or hex_color
+
+
+@require_POST
+@require_molly_login
+def mockup_ai_recolor(request):
+    """Parse an all-over recolor prompt into a target hex (OpenAI + local fallback)."""
+    import json
+
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except (TypeError, ValueError, UnicodeDecodeError):
+        body = {}
+    prompt = (body.get("prompt") or request.POST.get("prompt") or "").strip()
+    if not prompt:
+        return JsonResponse({"ok": False, "error": "נא לכתוב מה לשנות"}, status=400)
+    if len(prompt) > 400:
+        return JsonResponse({"ok": False, "error": "הפרומפט ארוך מדי"}, status=400)
+
+    source = "local"
+    parsed = None
+    if getattr(settings, "OPENAI_API_KEY", ""):
+        try:
+            parsed = _openai_recolor_from_prompt(prompt)
+            source = "openai"
+        except Exception:
+            logger.exception("OpenAI recolor parse failed; trying local fallback")
+            parsed = None
+
+    if not parsed:
+        parsed = _local_recolor_from_prompt(prompt)
+        source = "local"
+
+    if not parsed:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": "לא הצלחתי להבין איזה צבע לשנות. נסי למשל: שנה את העצים לוורוד",
+            },
+            status=400,
+        )
+
+    target_hex, label = parsed
+    return JsonResponse({
+        "ok": True,
+        "target_hex": target_hex,
+        "label": label,
+        "source": source,
+        "mode": "all_ink",
+    })
+
+
 @require_POST
 @require_molly_login
 def mockup_save(request):

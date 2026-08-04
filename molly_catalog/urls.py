@@ -21,6 +21,7 @@ urlpatterns = [
     # Mockup studio (הדמיות) – must come before the category catch-all
     path("mockups/", views.mockup_studio, name="mockups"),
     path("mockups/save/", views.mockup_save, name="mockup_save"),
+    path("mockups/ai-recolor/", views.mockup_ai_recolor, name="mockup_ai_recolor"),
     path(
         "mockups/product-image/<int:product_id>/",
         views.mockup_product_image,
