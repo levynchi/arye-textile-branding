@@ -879,52 +879,134 @@
             }
         }
 
-        // Dominant color via quantized histogram over the whole tile.
-        // Sampling only the border fails on seamless patterns (motifs wrap
-        // onto the edges); the true background still dominates the image.
-        function detectSolidBackgroundColor(imageData, W, H) {
+        // --- Pattern plate knock-out: two-color Lab classification ---
+        // Flat textile tiles are usually plate-color + motif-color. Classifying
+        // each pixel by nearest centroid (not "within RGB tolerance of plate")
+        // keeps cream deer on taupe / white rabbits on green.
+
+        function keyToRgb(key) {
+            var parts = key.split(',');
+            return {
+                r: (parseInt(parts[0], 10) << 4) + 8,
+                g: (parseInt(parts[1], 10) << 4) + 8,
+                b: (parseInt(parts[2], 10) << 4) + 8
+            };
+        }
+
+        function rgbToLab(r, g, b) {
+            function lin(c) {
+                c /= 255;
+                return c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
+            }
+            var R = lin(r);
+            var G = lin(g);
+            var B = lin(b);
+            var x = (R * 0.4124564 + G * 0.3575761 + B * 0.1804375) / 0.95047;
+            var y = (R * 0.2126729 + G * 0.7151522 + B * 0.0721750);
+            var z = (R * 0.0193339 + G * 0.1191920 + B * 0.9503041) / 1.08883;
+            function f(t) {
+                return t > 0.008856 ? Math.pow(t, 1 / 3) : (7.787 * t + 16 / 116);
+            }
+            var fx = f(x);
+            var fy = f(y);
+            var fz = f(z);
+            return { L: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
+        }
+
+        function labDist2(p, q) {
+            var dL = p.L - q.L;
+            var da = p.a - q.a;
+            var db = p.b - q.b;
+            return dL * dL + da * da + db * db;
+        }
+
+        function buildColorHistogram(imageData, W, H) {
             var d = imageData.data;
             var buckets = Object.create(null);
-            var bestKey = null;
-            var bestCount = 0;
             var total = 0;
             var step = Math.max(1, Math.floor(Math.min(W, H) / 200));
-
             for (var y = 0; y < H; y += step) {
                 for (var x = 0; x < W; x += step) {
                     var i = (y * W + x) * 4;
                     if (d[i + 3] < 16) continue;
-                    // 16-level quantization keeps similar green shades together.
                     var key = (d[i] >> 4) + ',' + (d[i + 1] >> 4) + ',' + (d[i + 2] >> 4);
                     buckets[key] = (buckets[key] || 0) + 1;
                     total++;
-                    if (buckets[key] > bestCount) {
-                        bestCount = buckets[key];
-                        bestKey = key;
-                    }
                 }
             }
-            // Need a clear majority so we don't knock out busy photographic prints.
-            if (!bestKey || bestCount / (total || 1) < 0.35) return null;
-            var parts = bestKey.split(',');
+            return { buckets: buckets, total: total };
+        }
+
+        // Plate (majority) + ink (first histogram peak that is far enough in Lab).
+        // Sparse tiles often put near-white anti-alias buckets in 2nd place;
+        // the real motif may be 3rd+.
+        function detectTwoColorPalette(imageData, W, H) {
+            var hist = buildColorHistogram(imageData, W, H);
+            if (!hist.total) return null;
+            var ranked = Object.keys(hist.buckets).map(function (key) {
+                return { key: key, count: hist.buckets[key] };
+            });
+            ranked.sort(function (a, b) { return b.count - a.count; });
+            var bgShare = ranked[0].count / hist.total;
+            if (bgShare < 0.35) return null;
+            var bgRgb = keyToRgb(ranked[0].key);
+            var bgLab = rgbToLab(bgRgb.r, bgRgb.g, bgRgb.b);
+            var inkRgb = null;
+            var inkLab = null;
+            for (var i = 1; i < ranked.length && i < 16; i++) {
+                // Skip near-empty buckets but keep scanning — sparse motifs
+                // can sit below anti-alias peaks that are almost the plate color.
+                if (ranked[i].count / hist.total < 0.001) continue;
+                var candidate = keyToRgb(ranked[i].key);
+                var candLab = rgbToLab(candidate.r, candidate.g, candidate.b);
+                if (labDist2(bgLab, candLab) >= 80) {
+                    inkRgb = candidate;
+                    inkLab = candLab;
+                    break;
+                }
+            }
+            if (!inkRgb) return null;
             return {
-                r: (parseInt(parts[0], 10) << 4) + 8,
-                g: (parseInt(parts[1], 10) << 4) + 8,
-                b: (parseInt(parts[2], 10) << 4) + 8,
-                strength: bestCount / total
+                bg: bgRgb,
+                ink: inkRgb,
+                bgLab: bgLab,
+                inkLab: inkLab,
+                bgLum: 0.299 * bgRgb.r + 0.587 * bgRgb.g + 0.114 * bgRgb.b,
+                inkLum: 0.299 * inkRgb.r + 0.587 * inkRgb.g + 0.114 * inkRgb.b,
+                strength: bgShare
             };
         }
 
-        function eraseNearColor(imageData, color, tolerance) {
+        // Soft alpha: 0 on plate, 255 on motif, smooth near the Lab midline.
+        // Dark accents (eyes/spots) darker than both centers are kept as ink.
+        function eraseByTwoClusterLab(imageData, palette) {
             var d = imageData.data;
-            var thr = tolerance * 6;
-            var thr2 = thr * thr;
+            var bgLab = palette.bgLab;
+            var inkLab = palette.inkLab;
+            var minCenterLum = Math.min(palette.bgLum, palette.inkLum);
             for (var i = 0; i < d.length; i += 4) {
                 if (d[i + 3] === 0) continue;
-                var dr = d[i] - color.r;
-                var dg = d[i + 1] - color.g;
-                var db = d[i + 2] - color.b;
-                if (dr * dr + dg * dg + db * db <= thr2) d[i + 3] = 0;
+                var lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                if (lum < minCenterLum - 28) {
+                    d[i + 3] = 255;
+                    continue;
+                }
+                var lab = rgbToLab(d[i], d[i + 1], d[i + 2]);
+                var dBg = Math.sqrt(labDist2(lab, bgLab));
+                var dInk = Math.sqrt(labDist2(lab, inkLab));
+                var sum = dBg + dInk;
+                if (sum < 0.001) {
+                    d[i + 3] = 0;
+                    continue;
+                }
+                // t=0 at pure plate, t=1 at pure ink; softstep around the midline.
+                var t = dBg / sum;
+                var edge = 0.12;
+                var alpha;
+                if (t <= 0.5 - edge) alpha = 0;
+                else if (t >= 0.5 + edge) alpha = 255;
+                else alpha = Math.round(255 * ((t - (0.5 - edge)) / (2 * edge)));
+                d[i + 3] = alpha;
             }
         }
 
@@ -946,24 +1028,31 @@
             return remainingInkLuminance(imageData) >= 160 ? 'normal' : 'multiply';
         }
 
+        function knockOutPatternPlate(imageData, W, H) {
+            var palette = detectTwoColorPalette(imageData, W, H);
+            if (!palette) return false;
+            eraseByTwoClusterLab(imageData, palette);
+            return true;
+        }
+
         function removeBackground(dataUrl, tolerance, done) {
             dataUrlToCanvas(dataUrl, 2500, function (canvas) {
                 var ctx = canvas.getContext('2d');
                 var W = canvas.width;
                 var H = canvas.height;
                 var imageData = ctx.getImageData(0, 0, W, H);
-                var solid = detectSolidBackgroundColor(imageData, W, H);
-                // Seamless pattern tiles: knock out the dominant solid color.
-                // Photos with uneven edges: flood fill from the border.
-                if (solid) eraseNearColor(imageData, solid, tolerance);
-                else floodEraseBackground(imageData, W, H, tolerance);
+                // Two-tone pattern plates → Lab nearest-centroid.
+                // Photos / busy images → flood fill from the border.
+                if (!knockOutPatternPlate(imageData, W, H)) {
+                    floodEraseBackground(imageData, W, H, tolerance);
+                }
                 ctx.putImageData(imageData, 0, 0);
                 done(canvas.toDataURL('image/png'), chooseBlendFromImageData(imageData));
             });
         }
 
         // When switching to all-over, knock out the pattern's solid background
-        // once so the print (rabbits / clovers) sits on the garment color.
+        // once so the print sits on the garment color.
         function prepareAlloverPattern(layer) {
             applyTransform(layer);
             syncTools();
@@ -983,17 +1072,14 @@
                     statusEl.hidden = true;
                     return;
                 }
-                var solid = detectSolidBackgroundColor(imageData, W, H);
-                if (!solid) {
+                if (!knockOutPatternPlate(imageData, W, H)) {
                     applyTransform(layer);
                     showStatus('לא זוהה רקע אחיד — הפאטרן נשאר כמו שהועלה.', false);
                     return;
                 }
-                eraseNearColor(imageData, solid, 24);
                 var kept = opaqueFraction(imageData);
-                // Motifs should leave a meaningful but not empty tile.
-                // If knock-out ate everything, abort so we don't blank the print.
-                if (kept < 0.01 || kept > 0.92) {
+                // Sparse motifs (leaves on white) can be ~0.5–1% of the tile.
+                if (kept < 0.004 || kept > 0.92) {
                     applyTransform(layer);
                     showStatus('הרקע לא הוסר אוטומטית — נסי "מחיקת רקע" ידנית.', false);
                     return;
