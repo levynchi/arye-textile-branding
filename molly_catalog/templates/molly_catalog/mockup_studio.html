@@ -27,7 +27,7 @@
             <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">1</span> בחירת מוצר</h2>
             <div class="molly-mockup-products">
                 {% for p in mockup_products %}
-                <button type="button" class="molly-mockup-product-card" data-product-id="{{ p.id }}" data-product-name="{{ p.name }}" data-product-image="{{ p.image.url }}">
+                <button type="button" class="molly-mockup-product-card" data-product-id="{{ p.id }}" data-product-name="{{ p.name }}" data-product-image="{% url 'molly_catalog:mockup_product_image' p.id %}">
                     <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
                     <span>{{ p.name }}</span>
                 </button>

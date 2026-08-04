@@ -21,6 +21,11 @@ urlpatterns = [
     # Mockup studio (הדמיות) – must come before the category catch-all
     path("mockups/", views.mockup_studio, name="mockups"),
     path("mockups/save/", views.mockup_save, name="mockup_save"),
+    path(
+        "mockups/product-image/<int:product_id>/",
+        views.mockup_product_image,
+        name="mockup_product_image",
+    ),
     path("mockups/<int:mockup_id>/delete/", views.mockup_delete, name="mockup_delete"),
     # Standalone product detail (no category) – must come before category_detail
     re_path(r"^product/(?P<product_slug>[\w\-]+)/$", views.product_detail, name="standalone_product_detail"),

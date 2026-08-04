@@ -797,6 +797,27 @@ def mockup_studio(request):
     return render(request, "molly_catalog/mockup_studio.html", context)
 
 
+@require_molly_login
+def mockup_product_image(request, product_id):
+    """Serve a mockup product image from the site's own origin.
+
+    In production media lives on a CDN (different origin), which taints the
+    editor's canvas and breaks CSS mask-image. Proxying the image through the
+    app keeps it same-origin so background masking and saving work.
+    """
+    import mimetypes
+
+    from django.http import HttpResponse
+
+    product = get_object_or_404(MollyMockupProduct, pk=product_id, is_active=True)
+    with product.image.open("rb") as f:
+        content = f.read()
+    content_type = mimetypes.guess_type(product.image.name)[0] or "image/png"
+    response = HttpResponse(content, content_type=content_type)
+    response["Cache-Control"] = "private, max-age=3600"
+    return response
+
+
 @require_POST
 @require_molly_login
 def mockup_save(request):
