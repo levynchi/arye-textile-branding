@@ -45,26 +45,39 @@
             </label>
         </section>
 
-        <!-- Step 3: position layers on the garment -->
+        <!-- Step 3: the editor: layers (right) / stage (center) / tools (left) -->
         <section class="molly-mockup-section" id="mockup-editor-section" hidden>
             <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">3</span> עריכת ההדמיה</h2>
             <div class="molly-mockup-editor">
-                <div class="molly-mockup-stage-wrap">
-                    <div class="molly-mockup-stage" id="mockup-stage">
-                        <img id="mockup-base-img" src="" alt="מוצר להדמיה" draggable="false">
-                    </div>
-                </div>
-                <div class="molly-mockup-controls">
+
+                <aside class="molly-mockup-layers-sidebar">
                     <div class="molly-mockup-panel">
                         <div class="molly-mockup-panel-title">שכבות</div>
                         <div class="molly-mockup-layers" id="mockup-layers-list"></div>
                         <button type="button" class="molly-mockup-tool-btn" id="mockup-add-layer-btn">+ הוספת תמונה</button>
                     </div>
+                </aside>
 
+                <div class="molly-mockup-stage-wrap">
+                    <div class="molly-mockup-stage" id="mockup-stage">
+                        <img id="mockup-base-img" src="" alt="מוצר להדמיה" draggable="false">
+                    </div>
+                </div>
+
+                <div class="molly-mockup-controls">
                     <div class="molly-mockup-panel" id="mockup-layer-tools" hidden>
                         <div class="molly-mockup-panel-title">עריכת השכבה הנבחרת</div>
+
                         <div class="molly-mockup-control">
-                            <label for="mockup-scale">גודל</label>
+                            <label>מצב הדפסה</label>
+                            <div class="molly-mockup-mode-toggle">
+                                <button type="button" id="mockup-mode-focused">פרינט ממוקד</button>
+                                <button type="button" id="mockup-mode-allover">אול אובר</button>
+                            </div>
+                        </div>
+
+                        <div class="molly-mockup-control">
+                            <label for="mockup-scale" id="mockup-scale-label">גודל</label>
                             <input type="range" id="mockup-scale" min="3" max="100" value="35">
                         </div>
                         <div class="molly-mockup-tool-row">
@@ -79,9 +92,9 @@
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-remove-bg-btn">מחיקת רקע</button>
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-restore-btn">שחזור מקור</button>
                         </div>
+                        <p class="molly-mockup-hint" id="mockup-mode-hint">גררי את התמונה כדי למקם אותה על הבגד.</p>
                     </div>
 
-                    <p class="molly-mockup-hint">גררי כל תמונה עם העכבר או האצבע. לחיצה על תמונה בוחרת אותה לעריכה.</p>
                     <div class="molly-mockup-actions">
                         <button type="button" class="molly-button" id="mockup-save-btn" disabled>שמירת ההדמיה</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-download-btn" disabled>הורדה למחשב</button>
@@ -159,7 +172,11 @@
         var layersList = document.getElementById('mockup-layers-list');
         var layerTools = document.getElementById('mockup-layer-tools');
         var addLayerBtn = document.getElementById('mockup-add-layer-btn');
+        var modeFocusedBtn = document.getElementById('mockup-mode-focused');
+        var modeAlloverBtn = document.getElementById('mockup-mode-allover');
         var scaleSlider = document.getElementById('mockup-scale');
+        var scaleLabel = document.getElementById('mockup-scale-label');
+        var modeHint = document.getElementById('mockup-mode-hint');
         var centerBtn = document.getElementById('mockup-center-btn');
         var cropBtn = document.getElementById('mockup-crop-btn');
         var bgToleranceSlider = document.getElementById('mockup-bg-tolerance');
@@ -179,7 +196,10 @@
         var state = { productId: null, productName: '' };
 
         // Layers: order in array = z-order (first is bottom).
-        // Each layer: { id, name, original, working, current, el, x, y, width }
+        // Each layer: { id, name, original, working, current, el, patEl,
+        //               mode: 'focused'|'allover', visible,
+        //               x, y, width,            (focused placement)
+        //               tile, offsetX, offsetY  (all-over pattern) }
         // - original: dataURL as uploaded (never changes)
         // - working:  dataURL after crops (base for background removal)
         // - current:  dataURL displayed (working + optional bg removal)
@@ -253,6 +273,11 @@
             el.className = 'molly-mockup-layer';
             el.alt = name || 'שכבה';
             el.draggable = false;
+
+            var patEl = document.createElement('div');
+            patEl.className = 'molly-mockup-pattern';
+            patEl.style.display = 'none';
+
             var layer = {
                 id: ++layerSeq,
                 name: name || ('תמונה ' + layerSeq),
@@ -260,15 +285,23 @@
                 working: dataUrl,
                 current: dataUrl,
                 el: el,
+                patEl: patEl,
+                mode: 'focused',
+                visible: true,
                 x: 0.5,
                 y: 0.45,
-                width: 0.35
+                width: 0.35,
+                tile: 0.25,
+                offsetX: 0,
+                offsetY: 0
             };
             el.onload = function () {
                 el.onload = null;
                 layers.push(layer);
                 stage.appendChild(el);
+                stage.appendChild(patEl);
                 attachLayerDrag(layer);
+                attachPatternDrag(layer);
                 selectLayer(layer.id);
                 editorSection.hidden = false;
                 applyAllTransforms();
@@ -291,15 +324,36 @@
             layer.el.src = dataUrl;
         }
 
-        // --- Layer selection, ordering, deletion ---
+        // --- Layer selection, ordering, deletion, visibility ---
         function selectLayer(id) {
             activeId = id;
             layers.forEach(function (l) {
                 l.el.classList.toggle('active', l.id === id);
+                l.patEl.classList.toggle('active', l.id === id);
             });
             var layer = activeLayer();
             layerTools.hidden = !layer;
-            if (layer) scaleSlider.value = Math.round(layer.width * 100);
+            syncTools();
+            renderLayersPanel();
+        }
+
+        function syncTools() {
+            var layer = activeLayer();
+            if (!layer) return;
+            var allover = layer.mode === 'allover';
+            modeFocusedBtn.classList.toggle('active', !allover);
+            modeAlloverBtn.classList.toggle('active', allover);
+            scaleLabel.textContent = allover ? 'גודל האריח' : 'גודל';
+            scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
+            centerBtn.textContent = allover ? 'איפוס מיקום' : 'מרכוז';
+            modeHint.textContent = allover
+                ? 'הפאטרן חוזר על כל הבגד. גררי אותו כדי להזיז את ההיסט. מומלץ למחוק רקע לתמונה.'
+                : 'גררי את התמונה כדי למקם אותה על הבגד.';
+        }
+
+        function setLayerVisible(layer, visible) {
+            layer.visible = visible;
+            applyTransform(layer);
             renderLayersPanel();
         }
 
@@ -307,6 +361,7 @@
             for (var i = 0; i < layers.length; i++) {
                 if (layers[i].id === id) {
                     stage.removeChild(layers[i].el);
+                    stage.removeChild(layers[i].patEl);
                     layers.splice(i, 1);
                     break;
                 }
@@ -323,11 +378,15 @@
             updateButtons();
         }
 
-        function moveLayer(id, dir) {
-            var idx = -1;
+        function layerIndex(id) {
             for (var i = 0; i < layers.length; i++) {
-                if (layers[i].id === id) { idx = i; break; }
+                if (layers[i].id === id) return i;
             }
+            return -1;
+        }
+
+        function moveLayer(id, dir) {
+            var idx = layerIndex(id);
             var target = idx + dir;
             if (idx < 0 || target < 0 || target >= layers.length) return;
             var tmp = layers[idx];
@@ -337,43 +396,110 @@
             renderLayersPanel();
         }
 
-        function restackLayers() {
-            layers.forEach(function (l) { stage.appendChild(l.el); });
+        function reorderLayer(draggedId, targetId) {
+            if (draggedId === targetId) return;
+            var from = layerIndex(draggedId);
+            if (from < 0) return;
+            var dragged = layers.splice(from, 1)[0];
+            var to = layerIndex(targetId);
+            if (to < 0) { layers.push(dragged); } else { layers.splice(to, 0, dragged); }
+            restackLayers();
+            renderLayersPanel();
         }
 
+        function restackLayers() {
+            layers.forEach(function (l) {
+                stage.appendChild(l.el);
+                stage.appendChild(l.patEl);
+            });
+        }
+
+        // --- Photoshop-style layers panel ---
         function renderLayersPanel() {
             layersList.innerHTML = '';
-            // Show top layer first in the panel (more natural for users).
+            // Top layer first in the panel, like Photoshop.
             for (var i = layers.length - 1; i >= 0; i--) {
-                (function (layer, index) {
-                    var row = document.createElement('div');
-                    row.className = 'molly-mockup-layer-row' + (layer.id === activeId ? ' active' : '');
-                    var thumb = document.createElement('img');
-                    thumb.src = layer.current;
-                    thumb.alt = '';
-                    var label = document.createElement('span');
-                    label.className = 'molly-mockup-layer-name';
-                    label.textContent = layer.name;
-                    var actions = document.createElement('span');
-                    actions.className = 'molly-mockup-layer-actions';
-
-                    var upBtn = mkBtn('▲', 'העלאת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, +1); });
-                    var downBtn = mkBtn('▼', 'הורדת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, -1); });
-                    var delBtn = mkBtn('×', 'מחיקת שכבה', function (e) { e.stopPropagation(); removeLayer(layer.id); });
-                    delBtn.classList.add('danger');
-                    if (index === layers.length - 1) upBtn.disabled = true;
-                    if (index === 0) downBtn.disabled = true;
-                    actions.appendChild(upBtn);
-                    actions.appendChild(downBtn);
-                    actions.appendChild(delBtn);
-
-                    row.appendChild(thumb);
-                    row.appendChild(label);
-                    row.appendChild(actions);
-                    row.addEventListener('click', function () { selectLayer(layer.id); });
-                    layersList.appendChild(row);
-                })(layers[i], i);
+                layersList.appendChild(buildLayerRow(layers[i], i));
             }
+        }
+
+        function buildLayerRow(layer, index) {
+            var row = document.createElement('div');
+            row.className = 'molly-mockup-layer-row'
+                + (layer.id === activeId ? ' active' : '')
+                + (layer.visible ? '' : ' layer-hidden');
+            row.draggable = true;
+
+            var handle = document.createElement('span');
+            handle.className = 'molly-mockup-layer-handle';
+            handle.textContent = '⠿';
+            handle.title = 'גררי לשינוי סדר';
+
+            var thumb = document.createElement('img');
+            thumb.src = layer.current;
+            thumb.alt = '';
+            thumb.draggable = false;
+
+            var info = document.createElement('span');
+            info.className = 'molly-mockup-layer-info';
+            var label = document.createElement('span');
+            label.className = 'molly-mockup-layer-name';
+            label.textContent = layer.name;
+            info.appendChild(label);
+            if (layer.mode === 'allover') {
+                var badge = document.createElement('span');
+                badge.className = 'molly-mockup-layer-badge';
+                badge.textContent = 'אול אובר';
+                info.appendChild(badge);
+            }
+
+            var actions = document.createElement('span');
+            actions.className = 'molly-mockup-layer-actions';
+            var eyeBtn = mkBtn(layer.visible ? '👁' : '﹘', layer.visible ? 'הסתרת השכבה' : 'הצגת השכבה', function (e) {
+                e.stopPropagation();
+                setLayerVisible(layer, !layer.visible);
+            });
+            var upBtn = mkBtn('▲', 'העלאת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, +1); });
+            var downBtn = mkBtn('▼', 'הורדת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, -1); });
+            var delBtn = mkBtn('×', 'מחיקת שכבה', function (e) { e.stopPropagation(); removeLayer(layer.id); });
+            delBtn.classList.add('danger');
+            if (index === layers.length - 1) upBtn.disabled = true;
+            if (index === 0) downBtn.disabled = true;
+            actions.appendChild(eyeBtn);
+            actions.appendChild(upBtn);
+            actions.appendChild(downBtn);
+            actions.appendChild(delBtn);
+
+            row.appendChild(handle);
+            row.appendChild(thumb);
+            row.appendChild(info);
+            row.appendChild(actions);
+            row.addEventListener('click', function () { selectLayer(layer.id); });
+
+            // Drag & drop reorder
+            row.addEventListener('dragstart', function (e) {
+                e.dataTransfer.setData('text/plain', String(layer.id));
+                e.dataTransfer.effectAllowed = 'move';
+                row.classList.add('dragging');
+            });
+            row.addEventListener('dragend', function () {
+                row.classList.remove('dragging');
+                layersList.querySelectorAll('.drag-over').forEach(function (r) { r.classList.remove('drag-over'); });
+            });
+            row.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                row.classList.add('drag-over');
+            });
+            row.addEventListener('dragleave', function () { row.classList.remove('drag-over'); });
+            row.addEventListener('drop', function (e) {
+                e.preventDefault();
+                row.classList.remove('drag-over');
+                var draggedId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                if (draggedId) reorderLayer(draggedId, layer.id);
+            });
+
+            return row;
         }
 
         function mkBtn(text, title, onClick) {
@@ -386,18 +512,55 @@
             return b;
         }
 
-        // --- Positioning ---
+        // --- Print mode toggle ---
+        modeFocusedBtn.addEventListener('click', function () { setLayerMode('focused'); });
+        modeAlloverBtn.addEventListener('click', function () { setLayerMode('allover'); });
+
+        function setLayerMode(mode) {
+            var layer = activeLayer();
+            if (!layer || layer.mode === mode) return;
+            layer.mode = mode;
+            applyTransform(layer);
+            syncTools();
+            renderLayersPanel();
+        }
+
+        // --- Positioning / rendering on the stage ---
         function applyTransform(layer) {
             if (!baseImg.clientWidth) return;
             var bw = baseImg.clientWidth;
             var bh = baseImg.clientHeight;
-            var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
-            var w = layer.width * bw;
-            var h = w * ratio;
-            layer.el.style.width = w + 'px';
-            layer.el.style.height = h + 'px';
-            layer.el.style.left = (layer.x * bw - w / 2) + 'px';
-            layer.el.style.top = (layer.y * bh - h / 2) + 'px';
+            var focused = layer.mode !== 'allover';
+
+            layer.el.style.display = (layer.visible && focused) ? '' : 'none';
+            layer.patEl.style.display = (layer.visible && !focused) ? '' : 'none';
+
+            if (focused) {
+                var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+                var w = layer.width * bw;
+                var h = w * ratio;
+                layer.el.style.width = w + 'px';
+                layer.el.style.height = h + 'px';
+                layer.el.style.left = (layer.x * bw - w / 2) + 'px';
+                layer.el.style.top = (layer.y * bh - h / 2) + 'px';
+            } else {
+                var p = layer.patEl.style;
+                p.left = '0px';
+                p.top = '0px';
+                p.width = bw + 'px';
+                p.height = bh + 'px';
+                p.backgroundImage = 'url("' + layer.current + '")';
+                p.backgroundRepeat = 'repeat';
+                p.backgroundSize = (layer.tile * bw) + 'px auto';
+                p.backgroundPosition = (layer.offsetX * bw) + 'px ' + (layer.offsetY * bh) + 'px';
+                // Clip the pattern to the garment shape (works when the
+                // product image is a PNG with a transparent background).
+                var mask = 'url("' + baseImg.src + '")';
+                p.webkitMaskImage = mask;
+                p.maskImage = mask;
+                p.webkitMaskSize = '100% 100%';
+                p.maskSize = '100% 100%';
+            }
         }
 
         function applyAllTransforms() {
@@ -430,18 +593,54 @@
             });
         }
 
+        function attachPatternDrag(layer) {
+            var dragging = null;
+            layer.patEl.addEventListener('pointerdown', function (e) {
+                e.preventDefault();
+                selectLayer(layer.id);
+                layer.patEl.setPointerCapture(e.pointerId);
+                dragging = { startX: e.clientX, startY: e.clientY, origX: layer.offsetX, origY: layer.offsetY };
+                layer.patEl.classList.add('dragging');
+            });
+            layer.patEl.addEventListener('pointermove', function (e) {
+                if (!dragging) return;
+                var bw = baseImg.clientWidth;
+                var bh = baseImg.clientHeight;
+                if (!bw || !bh) return;
+                layer.offsetX = dragging.origX + (e.clientX - dragging.startX) / bw;
+                layer.offsetY = dragging.origY + (e.clientY - dragging.startY) / bh;
+                applyTransform(layer);
+            });
+            ['pointerup', 'pointercancel'].forEach(function (ev) {
+                layer.patEl.addEventListener(ev, function () {
+                    dragging = null;
+                    layer.patEl.classList.remove('dragging');
+                });
+            });
+        }
+
         scaleSlider.addEventListener('input', function () {
             var layer = activeLayer();
             if (!layer) return;
-            layer.width = parseInt(scaleSlider.value, 10) / 100;
+            var value = parseInt(scaleSlider.value, 10) / 100;
+            if (layer.mode === 'allover') {
+                layer.tile = value;
+            } else {
+                layer.width = value;
+            }
             applyTransform(layer);
         });
 
         centerBtn.addEventListener('click', function () {
             var layer = activeLayer();
             if (!layer) return;
-            layer.x = 0.5;
-            layer.y = 0.45;
+            if (layer.mode === 'allover') {
+                layer.offsetX = 0;
+                layer.offsetY = 0;
+            } else {
+                layer.x = 0.5;
+                layer.y = 0.45;
+            }
             applyTransform(layer);
         });
 
@@ -650,12 +849,49 @@
             var ctx = canvas.getContext('2d');
             ctx.drawImage(baseImg, 0, 0, W, H);
             layers.forEach(function (layer) {
-                var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
-                var w = layer.width * W;
-                var h = w * ratio;
-                ctx.drawImage(layer.el, layer.x * W - w / 2, layer.y * H - h / 2, w, h);
+                if (!layer.visible) return;
+                if (layer.mode === 'allover') {
+                    drawAlloverLayer(ctx, layer, W, H);
+                } else {
+                    var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+                    var w = layer.width * W;
+                    var h = w * ratio;
+                    ctx.drawImage(layer.el, layer.x * W - w / 2, layer.y * H - h / 2, w, h);
+                }
             });
             return canvas;
+        }
+
+        function drawAlloverLayer(ctx, layer, W, H) {
+            // 1. Scaled tile
+            var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+            var tileW = Math.max(4, Math.round(layer.tile * W));
+            var tileH = Math.max(4, Math.round(tileW * ratio));
+            var tileCanvas = document.createElement('canvas');
+            tileCanvas.width = tileW;
+            tileCanvas.height = tileH;
+            tileCanvas.getContext('2d').drawImage(layer.el, 0, 0, tileW, tileH);
+
+            // 2. Pattern over the full base area, on its own canvas
+            var layerCanvas = document.createElement('canvas');
+            layerCanvas.width = W;
+            layerCanvas.height = H;
+            var lctx = layerCanvas.getContext('2d');
+            var pattern = lctx.createPattern(tileCanvas, 'repeat');
+            lctx.save();
+            lctx.translate(layer.offsetX * W, layer.offsetY * H);
+            lctx.fillStyle = pattern;
+            lctx.fillRect(-layer.offsetX * W - tileW, -layer.offsetY * H - tileH, W + 2 * tileW, H + 2 * tileH);
+            lctx.restore();
+
+            // 3. Clip to the garment shape (no-op for opaque JPG products)
+            lctx.globalCompositeOperation = 'destination-in';
+            lctx.drawImage(baseImg, 0, 0, W, H);
+
+            // 4. Multiply onto the result so the fabric shading shows through
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.drawImage(layerCanvas, 0, 0);
+            ctx.globalCompositeOperation = 'source-over';
         }
 
         function safeFileName() {
@@ -700,7 +936,17 @@
                 var layersData = [];
                 layers.forEach(function (layer, i) {
                     body.append('layer_images', dataUrlToBlob(layer.current), 'layer-' + (i + 1) + '.png');
-                    layersData.push({ x: layer.x, y: layer.y, width: layer.width, name: layer.name });
+                    layersData.push({
+                        x: layer.x,
+                        y: layer.y,
+                        width: layer.width,
+                        name: layer.name,
+                        mode: layer.mode,
+                        tile: layer.tile,
+                        offsetX: layer.offsetX,
+                        offsetY: layer.offsetY,
+                        visible: layer.visible
+                    });
                 });
                 body.append('layers_data', JSON.stringify(layersData));
                 fetch(SAVE_URL, { method: 'POST', body: body, credentials: 'same-origin' })
