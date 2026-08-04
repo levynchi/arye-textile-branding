@@ -553,9 +553,12 @@
                 p.backgroundRepeat = 'repeat';
                 p.backgroundSize = (layer.tile * bw) + 'px auto';
                 p.backgroundPosition = (layer.offsetX * bw) + 'px ' + (layer.offsetY * bh) + 'px';
-                // Clip the pattern to the garment shape (works when the
-                // product image is a PNG with a transparent background).
-                var mask = 'url("' + baseImg.src + '")';
+                // Clip the pattern to the garment shape. For product photos
+                // on a solid background we use the auto-generated mask.
+                var maskUrl = (garmentMask.src === baseImg.src && garmentMask.dataUrl)
+                    ? garmentMask.dataUrl
+                    : baseImg.src;
+                var mask = 'url("' + maskUrl + '")';
                 p.webkitMaskImage = mask;
                 p.maskImage = mask;
                 p.webkitMaskSize = '100% 100%';
@@ -645,7 +648,62 @@
         });
 
         window.addEventListener('resize', applyAllTransforms);
-        baseImg.addEventListener('load', applyAllTransforms);
+        baseImg.addEventListener('load', function () {
+            applyAllTransforms();
+            buildGarmentMask();
+        });
+
+        // --- Garment mask for all-over mode ---
+        // Products are usually photographed on a solid background (black /
+        // white), not saved as transparent PNGs. To make the pattern fill
+        // exactly the garment, we auto-remove the product photo's background
+        // once per product and use the result as the pattern mask.
+        var garmentMask = { src: null, dataUrl: null, canvas: null };
+
+        function buildGarmentMask() {
+            var src = baseImg.src;
+            if (!src || !baseImg.naturalWidth || garmentMask.src === src) return;
+            var maxDim = 2000;
+            var scale = Math.min(1, maxDim / Math.max(baseImg.naturalWidth, baseImg.naturalHeight));
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(baseImg.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(baseImg.naturalHeight * scale));
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+
+            var imageData;
+            try {
+                imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            } catch (err) {
+                // Cross-origin image: fall back to the raw product image.
+                garmentMask = { src: src, dataUrl: null, canvas: null };
+                return;
+            }
+
+            if (borderMostlyTransparent(imageData, canvas.width, canvas.height)) {
+                // Transparent-background PNG: the image itself is the mask.
+                garmentMask = { src: src, dataUrl: src, canvas: canvas };
+            } else {
+                floodEraseBackground(imageData, canvas.width, canvas.height, 30);
+                ctx.putImageData(imageData, 0, 0);
+                garmentMask = { src: src, dataUrl: canvas.toDataURL('image/png'), canvas: canvas };
+            }
+            applyAllTransforms();
+        }
+
+        function borderMostlyTransparent(imageData, W, H) {
+            var d = imageData.data;
+            var transparent = 0;
+            var total = 0;
+
+            function check(x, y) {
+                total++;
+                if (d[(y * W + x) * 4 + 3] < 16) transparent++;
+            }
+            for (var x = 0; x < W; x += 4) { check(x, 0); check(x, H - 1); }
+            for (var y = 0; y < H; y += 4) { check(0, y); check(W - 1, y); }
+            return transparent / (total || 1) > 0.5;
+        }
 
         function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
 
@@ -671,48 +729,49 @@
             img.src = dataUrl;
         }
 
+        // Flood fill from the image borders, turning background pixels
+        // transparent. Each flood compares against its seed color so
+        // multi-shade backgrounds still work. Tolerance range: 1-80.
+        function floodEraseBackground(imageData, W, H, tolerance) {
+            var d = imageData.data;
+            var thr = tolerance * 6;
+            var thr2 = thr * thr;
+            var visited = new Uint8Array(W * H);
+            var queue = [];
+
+            function trySeed(x, y) {
+                var p = y * W + x;
+                if (!visited[p]) queue.push([p, d[p * 4], d[p * 4 + 1], d[p * 4 + 2]]);
+            }
+            for (var x = 0; x < W; x++) { trySeed(x, 0); trySeed(x, H - 1); }
+            for (var y = 0; y < H; y++) { trySeed(0, y); trySeed(W - 1, y); }
+
+            while (queue.length) {
+                var item = queue.pop();
+                var p = item[0];
+                if (visited[p]) continue;
+                var i4 = p * 4;
+                if (d[i4 + 3] === 0) { visited[p] = 1; continue; }
+                var dr = d[i4] - item[1];
+                var dg = d[i4 + 1] - item[2];
+                var db = d[i4 + 2] - item[3];
+                if (dr * dr + dg * dg + db * db > thr2) continue;
+                visited[p] = 1;
+                d[i4 + 3] = 0;
+                var px = p % W;
+                var py = (p - px) / W;
+                if (px > 0) queue.push([p - 1, item[1], item[2], item[3]]);
+                if (px < W - 1) queue.push([p + 1, item[1], item[2], item[3]]);
+                if (py > 0) queue.push([p - W, item[1], item[2], item[3]]);
+                if (py < H - 1) queue.push([p + W, item[1], item[2], item[3]]);
+            }
+        }
+
         function removeBackground(dataUrl, tolerance, done) {
             dataUrlToCanvas(dataUrl, 2500, function (canvas) {
                 var ctx = canvas.getContext('2d');
-                var W = canvas.width;
-                var H = canvas.height;
-                var imageData = ctx.getImageData(0, 0, W, H);
-                var d = imageData.data;
-                // Squared color distance threshold (tolerance 1-80).
-                var thr = tolerance * 6;
-                var thr2 = thr * thr;
-                var visited = new Uint8Array(W * H);
-                var queue = [];
-
-                function trySeed(x, y) {
-                    var p = y * W + x;
-                    if (!visited[p]) queue.push([p, d[p * 4], d[p * 4 + 1], d[p * 4 + 2]]);
-                }
-                // Seed the fill from every border pixel; each flood compares
-                // against its seed color so multi-shade backgrounds still work.
-                for (var x = 0; x < W; x++) { trySeed(x, 0); trySeed(x, H - 1); }
-                for (var y = 0; y < H; y++) { trySeed(0, y); trySeed(W - 1, y); }
-
-                while (queue.length) {
-                    var item = queue.pop();
-                    var p = item[0];
-                    if (visited[p]) continue;
-                    var i4 = p * 4;
-                    if (d[i4 + 3] === 0) { visited[p] = 1; continue; }
-                    var dr = d[i4] - item[1];
-                    var dg = d[i4 + 1] - item[2];
-                    var db = d[i4 + 2] - item[3];
-                    if (dr * dr + dg * dg + db * db > thr2) continue;
-                    visited[p] = 1;
-                    d[i4 + 3] = 0;
-                    var px = p % W;
-                    var py = (p - px) / W;
-                    if (px > 0) queue.push([p - 1, item[1], item[2], item[3]]);
-                    if (px < W - 1) queue.push([p + 1, item[1], item[2], item[3]]);
-                    if (py > 0) queue.push([p - W, item[1], item[2], item[3]]);
-                    if (py < H - 1) queue.push([p + W, item[1], item[2], item[3]]);
-                }
-
+                var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                floodEraseBackground(imageData, canvas.width, canvas.height, tolerance);
                 ctx.putImageData(imageData, 0, 0);
                 done(canvas.toDataURL('image/png'));
             });
@@ -884,9 +943,14 @@
             lctx.fillRect(-layer.offsetX * W - tileW, -layer.offsetY * H - tileH, W + 2 * tileW, H + 2 * tileH);
             lctx.restore();
 
-            // 3. Clip to the garment shape (no-op for opaque JPG products)
+            // 3. Clip to the garment shape using the auto-generated mask
+            //    (falls back to the raw product image if unavailable)
             lctx.globalCompositeOperation = 'destination-in';
-            lctx.drawImage(baseImg, 0, 0, W, H);
+            if (garmentMask.src === baseImg.src && garmentMask.canvas) {
+                lctx.drawImage(garmentMask.canvas, 0, 0, W, H);
+            } else {
+                lctx.drawImage(baseImg, 0, 0, W, H);
+            }
 
             // 4. Multiply onto the result so the fabric shading shows through
             ctx.globalCompositeOperation = 'multiply';
