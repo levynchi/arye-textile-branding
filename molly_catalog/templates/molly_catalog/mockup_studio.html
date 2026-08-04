@@ -278,11 +278,6 @@
             patEl.className = 'molly-mockup-pattern';
             patEl.style.display = 'none';
 
-            // Fabric shading overlay shown above the pattern in all-over mode.
-            var shadeEl = document.createElement('div');
-            shadeEl.className = 'molly-mockup-shade';
-            shadeEl.style.display = 'none';
-
             var layer = {
                 id: ++layerSeq,
                 name: name || ('תמונה ' + layerSeq),
@@ -291,23 +286,21 @@
                 current: dataUrl,
                 el: el,
                 patEl: patEl,
-                shadeEl: shadeEl,
                 mode: 'focused',
                 visible: true,
+                patternBgCleared: false,
                 x: 0.5,
                 y: 0.45,
                 width: 0.35,
                 tile: 0.25,
                 offsetX: 0,
-                offsetY: 0,
-                patternBgCut: false
+                offsetY: 0
             };
             el.onload = function () {
                 el.onload = null;
                 layers.push(layer);
                 stage.appendChild(el);
                 stage.appendChild(patEl);
-                stage.appendChild(shadeEl);
                 attachLayerDrag(layer);
                 attachPatternDrag(layer);
                 selectLayer(layer.id);
@@ -355,7 +348,7 @@
             scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
             centerBtn.textContent = allover ? 'איפוס מיקום' : 'מרכוז';
             modeHint.textContent = allover
-                ? 'רקע הפאטרן נחתך אוטומטית — נשארות רק הדמויות, וחוזרות על כל הבגד. אפשר לגרור להזיז היסט.'
+                ? 'הפאטרן חוזר על כל הבגד. רקע הפאטרן מזוהה ומוסר אוטומטית — נשאר רק הפרינט. גררי כדי להזיז את ההיסט.'
                 : 'גררי את התמונה כדי למקם אותה על הבגד.';
         }
 
@@ -370,7 +363,6 @@
                 if (layers[i].id === id) {
                     stage.removeChild(layers[i].el);
                     stage.removeChild(layers[i].patEl);
-                    stage.removeChild(layers[i].shadeEl);
                     layers.splice(i, 1);
                     break;
                 }
@@ -420,7 +412,6 @@
             layers.forEach(function (l) {
                 stage.appendChild(l.el);
                 stage.appendChild(l.patEl);
-                stage.appendChild(l.shadeEl);
             });
         }
 
@@ -533,61 +524,12 @@
             applyTransform(layer);
             syncTools();
             renderLayersPanel();
-            // In all-over mode, cut the pattern's solid background so only
-            // the print figures remain (e.g. green field → transparent, rabbits stay).
-            if (mode === 'allover') autoCutPatternBackground(layer);
-        }
-
-        function autoCutPatternBackground(layer) {
-            if (!layer || layer.patternBgCut) return;
-            layer.patternBgCut = true;
-            showStatus('חותכת את רקע הפאטרן...', false);
-            // Try several tolerances so a solid field (green/cream/etc.) is
-            // removed while the print figures stay opaque.
-            cutPatternBackgroundAdaptive(layer.working, function (resultUrl) {
-                if (!resultUrl) {
-                    showStatus('לא הצלחתי לזהות רקע אחיד — נסי מחיקת רקע ידנית.', true);
-                    return;
-                }
-                layer.working = resultUrl;
-                setLayerImage(layer, resultUrl, function () {
-                    showStatus('רקע הפאטרן נחתך — נשארו רק הדמויות על הבגד.', false);
-                });
-            });
-        }
-
-        function cutPatternBackgroundAdaptive(dataUrl, done) {
-            dataUrlToCanvas(dataUrl, 2500, function (canvas) {
-                var W = canvas.width;
-                var H = canvas.height;
-                var ctx = canvas.getContext('2d');
-                var original;
-                try {
-                    original = ctx.getImageData(0, 0, W, H);
-                } catch (err) {
-                    done(null);
-                    return;
-                }
-                if (borderMostlyTransparent(original, W, H)) {
-                    // Already a cut-out PNG — nothing to do.
-                    done(dataUrl);
-                    return;
-                }
-                var tolerances = [40, 32, 24, 16, 10];
-                var chosenUrl = null;
-                for (var i = 0; i < tolerances.length; i++) {
-                    var copy = new ImageData(new Uint8ClampedArray(original.data), W, H);
-                    floodEraseBackground(copy, W, H, tolerances[i]);
-                    var opaque = opaqueFraction(copy);
-                    // Keep a result that removed most of the field but left figures.
-                    if (opaque >= 0.02 && opaque <= 0.55) {
-                        ctx.putImageData(copy, 0, 0);
-                        chosenUrl = canvas.toDataURL('image/png');
-                        break;
-                    }
-                }
-                done(chosenUrl);
-            });
+            // In all-over mode, auto-detect the pattern's background color
+            // and remove it so only the print motifs remain (e.g. white
+            // rabbits stay white — no green plate / "negative" look).
+            if (mode === 'allover' && !layer.patternBgCleared) {
+                autoClearPatternBackground(layer);
+            }
         }
 
         // --- Positioning / rendering on the stage ---
@@ -599,8 +541,6 @@
 
             layer.el.style.display = (layer.visible && focused) ? '' : 'none';
             layer.patEl.style.display = (layer.visible && !focused) ? '' : 'none';
-            var hasShade = garmentShade.src === baseImg.src && garmentShade.dataUrl;
-            layer.shadeEl.style.display = (layer.visible && !focused && hasShade) ? '' : 'none';
 
             if (focused) {
                 var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
@@ -620,10 +560,6 @@
                 p.backgroundRepeat = 'repeat';
                 p.backgroundSize = (layer.tile * bw) + 'px auto';
                 p.backgroundPosition = (layer.offsetX * bw) + 'px ' + (layer.offsetY * bh) + 'px';
-                // With a shading map the pattern keeps its true colors and
-                // only the fabric shadows multiply on top of it; without one
-                // fall back to multiplying the whole pattern.
-                p.mixBlendMode = hasShade ? 'normal' : 'multiply';
                 // Clip the pattern to the garment shape. For product photos
                 // on a solid background we use the auto-generated mask.
                 var maskUrl = (garmentMask.src === baseImg.src && garmentMask.dataUrl)
@@ -634,20 +570,6 @@
                 p.maskImage = mask;
                 p.webkitMaskSize = '100% 100%';
                 p.maskSize = '100% 100%';
-
-                if (hasShade) {
-                    var s = layer.shadeEl.style;
-                    s.left = '0px';
-                    s.top = '0px';
-                    s.width = bw + 'px';
-                    s.height = bh + 'px';
-                    s.backgroundImage = 'url("' + garmentShade.dataUrl + '")';
-                    s.backgroundSize = '100% 100%';
-                    s.webkitMaskImage = mask;
-                    s.maskImage = mask;
-                    s.webkitMaskSize = '100% 100%';
-                    s.maskSize = '100% 100%';
-                }
             }
         }
 
@@ -745,49 +667,6 @@
         // once per product and use the result as the pattern mask.
         var garmentMask = { src: null, dataUrl: null, canvas: null };
 
-        // Fabric shading map: grayscale image where the base fabric tone is
-        // white (no change) and folds/shadows are darker. Multiplying it over
-        // an opaque pattern keeps the pattern's true colors while preserving
-        // the garment's texture, instead of tinting the pattern with the
-        // garment color.
-        var garmentShade = { src: null, dataUrl: null, canvas: null };
-
-        function buildShade(imageData, W, H, src) {
-            var d = imageData.data;
-            var lums = [];
-            for (var p = 0; p < d.length; p += 16) {
-                if (d[p + 3] > 16) {
-                    lums.push(0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2]);
-                }
-            }
-            if (!lums.length) {
-                garmentShade = { src: src, dataUrl: null, canvas: null };
-                return;
-            }
-            lums.sort(function (a, b) { return a - b; });
-            // The base fabric tone: a bright percentile, so shadows don't
-            // drag it down and most of the fabric maps to ~white.
-            var base = Math.max(1, lums[Math.floor(lums.length * 0.8)]);
-            var out = document.createElement('canvas');
-            out.width = W;
-            out.height = H;
-            var octx = out.getContext('2d');
-            var od = octx.createImageData(W, H);
-            for (var i = 0; i < d.length; i += 4) {
-                var v = 255;
-                if (d[i + 3] > 16) {
-                    var L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-                    v = Math.min(255, Math.round(255 * L / base));
-                }
-                od.data[i] = v;
-                od.data[i + 1] = v;
-                od.data[i + 2] = v;
-                od.data[i + 3] = 255;
-            }
-            octx.putImageData(od, 0, 0);
-            garmentShade = { src: src, dataUrl: out.toDataURL('image/png'), canvas: out };
-        }
-
         function buildGarmentMask() {
             var src = baseImg.src;
             if (!src || !baseImg.naturalWidth || garmentMask.src === src) return;
@@ -807,14 +686,12 @@
             } catch (err) {
                 // Cross-origin image: fall back to the raw product image.
                 garmentMask = { src: src, dataUrl: null, canvas: null };
-                garmentShade = { src: src, dataUrl: null, canvas: null };
                 return;
             }
 
             if (borderMostlyTransparent(imageData, W, H)) {
                 // Transparent-background PNG: the image itself is the mask.
                 garmentMask = { src: src, dataUrl: src, canvas: canvas };
-                buildShade(imageData, W, H, src);
                 applyAllTransforms();
                 return;
             }
@@ -834,14 +711,10 @@
             if (chosen) {
                 ctx.putImageData(chosen, 0, 0);
                 garmentMask = { src: src, dataUrl: canvas.toDataURL('image/png'), canvas: canvas };
-                // chosen keeps the original colors, only background alpha was
-                // erased - exactly what the shading map needs.
-                buildShade(chosen, W, H, src);
             } else {
                 // Could not isolate the garment; show the pattern unclipped
                 // rather than hiding it entirely.
                 garmentMask = { src: src, dataUrl: null, canvas: null };
-                buildShade(imageData, W, H, src);
             }
             applyAllTransforms();
         }
@@ -944,38 +817,174 @@
             });
         }
 
+        // Dominant colors along the image border — typically the solid
+        // pattern plate color we want to erase for all-over prints.
+        function dominantBorderColors(imageData, W, H, maxColors) {
+            var d = imageData.data;
+            var buckets = {};
+            function sample(x, y) {
+                var i = (y * W + x) * 4;
+                if (d[i + 3] < 16) return;
+                // Quantize to reduce noise from JPEG compression.
+                var key = (d[i] >> 3) + ',' + (d[i + 1] >> 3) + ',' + (d[i + 2] >> 3);
+                if (!buckets[key]) buckets[key] = { n: 0, r: 0, g: 0, b: 0 };
+                buckets[key].n++;
+                buckets[key].r += d[i];
+                buckets[key].g += d[i + 1];
+                buckets[key].b += d[i + 2];
+            }
+            for (var x = 0; x < W; x += 2) { sample(x, 0); sample(x, H - 1); }
+            for (var y = 0; y < H; y += 2) { sample(0, y); sample(W - 1, y); }
+            var list = Object.keys(buckets).map(function (k) { return buckets[k]; });
+            list.sort(function (a, b) { return b.n - a.n; });
+            var colors = [];
+            for (var i = 0; i < list.length && colors.length < maxColors; i++) {
+                var b = list[i];
+                colors.push([
+                    Math.round(b.r / b.n),
+                    Math.round(b.g / b.n),
+                    Math.round(b.b / b.n)
+                ]);
+            }
+            return colors;
+        }
+
+        // Erase every pixel close to any of the given background colors.
+        // Soft edge: near-bg pixels fade out to avoid a hard halo.
+        function chromaErase(imageData, bgColors, tolerance) {
+            var d = imageData.data;
+            var thr = tolerance * 6;
+            var thr2 = thr * thr;
+            var soft = thr * 1.35;
+            var soft2 = soft * soft;
+            for (var i = 0; i < d.length; i += 4) {
+                if (d[i + 3] === 0) continue;
+                var min2 = Infinity;
+                for (var c = 0; c < bgColors.length; c++) {
+                    var dr = d[i] - bgColors[c][0];
+                    var dg = d[i + 1] - bgColors[c][1];
+                    var db = d[i + 2] - bgColors[c][2];
+                    var dist2 = dr * dr + dg * dg + db * db;
+                    if (dist2 < min2) min2 = dist2;
+                }
+                if (min2 <= thr2) {
+                    d[i + 3] = 0;
+                } else if (min2 < soft2) {
+                    var t = (Math.sqrt(min2) - thr) / (soft - thr);
+                    d[i + 3] = Math.round(d[i + 3] * t);
+                }
+            }
+        }
+
+        // Detect the pattern plate color and strip it, leaving only motifs.
+        function removePatternBackground(dataUrl, done) {
+            dataUrlToCanvas(dataUrl, 2500, function (canvas) {
+                var ctx = canvas.getContext('2d');
+                var W = canvas.width;
+                var H = canvas.height;
+                var imageData = ctx.getImageData(0, 0, W, H);
+                if (borderMostlyTransparent(imageData, W, H)) {
+                    done(dataUrl, false);
+                    return;
+                }
+                var bgColors = dominantBorderColors(imageData, W, H, 3);
+                if (!bgColors.length) {
+                    done(dataUrl, false);
+                    return;
+                }
+                var tolerances = [10, 14, 18, 24, 32];
+                var chosen = null;
+                for (var i = 0; i < tolerances.length; i++) {
+                    var copy = new ImageData(new Uint8ClampedArray(imageData.data), W, H);
+                    chromaErase(copy, bgColors, tolerances[i]);
+                    var opaque = opaqueFraction(copy);
+                    // Keep a print-like amount of ink; skip if we wiped everything
+                    // or barely removed anything.
+                    if (opaque >= 0.015 && opaque <= 0.7) {
+                        chosen = copy;
+                        break;
+                    }
+                }
+                if (!chosen) {
+                    // Fallback: flood-fill from edges (works when the plate
+                    // is connected to the border but chroma was too harsh).
+                    for (var j = 0; j < tolerances.length; j++) {
+                        var copy2 = new ImageData(new Uint8ClampedArray(imageData.data), W, H);
+                        floodEraseBackground(copy2, W, H, tolerances[j]);
+                        var opaque2 = opaqueFraction(copy2);
+                        if (opaque2 >= 0.015 && opaque2 <= 0.7) {
+                            chosen = copy2;
+                            break;
+                        }
+                    }
+                }
+                if (!chosen) {
+                    done(dataUrl, false);
+                    return;
+                }
+                ctx.putImageData(chosen, 0, 0);
+                done(canvas.toDataURL('image/png'), true);
+            });
+        }
+
+        function autoClearPatternBackground(layer) {
+            if (!layer || layer.patternBgCleared) return;
+            showStatus('מזהה את צבע הרקע של הפאטרן ומסירה אותו...', false);
+            removePatternBackground(layer.working, function (resultUrl, removed) {
+                layer.patternBgCleared = true;
+                if (!removed) {
+                    showStatus('לא זוהה רקע אחיד — הפאטרן נשאר כמו שהועלה.', false);
+                    applyTransform(layer);
+                    return;
+                }
+                layer.working = resultUrl;
+                setLayerImage(layer, resultUrl, function () {
+                    showStatus('רקע הפאטרן הוסר. נשאר רק הפרינט על הבגד.', false);
+                });
+            });
+        }
+
         removeBgBtn.addEventListener('click', function () {
             var layer = activeLayer();
             if (!layer) return;
             removeBgBtn.disabled = true;
             showStatus('מוחקת רקע...', false);
-            removeBackground(layer.working, parseInt(bgToleranceSlider.value, 10), function (resultUrl) {
-                layer.patternBgCut = true;
+            // Manual removal: chroma-key for all-over tiles, flood for focused.
+            var source = layer.working;
+            var after = function (resultUrl) {
+                layer.working = resultUrl;
+                layer.patternBgCleared = true;
                 setLayerImage(layer, resultUrl, function () {
                     removeBgBtn.disabled = false;
                     showStatus('הרקע נמחק. אפשר לשנות רגישות וללחוץ שוב.', false);
                 });
-            });
+            };
+            if (layer.mode === 'allover') {
+                removePatternBackground(source, function (resultUrl, removed) {
+                    if (removed) after(resultUrl);
+                    else removeBackground(source, parseInt(bgToleranceSlider.value, 10), after);
+                });
+            } else {
+                removeBackground(source, parseInt(bgToleranceSlider.value, 10), after);
+            }
         });
 
         bgToleranceSlider.addEventListener('change', function () {
             var layer = activeLayer();
             // Re-apply automatically only if bg removal is already active on the layer.
-            if (layer && layer.current !== layer.working) removeBgBtn.click();
+            if (layer && layer.current !== layer.original && layer.patternBgCleared) {
+                layer.working = layer.original;
+                removeBgBtn.click();
+            }
         });
 
         restoreBtn.addEventListener('click', function () {
             var layer = activeLayer();
             if (!layer) return;
             layer.working = layer.original;
-            layer.patternBgCut = false;
-            setLayerImage(layer, layer.original, function () {
-                if (layer.mode === 'allover') {
-                    autoCutPatternBackground(layer);
-                } else {
-                    showStatus('השכבה שוחזרה למקור.', false);
-                }
-            });
+            layer.patternBgCleared = false;
+            setLayerImage(layer, layer.original);
+            showStatus('השכבה שוחזרה למקור.', false);
         });
 
         // --- Crop tool ---
@@ -1117,17 +1126,7 @@
             lctx.fillRect(-layer.offsetX * W - tileW, -layer.offsetY * H - tileH, W + 2 * tileW, H + 2 * tileH);
             lctx.restore();
 
-            // 3. Multiply the fabric shading map over the pattern so folds
-            //    and shadows show through while the pattern keeps its colors
-            var shadeCanvas = (garmentShade.src === baseImg.src && garmentShade.canvas)
-                ? garmentShade.canvas
-                : null;
-            if (shadeCanvas) {
-                lctx.globalCompositeOperation = 'multiply';
-                lctx.drawImage(shadeCanvas, 0, 0, W, H);
-            }
-
-            // 4. Clip to the garment shape using the auto-generated mask
+            // 3. Clip to the garment shape using the auto-generated mask
             //    (falls back to the raw product image if unavailable)
             lctx.globalCompositeOperation = 'destination-in';
             if (garmentMask.src === baseImg.src && garmentMask.canvas) {
@@ -1136,11 +1135,10 @@
                 lctx.drawImage(baseImg, 0, 0, W, H);
             }
 
-            // 5. Draw onto the result. With a shading map the pattern is
-            //    drawn as-is; otherwise fall back to multiply blending.
-            ctx.globalCompositeOperation = shadeCanvas ? 'source-over' : 'multiply';
-            ctx.drawImage(layerCanvas, 0, 0);
+            // 4. Overlay motifs in their real colors (source-over). Multiply
+            //    was turning light prints into a "negative" on the garment.
             ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(layerCanvas, 0, 0);
         }
 
         function safeFileName() {

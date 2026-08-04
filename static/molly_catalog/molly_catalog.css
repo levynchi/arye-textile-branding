@@ -1272,13 +1272,14 @@ body.molly-body {
     outline-color: var(--molly-primary-dark);
 }
 
-/* All-over pattern overlay */
+/* All-over pattern overlay — normal blend so light motifs (e.g. white
+   rabbits) keep their real color after the pattern background is removed */
 .molly-mockup-stage .molly-mockup-pattern {
     position: absolute;
     cursor: move;
     touch-action: none;
     user-select: none;
-    mix-blend-mode: multiply;
+    mix-blend-mode: normal;
     outline: 1px dashed rgba(0, 0, 0, 0.2);
     outline-offset: -1px;
 }
@@ -1289,13 +1290,6 @@ body.molly-body {
 
 .molly-mockup-stage .molly-mockup-pattern.dragging {
     outline-color: var(--molly-primary-dark);
-}
-
-/* Fabric shading overlay above an all-over pattern */
-.molly-mockup-stage .molly-mockup-shade {
-    position: absolute;
-    pointer-events: none;
-    mix-blend-mode: multiply;
 }
 
 .molly-mockup-controls {
