@@ -663,32 +663,65 @@
         function buildGarmentMask() {
             var src = baseImg.src;
             if (!src || !baseImg.naturalWidth || garmentMask.src === src) return;
-            var maxDim = 2000;
+            var maxDim = 1200;
             var scale = Math.min(1, maxDim / Math.max(baseImg.naturalWidth, baseImg.naturalHeight));
             var canvas = document.createElement('canvas');
-            canvas.width = Math.max(1, Math.round(baseImg.naturalWidth * scale));
-            canvas.height = Math.max(1, Math.round(baseImg.naturalHeight * scale));
+            var W = Math.max(1, Math.round(baseImg.naturalWidth * scale));
+            var H = Math.max(1, Math.round(baseImg.naturalHeight * scale));
+            canvas.width = W;
+            canvas.height = H;
             var ctx = canvas.getContext('2d');
-            ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(baseImg, 0, 0, W, H);
 
             var imageData;
             try {
-                imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                imageData = ctx.getImageData(0, 0, W, H);
             } catch (err) {
                 // Cross-origin image: fall back to the raw product image.
                 garmentMask = { src: src, dataUrl: null, canvas: null };
                 return;
             }
 
-            if (borderMostlyTransparent(imageData, canvas.width, canvas.height)) {
+            if (borderMostlyTransparent(imageData, W, H)) {
                 // Transparent-background PNG: the image itself is the mask.
                 garmentMask = { src: src, dataUrl: src, canvas: canvas };
-            } else {
-                floodEraseBackground(imageData, canvas.width, canvas.height, 30);
-                ctx.putImageData(imageData, 0, 0);
+                applyAllTransforms();
+                return;
+            }
+
+            // The garment color can be close to the background (e.g. a pale
+            // pink garment shot on white). Try aggressive tolerances first
+            // and back off until a reasonable garment area survives.
+            var tolerances = [35, 25, 18, 12, 8, 5];
+            var chosen = null;
+            for (var i = 0; i < tolerances.length; i++) {
+                var copy = new ImageData(new Uint8ClampedArray(imageData.data), W, H);
+                floodEraseBackground(copy, W, H, tolerances[i]);
+                var opaque = opaqueFraction(copy);
+                if (opaque >= 0.08 && opaque <= 0.95) { chosen = copy; break; }
+            }
+
+            if (chosen) {
+                ctx.putImageData(chosen, 0, 0);
                 garmentMask = { src: src, dataUrl: canvas.toDataURL('image/png'), canvas: canvas };
+            } else {
+                // Could not isolate the garment; show the pattern unclipped
+                // rather than hiding it entirely.
+                garmentMask = { src: src, dataUrl: null, canvas: null };
             }
             applyAllTransforms();
+        }
+
+        function opaqueFraction(imageData) {
+            var d = imageData.data;
+            var opaque = 0;
+            var sampled = 0;
+            // Sample every 4th pixel for speed.
+            for (var p = 3; p < d.length; p += 16) {
+                sampled++;
+                if (d[p] > 16) opaque++;
+            }
+            return opaque / (sampled || 1);
         }
 
         function borderMostlyTransparent(imageData, W, H) {
