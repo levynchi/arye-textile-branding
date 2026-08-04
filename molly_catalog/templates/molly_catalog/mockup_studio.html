@@ -299,7 +299,8 @@
                 width: 0.35,
                 tile: 0.25,
                 offsetX: 0,
-                offsetY: 0
+                offsetY: 0,
+                patternBgCut: false
             };
             el.onload = function () {
                 el.onload = null;
@@ -354,7 +355,7 @@
             scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
             centerBtn.textContent = allover ? 'איפוס מיקום' : 'מרכוז';
             modeHint.textContent = allover
-                ? 'הפאטרן חוזר על כל הבגד. גררי אותו כדי להזיז את ההיסט. מומלץ למחוק רקע לתמונה.'
+                ? 'רקע הפאטרן נחתך אוטומטית — נשארות רק הדמויות, וחוזרות על כל הבגד. אפשר לגרור להזיז היסט.'
                 : 'גררי את התמונה כדי למקם אותה על הבגד.';
         }
 
@@ -532,6 +533,61 @@
             applyTransform(layer);
             syncTools();
             renderLayersPanel();
+            // In all-over mode, cut the pattern's solid background so only
+            // the print figures remain (e.g. green field → transparent, rabbits stay).
+            if (mode === 'allover') autoCutPatternBackground(layer);
+        }
+
+        function autoCutPatternBackground(layer) {
+            if (!layer || layer.patternBgCut) return;
+            layer.patternBgCut = true;
+            showStatus('חותכת את רקע הפאטרן...', false);
+            // Try several tolerances so a solid field (green/cream/etc.) is
+            // removed while the print figures stay opaque.
+            cutPatternBackgroundAdaptive(layer.working, function (resultUrl) {
+                if (!resultUrl) {
+                    showStatus('לא הצלחתי לזהות רקע אחיד — נסי מחיקת רקע ידנית.', true);
+                    return;
+                }
+                layer.working = resultUrl;
+                setLayerImage(layer, resultUrl, function () {
+                    showStatus('רקע הפאטרן נחתך — נשארו רק הדמויות על הבגד.', false);
+                });
+            });
+        }
+
+        function cutPatternBackgroundAdaptive(dataUrl, done) {
+            dataUrlToCanvas(dataUrl, 2500, function (canvas) {
+                var W = canvas.width;
+                var H = canvas.height;
+                var ctx = canvas.getContext('2d');
+                var original;
+                try {
+                    original = ctx.getImageData(0, 0, W, H);
+                } catch (err) {
+                    done(null);
+                    return;
+                }
+                if (borderMostlyTransparent(original, W, H)) {
+                    // Already a cut-out PNG — nothing to do.
+                    done(dataUrl);
+                    return;
+                }
+                var tolerances = [40, 32, 24, 16, 10];
+                var chosenUrl = null;
+                for (var i = 0; i < tolerances.length; i++) {
+                    var copy = new ImageData(new Uint8ClampedArray(original.data), W, H);
+                    floodEraseBackground(copy, W, H, tolerances[i]);
+                    var opaque = opaqueFraction(copy);
+                    // Keep a result that removed most of the field but left figures.
+                    if (opaque >= 0.02 && opaque <= 0.55) {
+                        ctx.putImageData(copy, 0, 0);
+                        chosenUrl = canvas.toDataURL('image/png');
+                        break;
+                    }
+                }
+                done(chosenUrl);
+            });
         }
 
         // --- Positioning / rendering on the stage ---
@@ -894,6 +950,7 @@
             removeBgBtn.disabled = true;
             showStatus('מוחקת רקע...', false);
             removeBackground(layer.working, parseInt(bgToleranceSlider.value, 10), function (resultUrl) {
+                layer.patternBgCut = true;
                 setLayerImage(layer, resultUrl, function () {
                     removeBgBtn.disabled = false;
                     showStatus('הרקע נמחק. אפשר לשנות רגישות וללחוץ שוב.', false);
@@ -911,8 +968,14 @@
             var layer = activeLayer();
             if (!layer) return;
             layer.working = layer.original;
-            setLayerImage(layer, layer.original);
-            showStatus('השכבה שוחזרה למקור.', false);
+            layer.patternBgCut = false;
+            setLayerImage(layer, layer.original, function () {
+                if (layer.mode === 'allover') {
+                    autoCutPatternBackground(layer);
+                } else {
+                    showStatus('השכבה שוחזרה למקור.', false);
+                }
+            });
         });
 
         // --- Crop tool ---
