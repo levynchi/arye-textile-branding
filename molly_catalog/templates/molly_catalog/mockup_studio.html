@@ -117,12 +117,13 @@
                         </div>
                         <div class="molly-mockup-tool-row">
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-center-btn">מרכוז</button>
-                            <button type="button" class="molly-mockup-tool-btn" id="mockup-crop-btn">חיתוך</button>
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-crop-btn">חתוך אלמנט</button>
                         </div>
                         <div class="molly-mockup-tool-row">
-                            <button type="button" class="molly-mockup-tool-btn" id="mockup-extract-btn">חלץ לשכבה</button>
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-duplicate-btn">שכפל שכבה</button>
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-duplicate-5-btn">שכפל ×5</button>
                         </div>
+                        <p class="molly-mockup-hint">חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן). אחר כך שכפלי ולמקמי כל עותק איפה שרוצים.</p>
                         <p class="molly-mockup-hint" id="mockup-mode-hint">גררי את התמונה כדי למקם אותה על הבגד.</p>
                     </div>
 
@@ -167,8 +168,8 @@
     <!-- Crop modal -->
     <div class="molly-crop-overlay" id="crop-overlay" hidden>
         <div class="molly-crop-modal">
-            <div class="molly-crop-title" id="crop-title">חיתוך התמונה</div>
-            <p class="molly-mockup-hint" id="crop-hint" hidden>סמני את החלק שיהפוך לשכבת פרינט ממוקד חדשה על הבגד.</p>
+            <div class="molly-crop-title" id="crop-title">חיתוך אלמנט בודד</div>
+            <p class="molly-mockup-hint" id="crop-hint">סמני אלמנט אחד — הוא יהפוך לשכבה נפרדת על הבגד (לא פאטרן חוזר). אחר כך אפשר לשכפל ולמקם כל עותק בנפרד.</p>
             <div class="molly-crop-area" id="crop-area">
                 <img id="crop-img" src="" alt="" draggable="false">
                 <div class="molly-crop-rect" id="crop-rect">
@@ -179,7 +180,7 @@
                 </div>
             </div>
             <div class="molly-crop-actions">
-                <button type="button" class="molly-button" id="crop-apply-btn">אישור החיתוך</button>
+                <button type="button" class="molly-button" id="crop-apply-btn">צור אלמנט על הבגד</button>
                 <button type="button" class="molly-button molly-button-secondary" id="crop-cancel-btn">ביטול</button>
             </div>
         </div>
@@ -223,8 +224,8 @@
         var modeHint = document.getElementById('mockup-mode-hint');
         var centerBtn = document.getElementById('mockup-center-btn');
         var cropBtn = document.getElementById('mockup-crop-btn');
-        var extractBtn = document.getElementById('mockup-extract-btn');
         var duplicateBtn = document.getElementById('mockup-duplicate-btn');
+        var duplicate5Btn = document.getElementById('mockup-duplicate-5-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
         var statusEl = document.getElementById('mockup-status');
@@ -382,31 +383,55 @@
             el.src = dataUrl;
         }
 
-        function duplicateLayer(id) {
+        function duplicateLayer(id, opts) {
+            opts = opts || {};
             var src = null;
             for (var i = 0; i < layers.length; i++) {
                 if (layers[i].id === id) { src = layers[i]; break; }
             }
             if (!src) return;
+            var step = opts.step == null ? 1 : opts.step;
+            // אלמנטים שנחתכו נשארים תמיד ממוקדים — לא חוזרים לאול-אובר בשכפול
+            var dupMode = src.mode === 'allover' && !opts.forceFocused
+                ? 'allover'
+                : 'focused';
             addLayerFromDataUrl(src.current, src.name + ' (עותק)', {
-                mode: src.mode,
+                mode: dupMode,
                 original: src.original,
                 working: src.working,
                 blend: src.blend,
-                patternPrepared: src.patternPrepared,
+                patternPrepared: dupMode === 'allover' ? src.patternPrepared : false,
                 recolorSource: src.recolorSource || null,
-                x: clamp((src.x == null ? 0.5 : src.x) + 0.08, 0.05, 0.95),
-                y: clamp((src.y == null ? 0.45 : src.y) + 0.06, 0.05, 0.95),
+                x: clamp((src.x == null ? 0.5 : src.x) + 0.07 * step, 0.05, 0.95),
+                y: clamp((src.y == null ? 0.45 : src.y) + 0.05 * step, 0.05, 0.95),
                 width: src.width,
                 tile: src.tile,
                 density: src.density,
-                offsetX: (src.offsetX || 0) + 0.04,
-                offsetY: (src.offsetY || 0) + 0.04,
+                offsetX: (src.offsetX || 0) + 0.04 * step,
+                offsetY: (src.offsetY || 0) + 0.04 * step,
                 skipScroll: true,
-                onReady: function () {
+                onReady: opts.onReady || function () {
                     showStatus('השכבה שוכפלה — גררי אותה למקום הרצוי.', false);
                 }
             });
+        }
+
+        function duplicateLayerMany(id, count) {
+            var n = Math.max(1, count || 1);
+            var done = 0;
+            function next() {
+                done += 1;
+                if (done > n) {
+                    showStatus('נוצרו ' + n + ' עותקים — גררי כל אחד למקום הרצוי.', false);
+                    return;
+                }
+                duplicateLayer(id, {
+                    step: done,
+                    forceFocused: true,
+                    onReady: next
+                });
+            }
+            next();
         }
 
         function setLayerImage(layer, dataUrl, done, opts) {
@@ -1658,21 +1683,18 @@
         var cropApplyBtn = document.getElementById('crop-apply-btn');
         var cropCancelBtn = document.getElementById('crop-cancel-btn');
         var crop = { x: 0, y: 0, w: 0, h: 0 };
-        var cropMode = 'replace'; // 'replace' | 'extract'
+        var cropMode = 'extract'; // תמיד אלמנט בודד (שכבה ממוקדת)
         var cropSourceLayerId = null;
 
-        function openCropModal(mode) {
+        function openCropModal() {
             var layer = activeLayer();
             if (!layer) return;
-            cropMode = mode === 'extract' ? 'extract' : 'replace';
+            // תמיד יוצרים אלמנט בודד — לא פאטרן אול-אובר מהחיתוך
+            cropMode = 'extract';
             cropSourceLayerId = layer.id;
-            if (cropTitle) {
-                cropTitle.textContent = cropMode === 'extract' ? 'חילוץ חלק לשכבה חדשה' : 'חיתוך התמונה';
-            }
-            if (cropHint) cropHint.hidden = cropMode !== 'extract';
-            if (cropApplyBtn) {
-                cropApplyBtn.textContent = cropMode === 'extract' ? 'חלץ לשכבה חדשה' : 'אישור החיתוך';
-            }
+            if (cropTitle) cropTitle.textContent = 'חיתוך אלמנט בודד';
+            if (cropHint) cropHint.hidden = false;
+            if (cropApplyBtn) cropApplyBtn.textContent = 'צור אלמנט על הבגד';
             cropImg.onload = function () {
                 cropImg.onload = null;
                 cropOverlay.hidden = false;
@@ -1687,15 +1709,20 @@
             if (cropImg.complete && cropImg.onload) cropImg.onload();
         }
 
-        cropBtn.addEventListener('click', function () { openCropModal('replace'); });
-        if (extractBtn) {
-            extractBtn.addEventListener('click', function () { openCropModal('extract'); });
-        }
+        cropBtn.addEventListener('click', function () { openCropModal(); });
         if (duplicateBtn) {
             duplicateBtn.addEventListener('click', function () {
                 var layer = activeLayer();
                 if (!layer) return;
-                duplicateLayer(layer.id);
+                duplicateLayer(layer.id, { forceFocused: layer.mode === 'focused' });
+            });
+        }
+        if (duplicate5Btn) {
+            duplicate5Btn.addEventListener('click', function () {
+                var layer = activeLayer();
+                if (!layer) return;
+                // ×5 מיועד לאלמנטים בודדים — אם זו שכבת אול-אובר, משכפלים כממוקד מהתמונה הנוכחית
+                duplicateLayerMany(layer.id, 5);
             });
         }
 
@@ -1770,31 +1797,28 @@
             var croppedUrl = getCroppedDataUrl();
             cropOverlay.hidden = true;
 
-            if (cropMode === 'extract') {
-                var baseName = layer.name || 'פאטרן';
-                addLayerFromDataUrl(croppedUrl, 'חלק מ-' + baseName, {
-                    mode: 'focused',
-                    x: 0.42,
-                    y: 0.4,
-                    width: DEFAULT_FOCUSED_WIDTH,
-                    blend: layer.blend || 'multiply',
-                    skipScroll: true,
-                    onReady: function () {
-                        showStatus('נוצרה שכבה חדשה — גררי אותה על הבגד. אפשר גם לשכפל.', false);
-                    }
-                });
-                return;
-            }
-
-            // Crop bakes into the working image so bg removal keeps working on it.
-            layer.working = croppedUrl;
-            setLayerImage(layer, croppedUrl);
-            showStatus('התמונה נחתכה.', false);
+            // תמיד אלמנט בודד (שכבה ממוקדת) — לא מחליף את המקור ולא יוצר פאטרן חוזר
+            var baseName = layer.name || 'אלמנט';
+            addLayerFromDataUrl(croppedUrl, 'אלמנט מ-' + baseName, {
+                mode: 'focused',
+                x: 0.42,
+                y: 0.4,
+                width: DEFAULT_FOCUSED_WIDTH,
+                blend: layer.blend || 'multiply',
+                patternPrepared: false,
+                skipScroll: true,
+                onReady: function () {
+                    showStatus(
+                        'נוצר אלמנט בודד — גררי למקום. אפשר «שכפל שכבה» או «שכפל ×5».',
+                        false
+                    );
+                }
+            });
         });
 
         cropCancelBtn.addEventListener('click', function () {
             cropOverlay.hidden = true;
-            cropMode = 'replace';
+            cropMode = 'extract';
             cropSourceLayerId = null;
         });
 
