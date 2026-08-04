@@ -1289,7 +1289,7 @@ body.molly-body {
 }
 
 .molly-mockup-stage-wrap {
-    flex: 1 1 340px;
+    flex: 1 1 420px;
     min-width: 0;
     text-align: center;
 }
@@ -1306,8 +1306,11 @@ body.molly-body {
 
 .molly-mockup-stage #mockup-base-img {
     display: block;
+    width: auto;
     max-width: 100%;
-    max-height: 70vh;
+    /* Fill most of the viewport so the garment is the main working surface */
+    max-height: 88vh;
+    height: auto;
     user-select: none;
     -webkit-user-drag: none;
 }
@@ -1756,6 +1759,10 @@ body.molly-body {
     .molly-mockup-stage-wrap {
         order: 1;
         width: 100%;
+    }
+
+    .molly-mockup-stage #mockup-base-img {
+        max-height: 72vh;
     }
 
     .molly-mockup-layers-sidebar {
