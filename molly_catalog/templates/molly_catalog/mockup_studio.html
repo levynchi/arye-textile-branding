@@ -96,6 +96,10 @@
                             <label for="mockup-scale" id="mockup-scale-label">גודל</label>
                             <input type="range" id="mockup-scale" min="3" max="100" value="35">
                         </div>
+                        <div class="molly-mockup-control" id="mockup-density-control" hidden>
+                            <label for="mockup-density">צפיפות אלמנטים</label>
+                            <input type="range" id="mockup-density" min="20" max="100" value="100">
+                        </div>
                         <div class="molly-mockup-tool-row">
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-center-btn">מרכוז</button>
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-crop-btn">חיתוך</button>
@@ -187,6 +191,8 @@
         var modeAlloverBtn = document.getElementById('mockup-mode-allover');
         var scaleSlider = document.getElementById('mockup-scale');
         var scaleLabel = document.getElementById('mockup-scale-label');
+        var densityControl = document.getElementById('mockup-density-control');
+        var densitySlider = document.getElementById('mockup-density');
         var modeHint = document.getElementById('mockup-mode-hint');
         var centerBtn = document.getElementById('mockup-center-btn');
         var cropBtn = document.getElementById('mockup-crop-btn');
@@ -207,7 +213,7 @@
         // Each layer: { id, name, original, working, current, el, patEl,
         //               mode: 'focused'|'allover', visible,
         //               x, y, width,            (focused placement)
-        //               tile, offsetX, offsetY  (all-over pattern) }
+        //               tile, density, offsetX, offsetY  (all-over pattern) }
         // - original: dataURL as uploaded (never changes)
         // - working:  dataURL after crops (base for background removal)
         // - current:  dataURL displayed (working + optional bg removal)
@@ -351,6 +357,7 @@
                 y: 0.45,
                 width: 0.35,
                 tile: 0.25,
+                density: 1,
                 offsetX: 0,
                 offsetY: 0
             };
@@ -407,9 +414,11 @@
             modeAlloverBtn.classList.toggle('active', allover);
             scaleLabel.textContent = allover ? 'גודל האריח' : 'גודל';
             scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
+            if (densityControl) densityControl.hidden = !allover;
+            if (densitySlider) densitySlider.value = Math.round((layer.density || 1) * 100);
             centerBtn.textContent = allover ? 'איפוס מיקום' : 'מרכוז';
             modeHint.textContent = allover
-                ? 'הפאטרן חוזר על כל הבגד. גררי אותו כדי להזיז את ההיסט.'
+                ? 'הפאטרן חוזר על כל הבגד. גררי אותו כדי להזיז את ההיסט. צפיפות מרווחת או מצופפת בין האלמנטים.'
                 : 'גררי את התמונה כדי למקם אותה על הבגד.';
         }
 
@@ -591,6 +600,31 @@
             }
         }
 
+        // Build one repeat cell: motif centered at `density`, transparent margins.
+        // density=1 fills the cell (legacy look); lower values space motifs apart.
+        function buildDensityTileCanvas(imgEl, tileW, tileH, density) {
+            var d = clamp(density == null ? 1 : density, 0.2, 1);
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.max(4, Math.round(tileW));
+            canvas.height = Math.max(4, Math.round(tileH));
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var dw = canvas.width * d;
+            var dh = canvas.height * d;
+            ctx.drawImage(imgEl, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+            return canvas;
+        }
+
+        function getStagePatternTileUrl(layer, tileW, tileH) {
+            var density = layer.density == null ? 1 : layer.density;
+            var key = layer.current + '|' + Math.round(tileW) + 'x' + Math.round(tileH) + '|' + density.toFixed(3);
+            if (layer._patternTileKey === key && layer._patternTileUrl) return layer._patternTileUrl;
+            var canvas = buildDensityTileCanvas(layer.el, tileW, tileH, density);
+            layer._patternTileKey = key;
+            layer._patternTileUrl = canvas.toDataURL('image/png');
+            return layer._patternTileUrl;
+        }
+
         // --- Positioning / rendering on the stage ---
         function applyTransform(layer) {
             if (!baseImg.clientWidth) return;
@@ -610,14 +644,18 @@
                 layer.el.style.left = (layer.x * bw - w / 2) + 'px';
                 layer.el.style.top = (layer.y * bh - h / 2) + 'px';
             } else {
+                var ratioA = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+                var tileW = Math.max(4, layer.tile * bw);
+                var tileH = Math.max(4, tileW * ratioA);
+                var tileUrl = getStagePatternTileUrl(layer, tileW, tileH);
                 var p = layer.patEl.style;
                 p.left = '0px';
                 p.top = '0px';
                 p.width = bw + 'px';
                 p.height = bh + 'px';
-                p.backgroundImage = 'url("' + layer.current + '")';
+                p.backgroundImage = 'url("' + tileUrl + '")';
                 p.backgroundRepeat = 'repeat';
-                p.backgroundSize = (layer.tile * bw) + 'px auto';
+                p.backgroundSize = tileW + 'px ' + tileH + 'px';
                 p.backgroundPosition = (layer.offsetX * bw) + 'px ' + (layer.offsetY * bh) + 'px';
                 // Dark ink (green clovers) → multiply so fabric shading shows.
                 // Light ink (white rabbits) → normal, otherwise multiply eats white.
@@ -702,6 +740,15 @@
             }
             applyTransform(layer);
         });
+
+        if (densitySlider) {
+            densitySlider.addEventListener('input', function () {
+                var layer = activeLayer();
+                if (!layer || layer.mode !== 'allover') return;
+                layer.density = parseInt(densitySlider.value, 10) / 100;
+                applyTransform(layer);
+            });
+        }
 
         centerBtn.addEventListener('click', function () {
             var layer = activeLayer();
@@ -1190,14 +1237,13 @@
         }
 
         function drawAlloverLayer(ctx, layer, W, H) {
-            // 1. Scaled tile
+            // 1. Tile cell with motif centered by density (transparent margins)
             var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
             var tileW = Math.max(4, Math.round(layer.tile * W));
             var tileH = Math.max(4, Math.round(tileW * ratio));
-            var tileCanvas = document.createElement('canvas');
-            tileCanvas.width = tileW;
-            tileCanvas.height = tileH;
-            tileCanvas.getContext('2d').drawImage(layer.el, 0, 0, tileW, tileH);
+            var tileCanvas = buildDensityTileCanvas(
+                layer.el, tileW, tileH, layer.density == null ? 1 : layer.density
+            );
 
             // 2. Pattern over the full base area, on its own canvas
             var layerCanvas = document.createElement('canvas');
@@ -1275,6 +1321,7 @@
                         name: layer.name,
                         mode: layer.mode,
                         tile: layer.tile,
+                        density: layer.density == null ? 1 : layer.density,
                         offsetX: layer.offsetX,
                         offsetY: layer.offsetY,
                         visible: layer.visible,
