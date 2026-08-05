@@ -1782,7 +1782,52 @@
             canvas.width = sw;
             canvas.height = sh;
             canvas.getContext('2d').drawImage(cropImg, sx, sy, sw, sh, 0, 0, sw, sh);
-            return canvas.toDataURL('image/png');
+            var dispW = cropImg.clientWidth || 1;
+            var dispH = cropImg.clientHeight || 1;
+            return {
+                url: canvas.toDataURL('image/png'),
+                // יחס החיתוך מתוך תמונת המקור (0–1)
+                fracW: clamp(crop.w / dispW, 0.01, 1),
+                fracH: clamp(crop.h / dispH, 0.01, 1),
+                centerX: clamp((crop.x + crop.w / 2) / dispW, 0, 1),
+                centerY: clamp((crop.y + crop.h / 2) / dispH, 0, 1)
+            };
+        }
+
+        function extractLayerSizeAndPos(sourceLayer, cropInfo) {
+            // גודל על הבגד = גודל התצוגה של המקור × יחס החיתוך (בלי הגדלה אוטומטית)
+            var baseSize = sourceLayer.mode === 'allover'
+                ? (sourceLayer.tile == null ? DEFAULT_ALLOVER_TILE : sourceLayer.tile)
+                : (sourceLayer.width == null ? DEFAULT_FOCUSED_WIDTH : sourceLayer.width);
+            var newWidth = clamp(baseSize * cropInfo.fracW, 0.02, 0.95);
+
+            var newX = 0.5;
+            var newY = 0.45;
+            if (sourceLayer.mode !== 'allover') {
+                var srcW = sourceLayer.width == null ? DEFAULT_FOCUSED_WIDTH : sourceLayer.width;
+                var natW = sourceLayer.el.naturalWidth || 1;
+                var natH = sourceLayer.el.naturalHeight || 1;
+                var bw = baseImg.clientWidth || 1;
+                var bh = baseImg.clientHeight || 1;
+                // גובה השכבה כאחוז מגובה הבגד (כמו ב-applyTransform)
+                var srcHFrac = srcW * (bw / bh) * (natH / natW);
+                // מיקום לפי מרכז האזור שנחתך בתוך השכבה המקורית
+                newX = clamp(
+                    (sourceLayer.x == null ? 0.5 : sourceLayer.x)
+                        - srcW / 2
+                        + cropInfo.centerX * srcW,
+                    0.05,
+                    0.95
+                );
+                newY = clamp(
+                    (sourceLayer.y == null ? 0.45 : sourceLayer.y)
+                        - srcHFrac / 2
+                        + cropInfo.centerY * srcHFrac,
+                    0.05,
+                    0.95
+                );
+            }
+            return { width: newWidth, x: newX, y: newY };
         }
 
         cropApplyBtn.addEventListener('click', function () {
@@ -1794,22 +1839,23 @@
                 }
             }
             if (!layer) { cropOverlay.hidden = true; return; }
-            var croppedUrl = getCroppedDataUrl();
+            var cropInfo = getCroppedDataUrl();
             cropOverlay.hidden = true;
 
-            // תמיד אלמנט בודד (שכבה ממוקדת) — לא מחליף את המקור ולא יוצר פאטרן חוזר
+            // תמיד אלמנט בודד (שכבה ממוקדת) — גודל כמו על הבגד, בלי הגדלה ל-35%
             var baseName = layer.name || 'אלמנט';
-            addLayerFromDataUrl(croppedUrl, 'אלמנט מ-' + baseName, {
+            var place = extractLayerSizeAndPos(layer, cropInfo);
+            addLayerFromDataUrl(cropInfo.url, 'אלמנט מ-' + baseName, {
                 mode: 'focused',
-                x: 0.42,
-                y: 0.4,
-                width: DEFAULT_FOCUSED_WIDTH,
+                x: place.x,
+                y: place.y,
+                width: place.width,
                 blend: layer.blend || 'multiply',
                 patternPrepared: false,
                 skipScroll: true,
                 onReady: function () {
                     showStatus(
-                        'נוצר אלמנט בודד — גררי למקום. אפשר «שכפל שכבה» או «שכפל ×5».',
+                        'נוצר אלמנט בגודל המקורי — גררי למקום. אפשר «שכפל שכבה» או «שכפל ×5».',
                         false
                     );
                 }
