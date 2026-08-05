@@ -11,6 +11,7 @@ Design notes
   every combination.
 """
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 from django.contrib.auth.hashers import make_password, check_password
@@ -452,6 +453,18 @@ class MollyMockupProduct(models.Model):
         "תמונת מוצר",
         upload_to="molly_catalog/mockup_products/",
         help_text="תמונת הבגד/המוצר שעליה תמוקם ההדפסה.",
+    )
+    real_width_cm = models.DecimalField(
+        "רוחב פיזי (ס״מ)",
+        max_digits=6,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(500)],
+        help_text=(
+            "רוחב אזור ההדפסה על הבגד בס״מ — כפי שמוצג ברוחב התמונה. "
+            "לדוגמה: גוף קצר ברוחב 40 ס״מ → הזן 40. נדרש לייצוא הדפסה 1:1."
+        ),
     )
     order = models.PositiveIntegerField("סדר תצוגה", default=0)
     is_active = models.BooleanField("פעיל", default=True)

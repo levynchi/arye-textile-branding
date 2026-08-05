@@ -297,14 +297,14 @@ class MollyVariantAdmin(admin.ModelAdmin):
 
 @admin.register(MollyMockupProduct)
 class MollyMockupProductAdmin(admin.ModelAdmin):
-    list_display = ("name", "image_thumb", "is_active", "order", "updated")
+    list_display = ("name", "image_thumb", "real_width_cm", "is_active", "order", "updated")
     list_editable = ("is_active", "order")
     search_fields = ("name",)
     readonly_fields = ("image_large", "created", "updated")
 
     fieldsets = (
         (None, {
-            "fields": ("name", "image", "image_large", "order", "is_active"),
+            "fields": ("name", "image", "image_large", "real_width_cm", "order", "is_active"),
         }),
         ("מידע נוסף", {
             "fields": ("created", "updated"),

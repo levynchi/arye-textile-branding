@@ -1838,6 +1838,21 @@ body.molly-body {
     margin: 0;
 }
 
+.molly-mockup-cm-label {
+    margin: 6px 0 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--molly-text);
+}
+
+.molly-mockup-product-cm {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--molly-text-soft);
+}
+
 .molly-mockup-actions {
     display: flex;
     flex-direction: column;

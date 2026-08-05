@@ -27,9 +27,10 @@
             <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">1</span> בחירת מוצר</h2>
             <div class="molly-mockup-products">
                 {% for p in mockup_products %}
-                <button type="button" class="molly-mockup-product-card" data-product-id="{{ p.id }}" data-product-name="{{ p.name }}" data-product-image="{% url 'molly_catalog:mockup_product_image' p.id %}">
+                <button type="button" class="molly-mockup-product-card" data-product-id="{{ p.id }}" data-product-name="{{ p.name }}" data-product-image="{% url 'molly_catalog:mockup_product_image' p.id %}" data-real-width-cm="{% if p.real_width_cm %}{{ p.real_width_cm }}{% endif %}">
                     <img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy">
                     <span>{{ p.name }}</span>
+                    {% if p.real_width_cm %}<small class="molly-mockup-product-cm">{{ p.real_width_cm }} ס״מ</small>{% endif %}
                 </button>
                 {% endfor %}
             </div>
@@ -82,6 +83,7 @@
                                 <button type="button" class="molly-mockup-reset-link" id="mockup-scale-reset-btn">איפוס גודל</button>
                             </div>
                             <input type="range" id="mockup-scale" min="3" max="100" value="35">
+                            <p class="molly-mockup-cm-label" id="mockup-cm-label" hidden></p>
                         </div>
                         <div class="molly-mockup-control" id="mockup-density-control" hidden>
                             <div class="molly-mockup-control-head">
@@ -131,7 +133,9 @@
                     <div class="molly-mockup-actions">
                         <button type="button" class="molly-button" id="mockup-save-btn" disabled>שמירת ההדמיה</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-download-btn" disabled>הורדה למחשב</button>
+                        <button type="button" class="molly-button molly-button-secondary" id="mockup-print-1to1-btn" disabled title="הדפסת הפרינט בגודל אמיתי להשוואה מול הבגד">הדפסה 1:1</button>
                     </div>
+                    <p class="molly-mockup-hint" id="mockup-print-1to1-hint" hidden>הדפיסו ב־Actual size / ללא התאמה לדף. אם יש כמה דפים — הדביקו לפי סימני היישור.</p>
                     <p class="molly-mockup-status" id="mockup-status" hidden></p>
                 </div>
             </div>
@@ -189,6 +193,7 @@
 
     {% include 'molly_catalog/partials/footer.html' %}
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
     (function () {
         'use strict';
@@ -211,6 +216,7 @@
         var scaleSlider = document.getElementById('mockup-scale');
         var scaleLabel = document.getElementById('mockup-scale-label');
         var scaleResetBtn = document.getElementById('mockup-scale-reset-btn');
+        var cmLabel = document.getElementById('mockup-cm-label');
         var densityControl = document.getElementById('mockup-density-control');
         var densitySlider = document.getElementById('mockup-density');
         var densityValueLabel = document.getElementById('mockup-density-value');
@@ -218,6 +224,11 @@
         var DEFAULT_FOCUSED_WIDTH = 0.35;
         var DEFAULT_ALLOVER_TILE = 0.25;
         var DEFAULT_DENSITY = 1;
+        var PRINT_DPI = 150;
+        var PRINT_PAGE_W_MM = 210;
+        var PRINT_PAGE_H_MM = 297;
+        var PRINT_MARGIN_MM = 10;
+        var PRINT_LABEL_H_MM = 14;
         var colorControl = document.getElementById('mockup-color-control');
         var colorSlotsEl = document.getElementById('mockup-color-slots');
         var colorSwatches = document.getElementById('mockup-color-swatches');
@@ -231,6 +242,8 @@
         var duplicate5Btn = document.getElementById('mockup-duplicate-5-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
+        var print1to1Btn = document.getElementById('mockup-print-1to1-btn');
+        var print1to1Hint = document.getElementById('mockup-print-1to1-hint');
         var statusEl = document.getElementById('mockup-status');
         var gallery = document.getElementById('mockup-gallery');
         var galleryEmpty = document.getElementById('mockup-gallery-empty');
@@ -241,7 +254,7 @@
         }
 
         // Default new layers to focused; user can switch to all-over in the editor.
-        var state = { productId: null, productName: '', uploadMode: 'focused' };
+        var state = { productId: null, productName: '', uploadMode: 'focused', realWidthCm: null };
 
         // Layers: order in array = z-order (first is bottom).
         // Each layer: { id, name, original, working, current, el, patEl,
@@ -272,6 +285,8 @@
                 card.classList.add('selected');
                 state.productId = card.dataset.productId;
                 state.productName = card.dataset.productName;
+                var rw = parseFloat(card.dataset.realWidthCm);
+                state.realWidthCm = (isFinite(rw) && rw > 0) ? rw : null;
                 baseImg.src = card.dataset.productImage;
                 uploadSection.hidden = false;
                 uploadText.textContent = DEFAULT_UPLOAD_HINT;
@@ -280,6 +295,7 @@
                     requestAnimationFrame(applyAllTransforms);
                 }
                 uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                syncTools();
                 updateButtons();
             });
         });
@@ -614,6 +630,7 @@
             layerTools.hidden = !layer;
             syncTools();
             renderLayersPanel();
+            updateButtons();
         }
 
         // Slider UI 50..150 (higher = denser) ↔ internal spacing 1.5..0.5
@@ -659,6 +676,68 @@
             modeHint.textContent = allover
                 ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים. אפשר לשנות כל צבע מוטיב בנפרד.'
                 : 'גררי את התמונה כדי למקם אותה על הבגד.';
+            syncCmLabel();
+        }
+
+        function formatCm(n) {
+            if (!isFinite(n)) return '?';
+            if (Math.abs(n - Math.round(n)) < 0.05) return String(Math.round(n));
+            return n.toFixed(1);
+        }
+
+        /** Physical size of the active print (motif or seamless tile) in cm. */
+        function getLayerPhysicalSizeCm(layer) {
+            var realW = state.realWidthCm;
+            if (!layer || !realW || realW <= 0) return null;
+            if (layer.mode === 'allover') {
+                var spacing = clamp(layer.density == null ? 1 : layer.density, 0.5, 1.5);
+                var built = buildSpacingTileCanvas(layer, spacing);
+                var periodW;
+                var periodH;
+                var srcW;
+                if (built) {
+                    periodW = built.w;
+                    periodH = built.h;
+                    srcW = layer._densitySrcCanvas
+                        ? layer._densitySrcCanvas.width
+                        : (layer.el.naturalWidth || 1);
+                } else {
+                    var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+                    periodW = Math.max(4, Math.round(layer.tile * 1000));
+                    periodH = Math.max(4, Math.round(periodW * ratio));
+                    srcW = periodW;
+                }
+                var tileFrac = layer.tile * (periodW / (srcW || 1));
+                var wCm = tileFrac * realW;
+                var hCm = wCm * (periodH / (periodW || 1));
+                return { wCm: wCm, hCm: hCm, kind: 'tile' };
+            }
+            var mw = layer.width * realW;
+            var mh = mw * (layer.el.naturalHeight / (layer.el.naturalWidth || 1));
+            return { wCm: mw, hCm: mh, kind: 'motif' };
+        }
+
+        function syncCmLabel() {
+            if (!cmLabel) return;
+            var layer = activeLayer();
+            var size = getLayerPhysicalSizeCm(layer);
+            if (!size) {
+                if (layer && !state.realWidthCm) {
+                    cmLabel.hidden = false;
+                    cmLabel.textContent = 'לא הוגדר רוחב פיזי למוצר — פני לאריה להגדרת ס״מ באדמין.';
+                } else {
+                    cmLabel.hidden = true;
+                    cmLabel.textContent = '';
+                }
+                return;
+            }
+            cmLabel.hidden = false;
+            if (size.kind === 'tile') {
+                cmLabel.textContent = 'אריח חוזר ≈ ' + formatCm(size.wCm) + ' × ' + formatCm(size.hCm) + ' ס״מ';
+            } else {
+                cmLabel.textContent = 'רוחב מוטיב ≈ ' + formatCm(size.wCm) + ' ס״מ'
+                    + (size.hCm ? ' (גובה ≈ ' + formatCm(size.hCm) + ' ס״מ)' : '');
+            }
         }
 
         function setLayerVisible(layer, visible) {
@@ -1254,6 +1333,8 @@
                 layer.width = value;
             }
             applyTransform(layer);
+            syncCmLabel();
+            updateButtons();
         });
 
         if (scaleResetBtn) {
@@ -1277,11 +1358,13 @@
                 if (!layer || layer.mode !== 'allover') return;
                 layer.density = densityUiToSpacing(densitySlider.value);
                 if (densityValueLabel) densityValueLabel.textContent = densityLabelText(layer.density);
+                syncCmLabel();
                 // Debounce rebuild — component extract is cached; blit still costs.
                 if (densitySliderTimer) clearTimeout(densitySliderTimer);
                 densitySliderTimer = setTimeout(function () {
                     densitySliderTimer = null;
                     applyTransform(layer);
+                    syncCmLabel();
                 }, 40);
             });
         }
@@ -1633,6 +1716,14 @@
             var ready = !!(state.productId && layers.length);
             saveBtn.disabled = !ready;
             downloadBtn.disabled = !ready;
+            var canPrint = ready && !!state.realWidthCm && !!activeLayer();
+            if (print1to1Btn) {
+                print1to1Btn.disabled = !canPrint;
+                print1to1Btn.title = state.realWidthCm
+                    ? 'הדפסת הפרינט בגודל אמיתי להשוואה מול הבגד'
+                    : 'נדרש רוחב פיזי (ס״מ) למוצר באדמין';
+            }
+            if (print1to1Hint) print1to1Hint.hidden = !canPrint;
         }
 
         // --- Background removal (flood fill from image edges) ---
@@ -2372,6 +2463,159 @@
                 setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
             }, 'image/png');
         });
+
+        function getJsPdfCtor() {
+            if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+            if (window.jsPDF) return window.jsPDF;
+            return null;
+        }
+
+        /** Raster of the print only (no garment), at ~PRINT_DPI for physical size. */
+        function buildPrintPlateCanvas(layer, size) {
+            var pxW = Math.max(8, Math.round(size.wCm / 2.54 * PRINT_DPI));
+            var pxH = Math.max(8, Math.round(size.hCm / 2.54 * PRINT_DPI));
+            // Cap extreme sizes to keep browser memory sane (~A0 @ 150dpi).
+            var maxSide = 5000;
+            if (pxW > maxSide || pxH > maxSide) {
+                var s = maxSide / Math.max(pxW, pxH);
+                pxW = Math.max(8, Math.round(pxW * s));
+                pxH = Math.max(8, Math.round(pxH * s));
+            }
+            var canvas = document.createElement('canvas');
+            canvas.width = pxW;
+            canvas.height = pxH;
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, pxW, pxH);
+
+            if (layer.mode === 'allover') {
+                var spacing = clamp(layer.density == null ? 1 : layer.density, 0.5, 1.5);
+                var built = buildSpacingTileCanvas(layer, spacing);
+                if (built && built.canvas) {
+                    ctx.drawImage(built.canvas, 0, 0, pxW, pxH);
+                } else {
+                    ctx.drawImage(layer.el, 0, 0, pxW, pxH);
+                }
+            } else {
+                ctx.drawImage(layer.el, 0, 0, pxW, pxH);
+            }
+            return canvas;
+        }
+
+        function drawPrintCropMarks(pdf, x, y, w, h) {
+            var m = 4;
+            var len = 6;
+            pdf.setDrawColor(40);
+            pdf.setLineWidth(0.2);
+            // corners
+            [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(function (pt, i) {
+                var hx = (i % 2 === 0) ? -1 : 1;
+                var hy = (i < 2) ? -1 : 1;
+                pdf.line(pt[0] + hx * m, pt[1], pt[0] + hx * (m + len), pt[1]);
+                pdf.line(pt[0], pt[1] + hy * m, pt[0], pt[1] + hy * (m + len));
+            });
+        }
+
+        function exportPrint1to1Pdf() {
+            var JsPDF = getJsPdfCtor();
+            if (!JsPDF) {
+                showStatus('ספריית ה־PDF לא נטענה. רענני את הדף ונסי שוב.', true);
+                return;
+            }
+            var layer = activeLayer();
+            if (!layer) {
+                showStatus('בחרי שכבה להדפסה.', true);
+                return;
+            }
+            var size = getLayerPhysicalSizeCm(layer);
+            if (!size) {
+                showStatus('לא הוגדר רוחב פיזי למוצר. פני לאריה להגדרת ס״מ באדמין.', true);
+                return;
+            }
+
+            showStatus('מכינה PDF בגודל 1:1...', false);
+            var plate = buildPrintPlateCanvas(layer, size);
+
+            var imgWmm = size.wCm * 10;
+            var imgHmm = size.hCm * 10;
+            var usableW = PRINT_PAGE_W_MM - 2 * PRINT_MARGIN_MM;
+            var usableH = PRINT_PAGE_H_MM - 2 * PRINT_MARGIN_MM - PRINT_LABEL_H_MM;
+            var cols = Math.max(1, Math.ceil(imgWmm / usableW));
+            var rows = Math.max(1, Math.ceil(imgHmm / usableH));
+            var totalPages = cols * rows;
+            var pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            // Latin labels only — jsPDF default fonts lack Hebrew glyphs.
+            var kindLabel = size.kind === 'tile' ? 'Pattern tile' : 'Motif';
+            var sizeLabel = formatCm(size.wCm) + ' x ' + formatCm(size.hCm) + ' cm';
+            var pageIndex = 0;
+
+            for (var row = 0; row < rows; row++) {
+                for (var col = 0; col < cols; col++) {
+                    if (pageIndex > 0) pdf.addPage();
+                    var srcXmm = col * usableW;
+                    var srcYmm = row * usableH;
+                    var sliceWmm = Math.min(usableW, imgWmm - srcXmm);
+                    var sliceHmm = Math.min(usableH, imgHmm - srcYmm);
+                    // Source crop in image pixels
+                    var sx = (srcXmm / imgWmm) * plate.width;
+                    var sy = (srcYmm / imgHmm) * plate.height;
+                    var sw = (sliceWmm / imgWmm) * plate.width;
+                    var sh = (sliceHmm / imgHmm) * plate.height;
+
+                    var sliceCanvas = document.createElement('canvas');
+                    sliceCanvas.width = Math.max(1, Math.round(sw));
+                    sliceCanvas.height = Math.max(1, Math.round(sh));
+                    sliceCanvas.getContext('2d').drawImage(
+                        plate, sx, sy, sw, sh,
+                        0, 0, sliceCanvas.width, sliceCanvas.height
+                    );
+                    var sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+
+                    var x = PRINT_MARGIN_MM;
+                    var y = PRINT_MARGIN_MM + PRINT_LABEL_H_MM;
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(40);
+                    pdf.text(
+                        kindLabel + ' 1:1 — ' + sizeLabel
+                        + '  |  Page ' + (pageIndex + 1) + '/' + totalPages
+                        + '  |  Print Actual size (no fit-to-page)',
+                        PRINT_MARGIN_MM,
+                        PRINT_MARGIN_MM + 6
+                    );
+                    if (totalPages > 1) {
+                        pdf.setFontSize(8);
+                        pdf.text(
+                            'Tile ' + (col + 1) + ',' + (row + 1)
+                            + ' — align using corner crop marks',
+                            PRINT_MARGIN_MM,
+                            PRINT_MARGIN_MM + 11
+                        );
+                    }
+                    pdf.addImage(sliceData, 'JPEG', x, y, sliceWmm, sliceHmm);
+                    drawPrintCropMarks(pdf, x, y, sliceWmm, sliceHmm);
+                    pageIndex++;
+                }
+            }
+
+            var fileBase = (state.productName || 'פרינט').replace(/[\\/:*?"<>|]/g, '');
+            pdf.save('הדפסה-1ל1-' + fileBase + '.pdf');
+            showStatus(
+                totalPages > 1
+                    ? 'ה־PDF מוכן (' + totalPages + ' דפים). הדפיסו ב־Actual size והדביקו לפי הסימונים.'
+                    : 'ה־PDF מוכן. הדפיסו ב־Actual size / ללא התאמה לדף.',
+                false
+            );
+        }
+
+        if (print1to1Btn) {
+            print1to1Btn.addEventListener('click', function () {
+                try {
+                    exportPrint1to1Pdf();
+                } catch (err) {
+                    showStatus('שגיאה ביצירת ה־PDF. נסי שוב.', true);
+                }
+            });
+        }
 
         function dataUrlToBlob(dataUrl) {
             var parts = dataUrl.split(',');
