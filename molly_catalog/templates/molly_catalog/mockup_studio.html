@@ -502,7 +502,7 @@
             colorSlotsEl.innerHTML = '';
             if (colorHint) {
                 colorHint.textContent = multi
-                    ? 'בחרי צבע בפאטרן למעלה, ואז שני בפלטה — כל צבע משתנה בנפרד. רקע הפאטרן נשאר מוסר.'
+                    ? 'בחרי שורת מוטיב למעלה, ואז שני צבע בפלטה למטה.'
                     : 'משנה רק את צבע המוטיבים — הצורה והבגד נשארים.';
             }
             if (!multi) {
@@ -521,13 +521,14 @@
                 btn.setAttribute('role', 'option');
                 btn.setAttribute('aria-selected', idx === activeIdx ? 'true' : 'false');
                 btn.dataset.slotIndex = String(idx);
+                var label = document.createElement('span');
+                label.className = 'molly-mockup-color-slot-label';
+                label.textContent = slot.label || ('מוטיב ' + (idx + 1));
                 var sw = document.createElement('span');
                 sw.className = 'molly-mockup-color-slot-swatch';
                 sw.style.background = slot.currentHex;
-                var label = document.createElement('span');
-                label.textContent = slot.label || ('צבע ' + (idx + 1));
-                btn.appendChild(sw);
                 btn.appendChild(label);
+                btn.appendChild(sw);
                 colorSlotsEl.appendChild(btn);
             });
             var cur = slots[activeIdx].currentHex;
@@ -1796,33 +1797,14 @@
                 nL[best] += 1;
             }
 
-            var byLum = clusters.map(function (cl, idx) {
-                return {
-                    idx: idx,
-                    lum: 0.299 * cl.r + 0.587 * cl.g + 0.114 * cl.b
-                };
-            }).sort(function (a, b) { return b.lum - a.lum; });
-            var labels = {};
-            if (clusters.length === 1) {
-                labels[0] = 'מוטיב';
-            } else if (clusters.length === 2) {
-                labels[byLum[0].idx] = 'בהיר';
-                labels[byLum[1].idx] = 'כהה';
-            } else {
-                byLum.forEach(function (item, order) {
-                    if (order === 0) labels[item.idx] = 'בהיר';
-                    else if (order === byLum.length - 1) labels[item.idx] = 'כהה';
-                    else labels[item.idx] = 'צבע ' + (order + 1);
-                });
-            }
-
+            // Labels by area order (clusters already sorted largest-first).
             return clusters.map(function (cl, idx) {
                 var hex = rgbToHex(cl.r, cl.g, cl.b);
                 return {
                     id: idx,
                     sourceHex: hex,
                     currentHex: hex,
-                    label: labels[idx] || ('צבע ' + (idx + 1)),
+                    label: 'מוטיב ' + (idx + 1),
                     lab: cl.lab,
                     avgL: nL[idx] ? sumL[idx] / nL[idx] : rgbToHsl(cl.r, cl.g, cl.b).l
                 };
