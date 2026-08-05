@@ -479,12 +479,13 @@
                 layer.recolorSource = layer.working || layer.current;
             }
             showStatus('משנה צבע...', false);
-            recolorInkToHex(layer.recolorSource, hex, function (url) {
+            recolorInkToHex(layer.recolorSource, hex, function (url, blend) {
                 if (!url) {
                     showStatus('שגיאה בצביעת הפאטרן', true);
                     return;
                 }
                 layer.working = url;
+                if (blend) layer.blend = blend;
                 markSwatchActive(hex);
                 if (customColorInput) customColorInput.value = hex.length === 7 ? hex : customColorInput.value;
                 setLayerImage(layer, url, function () {
@@ -1236,6 +1237,12 @@
             };
         }
 
+        function blendForTargetRgb(rgb) {
+            // Light colors must use normal blend — multiply darkens them on fabric.
+            var lum = 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+            return lum >= 160 ? 'normal' : 'multiply';
+        }
+
         function recolorInkToHex(dataUrl, hex, done) {
             var target = hexToRgb(hex);
             if (!target) {
@@ -1252,22 +1259,30 @@
                 ctx.drawImage(img, 0, 0);
                 var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 var d = imageData.data;
+                // Average ink lightness — used only for mild shading, not as the final color.
+                var sumL = 0;
+                var n = 0;
+                for (var j = 0; j < d.length; j += 4) {
+                    if (d[j + 3] < 16) continue;
+                    sumL += rgbToHsl(d[j], d[j + 1], d[j + 2]).l;
+                    n++;
+                }
+                var avgL = n ? sumL / n : th.l;
                 for (var i = 0; i < d.length; i += 4) {
                     if (d[i + 3] < 16) continue;
                     var src = rgbToHsl(d[i], d[i + 1], d[i + 2]);
-                    // Keep shape via alpha + relative lightness; take hue/sat from target.
-                    var sat = th.s;
-                    if (src.s < 0.08 && src.l > 0.85) {
-                        // Near-white ink: use target saturation fully so "pink" isn't washed out.
-                        sat = th.s;
-                    }
-                    var rgb = hslToRgb(th.h, sat, src.l);
+                    // Match the picked color (hue/sat/lightness). Keep only a little
+                    // relative shading so the motif isn't a flat sticker.
+                    var newL = th.l + (src.l - avgL) * 0.22;
+                    if (newL < 0.04) newL = 0.04;
+                    if (newL > 0.96) newL = 0.96;
+                    var rgb = hslToRgb(th.h, th.s, newL);
                     d[i] = rgb.r;
                     d[i + 1] = rgb.g;
                     d[i + 2] = rgb.b;
                 }
                 ctx.putImageData(imageData, 0, 0);
-                done(canvas.toDataURL('image/png'));
+                done(canvas.toDataURL('image/png'), blendForTargetRgb(target));
             };
             img.onerror = function () { done(null); };
             img.src = dataUrl;
