@@ -1698,22 +1698,21 @@ body.molly-body {
 .molly-mockup-color-slot {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 12px;
     width: 100%;
-    padding: 10px 12px;
-    border: 2px solid rgba(0, 0, 0, 0.12);
+    padding: 12px 14px;
+    border: 2px solid rgba(0, 0, 0, 0.14);
     border-radius: 10px;
-    background: #fff;
     cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--molly-text, #222);
+    font-size: 0.95rem;
+    font-weight: 700;
     text-align: start;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 
 .molly-mockup-color-slot:hover {
-    border-color: rgba(0, 0, 0, 0.28);
+    filter: brightness(0.97);
 }
 
 .molly-mockup-color-slot.active {
@@ -1723,15 +1722,6 @@ body.molly-body {
 
 .molly-mockup-color-slot-label {
     flex: 1 1 auto;
-}
-
-.molly-mockup-color-slot-swatch {
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-    flex: 0 0 auto;
 }
 
 .molly-mockup-swatches {
