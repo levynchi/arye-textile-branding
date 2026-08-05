@@ -1690,6 +1690,8 @@ body.molly-body {
 .molly-mockup-color-slots {
     display: flex;
     flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
     gap: 10px;
     margin-bottom: 14px;
     width: 100%;

@@ -1766,10 +1766,11 @@
 
         function isNearPlateLab(lab, plateLab) {
             if (!plateLab || !lab) return false;
-            return labDist2(lab, plateLab) < 120;
+            // Catch soft plate-edge leftovers (beige antialias near taupe plate).
+            return labDist2(lab, plateLab) < 280;
         }
 
-        // Remaining ink colors after plate knock-out (2–4 flat clusters).
+        // Remaining ink colors after plate knock-out (usually 1–3 flat clusters).
         // Plate / background color is excluded — users cannot recolor it.
         function detectInkColorSlots(imageData, W, H, plateLab) {
             var hist = buildSolidInkHistogram(imageData, W, H);
@@ -1779,7 +1780,10 @@
             });
             ranked.sort(function (a, b) { return b.count - a.count; });
             var clusters = [];
-            var minShare = 0.002;
+            var minShare = 0.006;
+            // Merge only very close shades (dark antialias). Keep cream vs tan
+            // separate — on ducks/flowers they are distinct motif colors (Lab ~11 apart).
+            var mergeDist2 = 100;
             for (var i = 0; i < ranked.length && i < 40; i++) {
                 var share = ranked[i].count / hist.total;
                 if (share < minShare) continue;
@@ -1788,7 +1792,7 @@
                 if (isNearPlateLab(lab, plateLab)) continue;
                 var merged = false;
                 for (var c = 0; c < clusters.length; c++) {
-                    if (labDist2(lab, clusters[c].lab) < 80) {
+                    if (labDist2(lab, clusters[c].lab) < mergeDist2) {
                         var w0 = clusters[c].count;
                         var w1 = ranked[i].count;
                         var wt = w0 + w1;
@@ -1801,7 +1805,7 @@
                         break;
                     }
                 }
-                if (!merged && clusters.length < 4) {
+                if (!merged && clusters.length < 3) {
                     clusters.push({
                         r: rgb.r,
                         g: rgb.g,
@@ -1817,6 +1821,37 @@
             });
             if (!clusters.length) return [];
             clusters.sort(function (a, b) { return b.count - a.count; });
+            // Tiny leftovers after merge are noise, not real motifs.
+            var topCount = clusters[0].count;
+            clusters = clusters.filter(function (cl, idx) {
+                return idx === 0 || cl.count / topCount >= 0.06;
+            });
+            // Prefer at most 3 ink slots; if 4 slipped through, merge the closest pair.
+            while (clusters.length > 3) {
+                var bestI = 0;
+                var bestJ = 1;
+                var bestD = Infinity;
+                for (var a = 0; a < clusters.length; a++) {
+                    for (var b = a + 1; b < clusters.length; b++) {
+                        var dd = labDist2(clusters[a].lab, clusters[b].lab);
+                        if (dd < bestD) {
+                            bestD = dd;
+                            bestI = a;
+                            bestJ = b;
+                        }
+                    }
+                }
+                var ca = clusters[bestI];
+                var cb = clusters[bestJ];
+                var wSum = ca.count + cb.count;
+                ca.r = (ca.r * ca.count + cb.r * cb.count) / wSum;
+                ca.g = (ca.g * ca.count + cb.g * cb.count) / wSum;
+                ca.b = (ca.b * ca.count + cb.b * cb.count) / wSum;
+                ca.count = wSum;
+                ca.lab = rgbToLab(ca.r, ca.g, ca.b);
+                clusters.splice(bestJ, 1);
+                clusters.sort(function (x, y) { return y.count - x.count; });
+            }
 
             // Per-cluster average HSL lightness from solid opaque pixels.
             var d = imageData.data;
