@@ -92,6 +92,7 @@
                         </div>
                         <div class="molly-mockup-control" id="mockup-color-control" hidden>
                             <label>צבע המוטיבים</label>
+                            <div class="molly-mockup-color-slots" id="mockup-color-slots" hidden role="listbox" aria-label="צבעי הפאטרן"></div>
                             <div class="molly-mockup-swatches" id="mockup-color-swatches" role="listbox" aria-label="פלטת צבעים">
                                 <button type="button" class="molly-mockup-swatch" data-hex="#e53935" title="אדום" style="background:#e53935"></button>
                                 <button type="button" class="molly-mockup-swatch" data-hex="#f4a0c0" title="ורוד" style="background:#f4a0c0"></button>
@@ -113,7 +114,7 @@
                                 </label>
                                 <button type="button" class="molly-mockup-tool-btn" id="mockup-color-reset-btn">צבע מקורי</button>
                             </div>
-                            <p class="molly-mockup-hint">משנה רק את צבע המוטיבים — הצורה והבגד נשארים.</p>
+                            <p class="molly-mockup-hint" id="mockup-color-hint">משנה רק את צבע המוטיבים — הצורה והבגד נשארים.</p>
                         </div>
                         <div class="molly-mockup-tool-row">
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-center-btn">מרכוז</button>
@@ -218,9 +219,11 @@
         var DEFAULT_ALLOVER_TILE = 0.25;
         var DEFAULT_DENSITY = 1;
         var colorControl = document.getElementById('mockup-color-control');
+        var colorSlotsEl = document.getElementById('mockup-color-slots');
         var colorSwatches = document.getElementById('mockup-color-swatches');
         var customColorInput = document.getElementById('mockup-custom-color');
         var colorResetBtn = document.getElementById('mockup-color-reset-btn');
+        var colorHint = document.getElementById('mockup-color-hint');
         var modeHint = document.getElementById('mockup-mode-hint');
         var centerBtn = document.getElementById('mockup-center-btn');
         var cropBtn = document.getElementById('mockup-crop-btn');
@@ -351,6 +354,19 @@
                 blend: opts.blend || 'multiply',
                 patternPrepared: !!opts.patternPrepared,
                 recolorSource: opts.recolorSource || null,
+                colorSlots: opts.colorSlots
+                    ? opts.colorSlots.map(function (s) {
+                        return {
+                            id: s.id,
+                            sourceHex: s.sourceHex,
+                            currentHex: s.currentHex,
+                            label: s.label,
+                            lab: s.lab,
+                            avgL: s.avgL
+                        };
+                    })
+                    : null,
+                activeColorSlot: opts.activeColorSlot == null ? 0 : opts.activeColorSlot,
                 x: opts.x == null ? 0.5 : opts.x,
                 y: opts.y == null ? 0.45 : opts.y,
                 width: opts.width == null ? DEFAULT_FOCUSED_WIDTH : opts.width,
@@ -402,6 +418,8 @@
                 blend: src.blend,
                 patternPrepared: dupMode === 'allover' ? src.patternPrepared : false,
                 recolorSource: src.recolorSource || null,
+                colorSlots: src.colorSlots || null,
+                activeColorSlot: src.activeColorSlot == null ? 0 : src.activeColorSlot,
                 x: clamp((src.x == null ? 0.5 : src.x) + 0.07 * step, 0.05, 0.95),
                 y: clamp((src.y == null ? 0.45 : src.y) + 0.05 * step, 0.05, 0.95),
                 width: src.width,
@@ -441,6 +459,8 @@
                 layer.current = dataUrl;
                 if (!opts.keepRecolorSource) {
                     layer.recolorSource = null;
+                    layer.colorSlots = null;
+                    layer.activeColorSlot = 0;
                 }
                 invalidateDensityCache(layer);
                 applyAllTransforms();
@@ -468,6 +488,53 @@
             }
         }
 
+        function activeSlotHex(layer) {
+            if (!layer || !layer.colorSlots || !layer.colorSlots.length) return '';
+            var idx = clamp(layer.activeColorSlot || 0, 0, layer.colorSlots.length - 1);
+            return layer.colorSlots[idx].currentHex || '';
+        }
+
+        function renderColorSlotsUI(layer) {
+            if (!colorSlotsEl) return;
+            var slots = layer && layer.colorSlots ? layer.colorSlots : null;
+            var multi = !!(slots && slots.length > 1);
+            colorSlotsEl.hidden = !multi;
+            colorSlotsEl.innerHTML = '';
+            if (colorHint) {
+                colorHint.textContent = multi
+                    ? 'בחרי צבע בפאטרן למעלה, ואז שני בפלטה — כל צבע משתנה בנפרד. רקע הפאטרן נשאר מוסר.'
+                    : 'משנה רק את צבע המוטיבים — הצורה והבגד נשארים.';
+            }
+            if (!multi) {
+                markSwatchActive(slots && slots[0] ? slots[0].currentHex : '');
+                if (customColorInput && slots && slots[0]) {
+                    customColorInput.value = slots[0].currentHex;
+                }
+                return;
+            }
+            var activeIdx = clamp(layer.activeColorSlot || 0, 0, slots.length - 1);
+            layer.activeColorSlot = activeIdx;
+            slots.forEach(function (slot, idx) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'molly-mockup-color-slot' + (idx === activeIdx ? ' active' : '');
+                btn.setAttribute('role', 'option');
+                btn.setAttribute('aria-selected', idx === activeIdx ? 'true' : 'false');
+                btn.dataset.slotIndex = String(idx);
+                var sw = document.createElement('span');
+                sw.className = 'molly-mockup-color-slot-swatch';
+                sw.style.background = slot.currentHex;
+                var label = document.createElement('span');
+                label.textContent = slot.label || ('צבע ' + (idx + 1));
+                btn.appendChild(sw);
+                btn.appendChild(label);
+                colorSlotsEl.appendChild(btn);
+            });
+            var cur = slots[activeIdx].currentHex;
+            markSwatchActive(cur);
+            if (customColorInput && cur && cur.length === 7) customColorInput.value = cur;
+        }
+
         function applyMotifColor(hex) {
             var layer = activeLayer();
             if (!layer || layer.mode !== 'allover') {
@@ -478,20 +545,48 @@
             if (!layer.recolorSource) {
                 layer.recolorSource = layer.working || layer.current;
             }
-            showStatus('משנה צבע...', false);
-            recolorInkToHex(layer.recolorSource, hex, function (url, blend) {
-                if (!url) {
-                    showStatus('שגיאה בצביעת הפאטרן', true);
+            function paint() {
+                var slots = layer.colorSlots;
+                if (slots && slots.length > 1) {
+                    var idx = clamp(layer.activeColorSlot || 0, 0, slots.length - 1);
+                    layer.activeColorSlot = idx;
+                    slots[idx].currentHex = hex;
+                    showStatus('משנה צבע...', false);
+                    recolorInkBySlots(layer.recolorSource, slots, function (url, blend) {
+                        if (!url) {
+                            showStatus('שגיאה בצביעת הפאטרן', true);
+                            return;
+                        }
+                        layer.working = url;
+                        if (blend) layer.blend = blend;
+                        renderColorSlotsUI(layer);
+                        setLayerImage(layer, url, function () {
+                            showStatus('הצבע עודכן — הצורה והבגד לא השתנו.', false);
+                        }, { keepRecolorSource: true });
+                    });
                     return;
                 }
-                layer.working = url;
-                if (blend) layer.blend = blend;
-                markSwatchActive(hex);
-                if (customColorInput) customColorInput.value = hex.length === 7 ? hex : customColorInput.value;
-                setLayerImage(layer, url, function () {
-                    showStatus('הצבע עודכן — הצורה והבגד לא השתנו.', false);
-                }, { keepRecolorSource: true });
-            });
+                if (slots && slots[0]) slots[0].currentHex = hex;
+                showStatus('משנה צבע...', false);
+                recolorInkToHex(layer.recolorSource, hex, function (url, blend) {
+                    if (!url) {
+                        showStatus('שגיאה בצביעת הפאטרן', true);
+                        return;
+                    }
+                    layer.working = url;
+                    if (blend) layer.blend = blend;
+                    markSwatchActive(hex);
+                    if (customColorInput) customColorInput.value = hex.length === 7 ? hex : customColorInput.value;
+                    setLayerImage(layer, url, function () {
+                        showStatus('הצבע עודכן — הצורה והבגד לא השתנו.', false);
+                    }, { keepRecolorSource: true });
+                });
+            }
+            if (!layer.colorSlots) {
+                ensureColorSlots(layer, paint);
+                return;
+            }
+            paint();
         }
 
         // --- Layer selection, ordering, deletion, visibility ---
@@ -531,12 +626,24 @@
             scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
             if (densityControl) densityControl.hidden = !allover;
             if (colorControl) colorControl.hidden = !allover;
+            if (allover) {
+                if (layer.colorSlots) {
+                    renderColorSlotsUI(layer);
+                } else if (layer.patternPrepared) {
+                    ensureColorSlots(layer);
+                } else {
+                    renderColorSlotsUI(null);
+                }
+            } else if (colorSlotsEl) {
+                colorSlotsEl.hidden = true;
+                colorSlotsEl.innerHTML = '';
+            }
             var spacing = layer.density == null ? 1 : layer.density;
             if (densitySlider) densitySlider.value = String(spacingToDensityUi(spacing));
             if (densityValueLabel) densityValueLabel.textContent = densityLabelText(spacing);
             centerBtn.textContent = allover ? 'איפוס מיקום' : 'מרכוז';
             modeHint.textContent = allover
-                ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים. פלטת הצבעים משנה את צבע המוטיבים.'
+                ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים. אפשר לשנות כל צבע מוטיב בנפרד.'
                 : 'גררי את התמונה כדי למקם אותה על הבגד.';
         }
 
@@ -1243,6 +1350,14 @@
             return lum >= 160 ? 'normal' : 'multiply';
         }
 
+        function rgbToHex(r, g, b) {
+            function byte(n) {
+                var s = Math.max(0, Math.min(255, Math.round(n))).toString(16);
+                return s.length === 1 ? '0' + s : s;
+            }
+            return '#' + byte(r) + byte(g) + byte(b);
+        }
+
         function recolorInkToHex(dataUrl, hex, done) {
             var target = hexToRgb(hex);
             if (!target) {
@@ -1288,6 +1403,75 @@
             img.src = dataUrl;
         }
 
+        function recolorInkBySlots(dataUrl, slots, done) {
+            if (!slots || !slots.length) {
+                done(null);
+                return;
+            }
+            var targets = slots.map(function (slot) {
+                var rgb = hexToRgb(slot.currentHex) || hexToRgb(slot.sourceHex);
+                if (!rgb) return null;
+                return {
+                    lab: slot.lab,
+                    avgL: slot.avgL == null ? 0.5 : slot.avgL,
+                    hsl: rgbToHsl(rgb.r, rgb.g, rgb.b),
+                    rgb: rgb
+                };
+            });
+            if (targets.some(function (t) { return !t; })) {
+                done(null);
+                return;
+            }
+            var img = new Image();
+            img.onload = function () {
+                var canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                var d = imageData.data;
+                for (var i = 0; i < d.length; i += 4) {
+                    if (d[i + 3] < 16) continue;
+                    var lab = rgbToLab(d[i], d[i + 1], d[i + 2]);
+                    var best = 0;
+                    var bestDist = Infinity;
+                    for (var s = 0; s < targets.length; s++) {
+                        var dist = labDist2(lab, targets[s].lab);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            best = s;
+                        }
+                    }
+                    var t = targets[best];
+                    var src = rgbToHsl(d[i], d[i + 1], d[i + 2]);
+                    var newL = t.hsl.l + (src.l - t.avgL) * 0.22;
+                    if (newL < 0.04) newL = 0.04;
+                    if (newL > 0.96) newL = 0.96;
+                    var rgb = hslToRgb(t.hsl.h, t.hsl.s, newL);
+                    d[i] = rgb.r;
+                    d[i + 1] = rgb.g;
+                    d[i + 2] = rgb.b;
+                }
+                ctx.putImageData(imageData, 0, 0);
+                done(canvas.toDataURL('image/png'), chooseBlendFromImageData(imageData));
+            };
+            img.onerror = function () { done(null); };
+            img.src = dataUrl;
+        }
+
+        if (colorSlotsEl) {
+            colorSlotsEl.addEventListener('click', function (e) {
+                var btn = e.target.closest('.molly-mockup-color-slot');
+                if (!btn) return;
+                var layer = activeLayer();
+                if (!layer || !layer.colorSlots) return;
+                var idx = parseInt(btn.dataset.slotIndex, 10);
+                if (isNaN(idx)) return;
+                layer.activeColorSlot = idx;
+                renderColorSlotsUI(layer);
+            });
+        }
         if (colorSwatches) {
             colorSwatches.addEventListener('click', function (e) {
                 var btn = e.target.closest('.molly-mockup-swatch');
@@ -1310,7 +1494,13 @@
                 if (!layer || layer.mode !== 'allover') return;
                 var source = layer.recolorSource || layer.working || layer.original;
                 if (!source) return;
-                markSwatchActive('');
+                if (layer.colorSlots) {
+                    layer.colorSlots.forEach(function (slot) {
+                        slot.currentHex = slot.sourceHex;
+                    });
+                }
+                markSwatchActive(activeSlotHex(layer) || '');
+                renderColorSlotsUI(layer);
                 setLayerImage(layer, source, function () {
                     layer.working = source;
                     layer.recolorSource = source;
@@ -1542,6 +1732,133 @@
             return { buckets: buckets, total: total };
         }
 
+        // Remaining ink colors after plate knock-out (2–4 flat clusters).
+        function detectInkColorSlots(imageData, W, H) {
+            var hist = buildColorHistogram(imageData, W, H);
+            if (!hist.total) return [];
+            var ranked = Object.keys(hist.buckets).map(function (key) {
+                return { key: key, count: hist.buckets[key] };
+            });
+            ranked.sort(function (a, b) { return b.count - a.count; });
+            var clusters = [];
+            var minShare = 0.002;
+            for (var i = 0; i < ranked.length && i < 40; i++) {
+                var share = ranked[i].count / hist.total;
+                if (share < minShare) continue;
+                var rgb = keyToRgb(ranked[i].key);
+                var lab = rgbToLab(rgb.r, rgb.g, rgb.b);
+                var merged = false;
+                for (var c = 0; c < clusters.length; c++) {
+                    if (labDist2(lab, clusters[c].lab) < 80) {
+                        var w0 = clusters[c].count;
+                        var w1 = ranked[i].count;
+                        var wt = w0 + w1;
+                        clusters[c].r = (clusters[c].r * w0 + rgb.r * w1) / wt;
+                        clusters[c].g = (clusters[c].g * w0 + rgb.g * w1) / wt;
+                        clusters[c].b = (clusters[c].b * w0 + rgb.b * w1) / wt;
+                        clusters[c].count = wt;
+                        clusters[c].lab = rgbToLab(clusters[c].r, clusters[c].g, clusters[c].b);
+                        merged = true;
+                        break;
+                    }
+                }
+                if (!merged && clusters.length < 4) {
+                    clusters.push({
+                        r: rgb.r,
+                        g: rgb.g,
+                        b: rgb.b,
+                        lab: lab,
+                        count: ranked[i].count
+                    });
+                }
+            }
+            if (!clusters.length) return [];
+            clusters.sort(function (a, b) { return b.count - a.count; });
+
+            // Per-cluster average HSL lightness from assigned opaque pixels.
+            var d = imageData.data;
+            var sumL = clusters.map(function () { return 0; });
+            var nL = clusters.map(function () { return 0; });
+            var step = Math.max(1, Math.floor((W * H) / 80000));
+            for (var p = 0; p < d.length; p += 4 * step) {
+                if (d[p + 3] < 16) continue;
+                var plab = rgbToLab(d[p], d[p + 1], d[p + 2]);
+                var best = 0;
+                var bestDist = Infinity;
+                for (var k = 0; k < clusters.length; k++) {
+                    var dist = labDist2(plab, clusters[k].lab);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        best = k;
+                    }
+                }
+                sumL[best] += rgbToHsl(d[p], d[p + 1], d[p + 2]).l;
+                nL[best] += 1;
+            }
+
+            var byLum = clusters.map(function (cl, idx) {
+                return {
+                    idx: idx,
+                    lum: 0.299 * cl.r + 0.587 * cl.g + 0.114 * cl.b
+                };
+            }).sort(function (a, b) { return b.lum - a.lum; });
+            var labels = {};
+            if (clusters.length === 1) {
+                labels[0] = 'מוטיב';
+            } else if (clusters.length === 2) {
+                labels[byLum[0].idx] = 'בהיר';
+                labels[byLum[1].idx] = 'כהה';
+            } else {
+                byLum.forEach(function (item, order) {
+                    if (order === 0) labels[item.idx] = 'בהיר';
+                    else if (order === byLum.length - 1) labels[item.idx] = 'כהה';
+                    else labels[item.idx] = 'צבע ' + (order + 1);
+                });
+            }
+
+            return clusters.map(function (cl, idx) {
+                var hex = rgbToHex(cl.r, cl.g, cl.b);
+                return {
+                    id: idx,
+                    sourceHex: hex,
+                    currentHex: hex,
+                    label: labels[idx] || ('צבע ' + (idx + 1)),
+                    lab: cl.lab,
+                    avgL: nL[idx] ? sumL[idx] / nL[idx] : rgbToHsl(cl.r, cl.g, cl.b).l
+                };
+            });
+        }
+
+        function ensureColorSlots(layer, done) {
+            if (!layer) {
+                if (done) done();
+                return;
+            }
+            if (layer.colorSlots && layer.colorSlots.length) {
+                renderColorSlotsUI(layer);
+                if (done) done();
+                return;
+            }
+            var source = layer.recolorSource || layer.working || layer.current;
+            if (!source) {
+                renderColorSlotsUI(layer);
+                if (done) done();
+                return;
+            }
+            dataUrlToCanvas(source, 1400, function (canvas) {
+                var ctx = canvas.getContext('2d');
+                var W = canvas.width;
+                var H = canvas.height;
+                var imageData = ctx.getImageData(0, 0, W, H);
+                var slots = detectInkColorSlots(imageData, W, H);
+                layer.colorSlots = slots.length ? slots : null;
+                layer.activeColorSlot = 0;
+                if (!layer.recolorSource) layer.recolorSource = source;
+                renderColorSlotsUI(layer);
+                if (done) done();
+            });
+        }
+
         // Plate (majority) + ink (first histogram peak that is far enough in Lab).
         // Sparse tiles often put near-white anti-alias buckets in 2nd place;
         // the real motif may be 3rd+.
@@ -1656,9 +1973,13 @@
                 var imageData = ctx.getImageData(0, 0, W, H);
                 if (borderMostlyTransparent(imageData, W, H)) {
                     layer.blend = chooseBlendFromImageData(imageData);
+                    layer.recolorSource = layer.working || layer.current;
+                    layer.colorSlots = null;
                     applyTransform(layer);
-                    showStatus('', false);
-                    statusEl.hidden = true;
+                    ensureColorSlots(layer, function () {
+                        showStatus('', false);
+                        statusEl.hidden = true;
+                    });
                     return;
                 }
                 if (!knockOutPatternPlate(imageData, W, H)) {
@@ -1677,14 +1998,21 @@
                 var resultUrl = canvas.toDataURL('image/png');
                 layer.blend = chooseBlendFromImageData(imageData);
                 layer.working = resultUrl;
+                layer.recolorSource = resultUrl;
+                layer.colorSlots = null;
                 setLayerImage(layer, resultUrl, function () {
-                    showStatus(
-                        layer.blend === 'normal'
-                            ? 'רקע הפאטרן הוסר. הפרינט הבהיר יוצג על צבע הבגד.'
-                            : 'רקע הפאטרן הוסר. הפרינט הכהה מתמזג עם הבגד.',
-                        false
-                    );
-                });
+                    ensureColorSlots(layer, function () {
+                        var multi = layer.colorSlots && layer.colorSlots.length > 1;
+                        showStatus(
+                            multi
+                                ? 'רקע הפאטרן הוסר. זוהו ' + layer.colorSlots.length + ' צבעי מוטיב — אפשר לשנות כל אחד בנפרד.'
+                                : (layer.blend === 'normal'
+                                    ? 'רקע הפאטרן הוסר. הפרינט הבהיר יוצג על צבע הבגד.'
+                                    : 'רקע הפאטרן הוסר. הפרינט הכהה מתמזג עם הבגד.'),
+                            false
+                        );
+                    });
+                }, { keepRecolorSource: true });
             });
         }
 
