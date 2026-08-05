@@ -354,6 +354,7 @@
                 blend: opts.blend || 'multiply',
                 patternPrepared: !!opts.patternPrepared,
                 recolorSource: opts.recolorSource || null,
+                plateLab: opts.plateLab || null,
                 colorSlots: opts.colorSlots
                     ? opts.colorSlots.map(function (s) {
                         return {
@@ -418,6 +419,7 @@
                 blend: src.blend,
                 patternPrepared: dupMode === 'allover' ? src.patternPrepared : false,
                 recolorSource: src.recolorSource || null,
+                plateLab: src.plateLab || null,
                 colorSlots: src.colorSlots || null,
                 activeColorSlot: src.activeColorSlot == null ? 0 : src.activeColorSlot,
                 x: clamp((src.x == null ? 0.5 : src.x) + 0.07 * step, 0.05, 0.95),
@@ -459,6 +461,7 @@
                 layer.current = dataUrl;
                 if (!opts.keepRecolorSource) {
                     layer.recolorSource = null;
+                    layer.plateLab = null;
                     layer.colorSlots = null;
                     layer.activeColorSlot = 0;
                 }
@@ -525,11 +528,20 @@
                 btn.style.background = hex;
                 var rgb = hexToRgb(hex);
                 var lum = rgb ? (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) : 180;
-                btn.style.color = lum >= 160 ? '#1a1a1a' : '#ffffff';
+                var lightText = lum < 160;
+                btn.style.color = lightText ? '#ffffff' : '#1a1a1a';
                 var label = document.createElement('span');
                 label.className = 'molly-mockup-color-slot-label';
                 label.textContent = slot.label || ('מוטיב ' + (idx + 1));
+                label.style.textShadow = lightText
+                    ? '0 1px 2px rgba(0,0,0,0.35)'
+                    : '0 1px 0 rgba(255,255,255,0.35)';
+                var check = document.createElement('span');
+                check.className = 'molly-mockup-color-slot-check';
+                check.setAttribute('aria-hidden', 'true');
+                check.textContent = '✓';
                 btn.appendChild(label);
+                btn.appendChild(check);
                 colorSlotsEl.appendChild(btn);
             });
             var cur = slots[activeIdx].currentHex;
@@ -1734,9 +1746,33 @@
             return { buckets: buckets, total: total };
         }
 
+        // Solid ink only (skip soft plate-edge leftovers). Alpha >= 180.
+        function buildSolidInkHistogram(imageData, W, H) {
+            var d = imageData.data;
+            var buckets = Object.create(null);
+            var total = 0;
+            var step = Math.max(1, Math.floor(Math.min(W, H) / 200));
+            for (var y = 0; y < H; y += step) {
+                for (var x = 0; x < W; x += step) {
+                    var i = (y * W + x) * 4;
+                    if (d[i + 3] < 180) continue;
+                    var key = (d[i] >> 4) + ',' + (d[i + 1] >> 4) + ',' + (d[i + 2] >> 4);
+                    buckets[key] = (buckets[key] || 0) + 1;
+                    total++;
+                }
+            }
+            return { buckets: buckets, total: total };
+        }
+
+        function isNearPlateLab(lab, plateLab) {
+            if (!plateLab || !lab) return false;
+            return labDist2(lab, plateLab) < 120;
+        }
+
         // Remaining ink colors after plate knock-out (2–4 flat clusters).
-        function detectInkColorSlots(imageData, W, H) {
-            var hist = buildColorHistogram(imageData, W, H);
+        // Plate / background color is excluded — users cannot recolor it.
+        function detectInkColorSlots(imageData, W, H, plateLab) {
+            var hist = buildSolidInkHistogram(imageData, W, H);
             if (!hist.total) return [];
             var ranked = Object.keys(hist.buckets).map(function (key) {
                 return { key: key, count: hist.buckets[key] };
@@ -1749,6 +1785,7 @@
                 if (share < minShare) continue;
                 var rgb = keyToRgb(ranked[i].key);
                 var lab = rgbToLab(rgb.r, rgb.g, rgb.b);
+                if (isNearPlateLab(lab, plateLab)) continue;
                 var merged = false;
                 for (var c = 0; c < clusters.length; c++) {
                     if (labDist2(lab, clusters[c].lab) < 80) {
@@ -1774,17 +1811,22 @@
                     });
                 }
             }
+            // Drop any cluster that drifted toward plate after merging.
+            clusters = clusters.filter(function (cl) {
+                return !isNearPlateLab(cl.lab, plateLab);
+            });
             if (!clusters.length) return [];
             clusters.sort(function (a, b) { return b.count - a.count; });
 
-            // Per-cluster average HSL lightness from assigned opaque pixels.
+            // Per-cluster average HSL lightness from solid opaque pixels.
             var d = imageData.data;
             var sumL = clusters.map(function () { return 0; });
             var nL = clusters.map(function () { return 0; });
             var step = Math.max(1, Math.floor((W * H) / 80000));
             for (var p = 0; p < d.length; p += 4 * step) {
-                if (d[p + 3] < 16) continue;
+                if (d[p + 3] < 180) continue;
                 var plab = rgbToLab(d[p], d[p + 1], d[p + 2]);
+                if (isNearPlateLab(plab, plateLab)) continue;
                 var best = 0;
                 var bestDist = Infinity;
                 for (var k = 0; k < clusters.length; k++) {
@@ -1833,7 +1875,7 @@
                 var W = canvas.width;
                 var H = canvas.height;
                 var imageData = ctx.getImageData(0, 0, W, H);
-                var slots = detectInkColorSlots(imageData, W, H);
+                var slots = detectInkColorSlots(imageData, W, H, layer.plateLab || null);
                 layer.colorSlots = slots.length ? slots : null;
                 layer.activeColorSlot = 0;
                 if (!layer.recolorSource) layer.recolorSource = source;
@@ -1935,9 +1977,9 @@
 
         function knockOutPatternPlate(imageData, W, H) {
             var palette = detectTwoColorPalette(imageData, W, H);
-            if (!palette) return false;
+            if (!palette) return null;
             eraseByTwoClusterLab(imageData, palette);
-            return true;
+            return palette;
         }
 
         // When switching to all-over, knock out the pattern's solid background
@@ -1958,6 +2000,7 @@
                     layer.blend = chooseBlendFromImageData(imageData);
                     layer.recolorSource = layer.working || layer.current;
                     layer.colorSlots = null;
+                    // No plate detected here — only solid remaining ink becomes slots.
                     applyTransform(layer);
                     ensureColorSlots(layer, function () {
                         showStatus('', false);
@@ -1965,14 +2008,17 @@
                     });
                     return;
                 }
-                if (!knockOutPatternPlate(imageData, W, H)) {
+                var palette = knockOutPatternPlate(imageData, W, H);
+                if (!palette) {
                     applyTransform(layer);
                     showStatus('לא זוהה רקע אחיד — הפאטרן נשאר כמו שהועלה.', false);
                     return;
                 }
+                layer.plateLab = palette.bgLab;
                 var kept = opaqueFraction(imageData);
                 // Sparse motifs (leaves on white) can be ~0.5–1% of the tile.
                 if (kept < 0.004 || kept > 0.92) {
+                    layer.plateLab = null;
                     applyTransform(layer);
                     showStatus('הרקע לא הוסר אוטומטית — הפאטרן נשאר כמו שהועלה.', false);
                     return;
