@@ -1378,13 +1378,15 @@ body.molly-body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
+    padding: 4px 0;
 }
 
 .molly-mockup-zoom-group {
     display: inline-flex;
     align-items: stretch;
+    min-height: 48px;
     background: var(--molly-card-bg);
     border: 1px solid var(--molly-border);
     border-radius: 999px;
@@ -1393,14 +1395,14 @@ body.molly-body {
 }
 
 .molly-mockup-zoom-btn {
-    width: 40px;
-    height: 36px;
+    width: 52px;
+    min-height: 48px;
     border: 0;
     border-radius: 0;
     background: transparent;
     color: var(--molly-text);
     font-family: var(--molly-font);
-    font-size: 1.2rem;
+    font-size: 1.45rem;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
@@ -1427,14 +1429,14 @@ body.molly-body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 3.75rem;
-    padding: 0 6px;
+    min-width: 5rem;
+    padding: 0 12px;
     border-inline: 1px solid var(--molly-border);
     background: linear-gradient(180deg, #fff 0%, var(--molly-bg) 100%);
     color: var(--molly-text);
     font-family: var(--molly-font);
     font-weight: 800;
-    font-size: 0.88rem;
+    font-size: 1rem;
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
     user-select: none;
@@ -1447,9 +1449,10 @@ body.molly-body {
     background: var(--molly-card-bg);
     color: var(--molly-text-soft);
     font-family: var(--molly-font);
-    font-size: 0.82rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    padding: 8px 14px;
+    min-height: 48px;
+    padding: 12px 20px;
     cursor: pointer;
     box-shadow: var(--molly-shadow);
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
