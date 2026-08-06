@@ -1541,7 +1541,9 @@
                     stageSizer.style.height = '';
                 }
                 stage.style.transform = '';
+                stage.style.width = '';
                 stage.style.maxWidth = '';
+                stage.style.marginLeft = '';
 
                 var w = stage.offsetWidth;
                 var h = stage.offsetHeight;
@@ -1549,10 +1551,15 @@
 
                 if (z === 1) {
                     stage.style.transform = '';
+                    stage.style.width = '';
                     stage.style.maxWidth = '';
+                    stage.style.marginLeft = '';
                 } else {
-                    // 2) Lock layout, scale visually, expand sizer for scrolling.
+                    // 2) Pin stage to the physical left of the sizer, then scale
+                    // from top-left so horizontal scroll reaches the whole product.
+                    stage.style.width = w + 'px';
                     stage.style.maxWidth = w + 'px';
+                    stage.style.marginLeft = '0';
                     stage.style.transform = 'scale(' + z + ')';
                     if (stageSizer) {
                         stageSizer.style.width = Math.max(1, Math.round(w * z)) + 'px';
