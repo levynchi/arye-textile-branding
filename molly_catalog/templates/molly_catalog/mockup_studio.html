@@ -2471,6 +2471,10 @@
             return null;
         }
 
+        function mmToPrintPx(mm) {
+            return Math.max(1, Math.round((mm / 25.4) * PRINT_DPI));
+        }
+
         /** Raster of the print only (no garment), at ~PRINT_DPI for physical size. */
         function buildPrintPlateCanvas(layer, size) {
             var pxW = Math.max(8, Math.round(size.wCm / 2.54 * PRINT_DPI));
@@ -2499,6 +2503,35 @@
                 }
             } else {
                 ctx.drawImage(layer.el, 0, 0, pxW, pxH);
+            }
+            return canvas;
+        }
+
+        /**
+         * Fill a print area by repeating one pattern tile at true 1:1 physical size.
+         * Edge tiles are clipped so the whole usable A4 region is covered.
+         */
+        function buildTiledPrintPlateCanvas(layer, tileSizeCm, areaWmm, areaHmm) {
+            var pxW = mmToPrintPx(areaWmm);
+            var pxH = mmToPrintPx(areaHmm);
+            var tilePxW = Math.max(1, mmToPrintPx(tileSizeCm.wCm * 10));
+            var tilePxH = Math.max(1, mmToPrintPx(tileSizeCm.hCm * 10));
+
+            var canvas = document.createElement('canvas');
+            canvas.width = pxW;
+            canvas.height = pxH;
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, pxW, pxH);
+
+            var spacing = clamp(layer.density == null ? 1 : layer.density, 0.5, 1.5);
+            var built = buildSpacingTileCanvas(layer, spacing);
+            var src = (built && built.canvas) ? built.canvas : layer.el;
+
+            for (var ty = 0; ty < pxH; ty += tilePxH) {
+                for (var tx = 0; tx < pxW; tx += tilePxW) {
+                    ctx.drawImage(src, tx, ty, tilePxW, tilePxH);
+                }
             }
             return canvas;
         }
@@ -2535,19 +2568,44 @@
             }
 
             showStatus('מכינה PDF בגודל 1:1...', false);
-            var plate = buildPrintPlateCanvas(layer, size);
-
-            var imgWmm = size.wCm * 10;
-            var imgHmm = size.hCm * 10;
             var usableW = PRINT_PAGE_W_MM - 2 * PRINT_MARGIN_MM;
             var usableH = PRINT_PAGE_H_MM - 2 * PRINT_MARGIN_MM - PRINT_LABEL_H_MM;
+            var pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            // Latin labels only — jsPDF default fonts lack Hebrew glyphs.
+            var sizeLabel = formatCm(size.wCm) + ' x ' + formatCm(size.hCm) + ' cm';
+            var x = PRINT_MARGIN_MM;
+            var y = PRINT_MARGIN_MM + PRINT_LABEL_H_MM;
+            var fileBase = (state.productName || 'פרינט').replace(/[\\/:*?"<>|]/g, '');
+
+            // All-over: tile the pattern across the full usable A4 area at true 1:1.
+            if (size.kind === 'tile') {
+                var fillPlate = buildTiledPrintPlateCanvas(layer, size, usableW, usableH);
+                var fillData = fillPlate.toDataURL('image/jpeg', 0.92);
+                pdf.setFontSize(9);
+                pdf.setTextColor(40);
+                pdf.text(
+                    'Pattern fill 1:1 — tile ' + sizeLabel
+                    + '  |  Print Actual size (no fit-to-page)',
+                    PRINT_MARGIN_MM,
+                    PRINT_MARGIN_MM + 6
+                );
+                pdf.addImage(fillData, 'JPEG', x, y, usableW, usableH);
+                drawPrintCropMarks(pdf, x, y, usableW, usableH);
+                pdf.save('הדפסה-1ל1-' + fileBase + '.pdf');
+                showStatus(
+                    'ה־PDF מוכן — הפטרן ממלא את עמוד ה־A4 ב־1:1. הדפיסו ב־Actual size / ללא התאמה לדף.',
+                    false
+                );
+                return;
+            }
+
+            // Focused motif: one print at real size, sliced across pages if larger than A4.
+            var plate = buildPrintPlateCanvas(layer, size);
+            var imgWmm = size.wCm * 10;
+            var imgHmm = size.hCm * 10;
             var cols = Math.max(1, Math.ceil(imgWmm / usableW));
             var rows = Math.max(1, Math.ceil(imgHmm / usableH));
             var totalPages = cols * rows;
-            var pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-            // Latin labels only — jsPDF default fonts lack Hebrew glyphs.
-            var kindLabel = size.kind === 'tile' ? 'Pattern tile' : 'Motif';
-            var sizeLabel = formatCm(size.wCm) + ' x ' + formatCm(size.hCm) + ' cm';
             var pageIndex = 0;
 
             for (var row = 0; row < rows; row++) {
@@ -2572,12 +2630,10 @@
                     );
                     var sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
 
-                    var x = PRINT_MARGIN_MM;
-                    var y = PRINT_MARGIN_MM + PRINT_LABEL_H_MM;
                     pdf.setFontSize(9);
                     pdf.setTextColor(40);
                     pdf.text(
-                        kindLabel + ' 1:1 — ' + sizeLabel
+                        'Motif 1:1 — ' + sizeLabel
                         + '  |  Page ' + (pageIndex + 1) + '/' + totalPages
                         + '  |  Print Actual size (no fit-to-page)',
                         PRINT_MARGIN_MM,
@@ -2598,7 +2654,6 @@
                 }
             }
 
-            var fileBase = (state.productName || 'פרינט').replace(/[\\/:*?"<>|]/g, '');
             pdf.save('הדפסה-1ל1-' + fileBase + '.pdf');
             showStatus(
                 totalPages > 1
