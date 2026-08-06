@@ -61,8 +61,16 @@
                 </aside>
 
                 <div class="molly-mockup-stage-wrap">
-                    <div class="molly-mockup-stage" id="mockup-stage">
-                        <img id="mockup-base-img" src="" alt="מוצר להדמיה" draggable="false">
+                    <div class="molly-mockup-zoom-bar" id="mockup-zoom-bar">
+                        <button type="button" class="molly-mockup-zoom-btn" id="mockup-zoom-out" title="הקטנה" aria-label="הקטנה">−</button>
+                        <span class="molly-mockup-zoom-label" id="mockup-zoom-label">100%</span>
+                        <button type="button" class="molly-mockup-zoom-btn" id="mockup-zoom-in" title="הגדלה" aria-label="הגדלה">+</button>
+                        <button type="button" class="molly-mockup-reset-link" id="mockup-zoom-reset">איפוס זום</button>
+                    </div>
+                    <div class="molly-mockup-stage-viewport" id="mockup-stage-viewport" title="Ctrl + גלגלת לזום">
+                        <div class="molly-mockup-stage" id="mockup-stage">
+                            <img id="mockup-base-img" src="" alt="מוצר להדמיה" draggable="false">
+                        </div>
                     </div>
                 </div>
 
@@ -215,7 +223,12 @@
         var uploadSection = document.getElementById('mockup-upload-section');
         var editorSection = document.getElementById('mockup-editor-section');
         var stage = document.getElementById('mockup-stage');
+        var stageViewport = document.getElementById('mockup-stage-viewport');
         var baseImg = document.getElementById('mockup-base-img');
+        var zoomInBtn = document.getElementById('mockup-zoom-in');
+        var zoomOutBtn = document.getElementById('mockup-zoom-out');
+        var zoomResetBtn = document.getElementById('mockup-zoom-reset');
+        var zoomLabel = document.getElementById('mockup-zoom-label');
         var fileInput = document.getElementById('mockup-print-input');
         var uploadLabel = document.getElementById('mockup-upload-label');
         var uploadText = document.getElementById('mockup-upload-text');
@@ -233,6 +246,10 @@
         var DEFAULT_FOCUSED_WIDTH = 0.35;
         var DEFAULT_ALLOVER_TILE = 0.25;
         var DEFAULT_DENSITY = 1;
+        var VIEW_ZOOM_MIN = 1;
+        var VIEW_ZOOM_MAX = 3;
+        var VIEW_ZOOM_STEP = 0.25;
+        var viewZoom = 1;
         var PRINT_DPI = 150;
         var PRINT_PAGE_W_MM = 210;
         var PRINT_PAGE_H_MM = 297;
@@ -304,6 +321,7 @@
                 var rw = parseFloat(card.dataset.realWidthCm);
                 state.realWidthCm = (isFinite(rw) && rw > 0) ? rw : null;
                 baseImg.src = card.dataset.productImage;
+                setViewZoom(1);
                 uploadSection.hidden = false;
                 uploadText.textContent = DEFAULT_UPLOAD_HINT;
                 if (layers.length) {
@@ -1339,6 +1357,73 @@
             layers.forEach(applyTransform);
         }
 
+        function baseMaxVh() {
+            return window.matchMedia('(max-width: 900px)').matches ? 72 : 88;
+        }
+
+        /** Enlarge the garment + prints together; viewport scrolls to pan. */
+        function applyViewZoom() {
+            var z = viewZoom;
+            var vh = baseMaxVh();
+            if (z <= 1) {
+                baseImg.style.maxHeight = vh + 'vh';
+                baseImg.style.maxWidth = '100%';
+            } else {
+                baseImg.style.maxHeight = (vh * z) + 'vh';
+                baseImg.style.maxWidth = 'none';
+            }
+            if (zoomLabel) zoomLabel.textContent = Math.round(z * 100) + '%';
+            if (zoomOutBtn) zoomOutBtn.disabled = z <= VIEW_ZOOM_MIN + 0.001;
+            if (zoomInBtn) zoomInBtn.disabled = z >= VIEW_ZOOM_MAX - 0.001;
+            requestAnimationFrame(function () {
+                applyAllTransforms();
+            });
+        }
+
+        function setViewZoom(nextZoom) {
+            var prev = viewZoom;
+            var stepped = Math.round(nextZoom / VIEW_ZOOM_STEP) * VIEW_ZOOM_STEP;
+            viewZoom = clamp(stepped, VIEW_ZOOM_MIN, VIEW_ZOOM_MAX);
+            var vp = stageViewport;
+            var cx = 0;
+            var cy = 0;
+            if (vp && prev > 0) {
+                cx = vp.scrollLeft + vp.clientWidth / 2;
+                cy = vp.scrollTop + vp.clientHeight / 2;
+            }
+            applyViewZoom();
+            if (vp && prev > 0 && Math.abs(viewZoom - prev) > 0.001) {
+                var ratio = viewZoom / prev;
+                requestAnimationFrame(function () {
+                    vp.scrollLeft = Math.max(0, cx * ratio - vp.clientWidth / 2);
+                    vp.scrollTop = Math.max(0, cy * ratio - vp.clientHeight / 2);
+                });
+            }
+        }
+
+        if (zoomInBtn) {
+            zoomInBtn.addEventListener('click', function () {
+                setViewZoom(viewZoom + VIEW_ZOOM_STEP);
+            });
+        }
+        if (zoomOutBtn) {
+            zoomOutBtn.addEventListener('click', function () {
+                setViewZoom(viewZoom - VIEW_ZOOM_STEP);
+            });
+        }
+        if (zoomResetBtn) {
+            zoomResetBtn.addEventListener('click', function () {
+                setViewZoom(1);
+            });
+        }
+        if (stageViewport) {
+            stageViewport.addEventListener('wheel', function (e) {
+                if (!e.ctrlKey && !e.metaKey) return;
+                e.preventDefault();
+                setViewZoom(viewZoom + (e.deltaY < 0 ? VIEW_ZOOM_STEP : -VIEW_ZOOM_STEP));
+            }, { passive: false });
+        }
+
         function attachLayerDrag(layer) {
             var dragging = null;
             layer.el.addEventListener('pointerdown', function (e) {
@@ -1674,9 +1759,11 @@
             });
         }
 
-        window.addEventListener('resize', applyAllTransforms);
+        window.addEventListener('resize', function () {
+            applyViewZoom();
+        });
         baseImg.addEventListener('load', function () {
-            applyAllTransforms();
+            applyViewZoom();
             buildGarmentMask();
         });
 
