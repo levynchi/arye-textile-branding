@@ -876,17 +876,6 @@
             return -1;
         }
 
-        function moveLayer(id, dir) {
-            var idx = layerIndex(id);
-            var target = idx + dir;
-            if (idx < 0 || target < 0 || target >= layers.length) return;
-            var tmp = layers[idx];
-            layers[idx] = layers[target];
-            layers[target] = tmp;
-            restackLayers();
-            renderLayersPanel();
-        }
-
         function reorderLayer(draggedId, targetId) {
             if (draggedId === targetId) return;
             var from = layerIndex(draggedId);
@@ -950,16 +939,10 @@
                 e.stopPropagation();
                 setLayerVisible(layer, !layer.visible);
             });
-            var upBtn = mkBtn('▲', 'העלאת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, +1); });
-            var downBtn = mkBtn('▼', 'הורדת שכבה', function (e) { e.stopPropagation(); moveLayer(layer.id, -1); });
             var dupBtn = mkBtn('⧉', 'שכפול שכבה', function (e) { e.stopPropagation(); duplicateLayer(layer.id); });
             var delBtn = mkBtn('×', 'מחיקת שכבה', function (e) { e.stopPropagation(); removeLayer(layer.id); });
             delBtn.classList.add('danger');
-            if (index === layers.length - 1) upBtn.disabled = true;
-            if (index === 0) downBtn.disabled = true;
             actions.appendChild(eyeBtn);
-            actions.appendChild(upBtn);
-            actions.appendChild(downBtn);
             actions.appendChild(dupBtn);
             actions.appendChild(delBtn);
 
