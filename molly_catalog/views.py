@@ -14,7 +14,8 @@ from django.contrib import messages
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.urls import reverse
+from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
     MollyCart,
@@ -954,10 +955,143 @@ def mockup_ai_recolor(request):
     })
 
 
+def _mockup_layer_transform_payload(transform):
+    """Normalize saved layer transform JSON for the studio editor."""
+    t = transform if isinstance(transform, dict) else {}
+    mode = t.get("mode") if t.get("mode") in ("focused", "allover") else "focused"
+    payload = {
+        "name": (t.get("name") or "שכבה")[:120],
+        "mode": mode,
+        "x": t.get("x", 0.5),
+        "y": t.get("y", 0.45),
+        "width": t.get("width", 0.35),
+        "tile": t.get("tile", 0.25),
+        "density": t.get("density", 1),
+        "offsetX": t.get("offsetX", 0),
+        "offsetY": t.get("offsetY", 0),
+        "visible": True if t.get("visible") is None else bool(t.get("visible")),
+        "blend": t.get("blend") or "multiply",
+    }
+    if t.get("baseWidth") is not None:
+        payload["baseWidth"] = t.get("baseWidth")
+    if t.get("baseTile") is not None:
+        payload["baseTile"] = t.get("baseTile")
+    if t.get("colorSlots") is not None:
+        payload["colorSlots"] = t.get("colorSlots")
+    if t.get("activeColorSlot") is not None:
+        payload["activeColorSlot"] = t.get("activeColorSlot")
+    return payload
+
+
+def _serve_mockup_owned_image(request, mockup_id, image_field):
+    """Same-origin image bytes for a mockup the current user owns."""
+    import mimetypes
+
+    from django.http import HttpResponse
+
+    user = get_current_molly_user(request)
+    mockup = get_object_or_404(MollyMockup, pk=mockup_id, user=user)
+    if not image_field:
+        raise Http404()
+    with image_field.open("rb") as f:
+        content = f.read()
+    content_type = mimetypes.guess_type(image_field.name)[0] or "image/png"
+    response = HttpResponse(content, content_type=content_type)
+    response["Cache-Control"] = "private, max-age=300"
+    return response
+
+
+@require_GET
+@require_molly_login
+def mockup_detail(request, mockup_id):
+    """Return a saved mockup + layers so the studio can reopen it for editing."""
+    user = get_current_molly_user(request)
+    mockup = get_object_or_404(
+        MollyMockup.objects.select_related("mockup_product").prefetch_related("layers"),
+        pk=mockup_id,
+        user=user,
+    )
+    product = mockup.mockup_product
+    if not product or not product.is_active:
+        return JsonResponse(
+            {"ok": False, "error": "המוצר של ההדמיה אינו זמין יותר לעריכה"},
+            status=400,
+        )
+
+    layers_out = []
+    db_layers = list(mockup.layers.all())
+    if db_layers:
+        for layer in db_layers:
+            item = _mockup_layer_transform_payload(layer.transform_data)
+            item["image_url"] = reverse(
+                "molly_catalog:mockup_layer_image",
+                kwargs={"mockup_id": mockup.id, "layer_id": layer.id},
+            )
+            layers_out.append(item)
+    elif mockup.print_image:
+        root = mockup.transform_data if isinstance(mockup.transform_data, dict) else {}
+        legacy_list = root.get("layers") if isinstance(root.get("layers"), list) else []
+        legacy_t = legacy_list[0] if legacy_list and isinstance(legacy_list[0], dict) else root
+        item = _mockup_layer_transform_payload(legacy_t)
+        item["image_url"] = reverse(
+            "molly_catalog:mockup_legacy_print_image",
+            kwargs={"mockup_id": mockup.id},
+        )
+        layers_out.append(item)
+    else:
+        return JsonResponse(
+            {"ok": False, "error": "לא נמצאו שכבות בהדמיה זו"},
+            status=400,
+        )
+
+    real_w = product.real_width_cm
+    return JsonResponse({
+        "ok": True,
+        "mockup_id": mockup.id,
+        "product_id": product.id,
+        "product_name": product.name,
+        "product_image_url": reverse(
+            "molly_catalog:mockup_product_image",
+            kwargs={"product_id": product.id},
+        ),
+        "real_width_cm": float(real_w) if real_w is not None else None,
+        "layers": layers_out,
+    })
+
+
+@require_GET
+@require_molly_login
+def mockup_layer_image(request, mockup_id, layer_id):
+    """Serve one saved layer image same-origin (for canvas / masks)."""
+    user = get_current_molly_user(request)
+    layer = get_object_or_404(
+        MollyMockupLayer.objects.select_related("mockup"),
+        pk=layer_id,
+        mockup_id=mockup_id,
+        mockup__user=user,
+    )
+    return _serve_mockup_owned_image(request, mockup_id, layer.image)
+
+
+@require_GET
+@require_molly_login
+def mockup_legacy_print_image(request, mockup_id):
+    """Serve legacy single-print mockup image same-origin."""
+    user = get_current_molly_user(request)
+    mockup = get_object_or_404(MollyMockup, pk=mockup_id, user=user)
+    if not mockup.print_image:
+        raise Http404()
+    return _serve_mockup_owned_image(request, mockup_id, mockup.print_image)
+
+
 @require_POST
 @require_molly_login
 def mockup_save(request):
-    """Save a mockup: base product id + layer files + composited result PNG."""
+    """Save a mockup: base product id + layer files + composited result PNG.
+
+    If mockup_id is provided and owned by the user, update that record instead
+    of creating a new one (continue-editing flow).
+    """
     import json
 
     user = get_current_molly_user(request)
@@ -985,13 +1119,40 @@ def mockup_save(request):
     except (TypeError, ValueError):
         layers_data = []
 
-    mockup = MollyMockup.objects.create(
-        user=user,
-        mockup_product=product,
-        product_name=product.name,
-        result_image=result_image,
-        transform_data={"layers": layers_data},
-    )
+    existing = None
+    raw_id = (request.POST.get("mockup_id") or "").strip()
+    if raw_id:
+        try:
+            existing = MollyMockup.objects.get(pk=int(raw_id), user=user)
+        except (MollyMockup.DoesNotExist, TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "ההדמיה לעדכון לא נמצאה"}, status=404)
+
+    if existing:
+        for layer in existing.layers.all():
+            layer.image.delete(save=False)
+            layer.delete()
+        if existing.result_image:
+            existing.result_image.delete(save=False)
+        if existing.print_image:
+            existing.print_image.delete(save=False)
+            existing.print_image = None
+        existing.mockup_product = product
+        existing.product_name = product.name
+        existing.result_image = result_image
+        existing.transform_data = {"layers": layers_data}
+        existing.save()
+        mockup = existing
+        updated = True
+    else:
+        mockup = MollyMockup.objects.create(
+            user=user,
+            mockup_product=product,
+            product_name=product.name,
+            result_image=result_image,
+            transform_data={"layers": layers_data},
+        )
+        updated = False
+
     for i, layer_file in enumerate(layer_images):
         transform = layers_data[i] if i < len(layers_data) and isinstance(layers_data[i], dict) else {}
         MollyMockupLayer.objects.create(
@@ -1003,11 +1164,14 @@ def mockup_save(request):
 
     return JsonResponse({
         "ok": True,
+        "updated": updated,
         "mockup_id": mockup.id,
         "result_url": mockup.result_image.url,
         "product_name": mockup.product_name,
         "created": mockup.created.strftime("%d/%m/%Y %H:%M"),
-        "delete_url": f"/molly/mockups/{mockup.id}/delete/",
+        "delete_url": reverse(
+            "molly_catalog:mockup_delete", kwargs={"mockup_id": mockup.id}
+        ),
     })
 
 

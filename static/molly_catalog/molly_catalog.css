@@ -1393,14 +1393,22 @@ body.molly-body {
     -webkit-overflow-scrolling: touch;
 }
 
+.molly-mockup-stage-sizer {
+    position: relative;
+    display: block;
+    width: fit-content;
+    max-width: none;
+    margin-inline: auto;
+}
+
 .molly-mockup-stage {
     position: relative;
-    display: inline-block;
-    max-width: none;
+    display: block;
+    max-width: 100%;
     border-radius: var(--molly-radius);
     overflow: hidden;
     background: #fff;
-    vertical-align: top;
+    transform-origin: top left;
 }
 
 .molly-mockup-stage #mockup-base-img {
@@ -1955,6 +1963,43 @@ body.molly-body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+}
+
+.molly-mockup-gallery-open {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+}
+
+.molly-mockup-gallery-open img {
+    width: 100%;
+    height: 160px;
+    object-fit: contain;
+    background: #fff;
+    display: block;
+}
+
+.molly-mockup-gallery-open-label {
+    position: absolute;
+    inset-inline-start: 8px;
+    bottom: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.molly-mockup-gallery-open:hover .molly-mockup-gallery-open-label {
+    background: rgba(0, 0, 0, 0.8);
 }
 
 .molly-mockup-gallery-card img {

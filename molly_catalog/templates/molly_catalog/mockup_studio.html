@@ -68,8 +68,10 @@
                         <button type="button" class="molly-mockup-reset-link" id="mockup-zoom-reset">איפוס זום</button>
                     </div>
                     <div class="molly-mockup-stage-viewport" id="mockup-stage-viewport" title="Ctrl + גלגלת לזום">
-                        <div class="molly-mockup-stage" id="mockup-stage">
-                            <img id="mockup-base-img" src="" alt="מוצר להדמיה" draggable="false">
+                        <div class="molly-mockup-stage-sizer" id="mockup-stage-sizer">
+                            <div class="molly-mockup-stage" id="mockup-stage">
+                                <img id="mockup-base-img" src="" alt="מוצר להדמיה" draggable="false">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -147,10 +149,11 @@
             <h2 class="molly-mockup-step-title">ההדמיות שלי</h2>
             <div class="molly-mockup-gallery" id="mockup-gallery">
                 {% for m in saved_mockups %}
-                <div class="molly-mockup-gallery-card" data-mockup-id="{{ m.id }}">
-                    <a href="{{ m.result_image.url }}" target="_blank" rel="noopener">
+                <div class="molly-mockup-gallery-card" data-mockup-id="{{ m.id }}" data-load-url="{% url 'molly_catalog:mockup_detail' m.id %}" title="לחצי לפתיחה לעריכה">
+                    <button type="button" class="molly-mockup-gallery-open">
                         <img src="{{ m.result_image.url }}" alt="{{ m.product_name }}" loading="lazy">
-                    </a>
+                        <span class="molly-mockup-gallery-open-label">עריכה</span>
+                    </button>
                     <div class="molly-mockup-gallery-meta">
                         <strong>{{ m.product_name|default:"הדמיה" }}</strong>
                         <span>{{ m.created|date:"d/m/Y H:i" }}</span>
@@ -223,6 +226,7 @@
         var uploadSection = document.getElementById('mockup-upload-section');
         var editorSection = document.getElementById('mockup-editor-section');
         var stage = document.getElementById('mockup-stage');
+        var stageSizer = document.getElementById('mockup-stage-sizer');
         var stageViewport = document.getElementById('mockup-stage-viewport');
         var baseImg = document.getElementById('mockup-base-img');
         var zoomInBtn = document.getElementById('mockup-zoom-in');
@@ -277,7 +281,14 @@
         }
 
         // uploadMode is only a fallback; new uploads ask for mode in the picker modal.
-        var state = { productId: null, productName: '', uploadMode: 'focused', realWidthCm: null };
+        // editingMockupId: when set, save updates that mockup instead of creating a new one.
+        var state = {
+            productId: null,
+            productName: '',
+            uploadMode: 'focused',
+            realWidthCm: null,
+            editingMockupId: null
+        };
         var pendingModeQueue = [];
         var pendingModeItem = null;
 
@@ -318,6 +329,7 @@
                 card.classList.add('selected');
                 state.productId = card.dataset.productId;
                 state.productName = card.dataset.productName;
+                state.editingMockupId = null;
                 var rw = parseFloat(card.dataset.realWidthCm);
                 state.realWidthCm = (isFinite(rw) && rw > 0) ? rw : null;
                 baseImg.src = card.dataset.productImage;
@@ -881,10 +893,122 @@
             if (!layers.length) {
                 editorSection.hidden = true;
                 uploadText.textContent = DEFAULT_UPLOAD_HINT;
+                state.editingMockupId = null;
             }
             selectLayer(activeId);
             renderLayersPanel();
             updateButtons();
+        }
+
+        function clearAllLayers() {
+            while (layers.length) {
+                var L = layers.pop();
+                if (L.el && L.el.parentNode) L.el.parentNode.removeChild(L.el);
+                if (L.patEl && L.patEl.parentNode) L.patEl.parentNode.removeChild(L.patEl);
+            }
+            activeId = null;
+            renderLayersPanel();
+            updateButtons();
+        }
+
+        function urlToDataUrl(url) {
+            return fetch(url, { credentials: 'same-origin' })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('load failed');
+                    return r.blob();
+                })
+                .then(function (blob) {
+                    return new Promise(function (resolve, reject) {
+                        var reader = new FileReader();
+                        reader.onload = function () { resolve(reader.result); };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                    });
+                });
+        }
+
+        function selectProductById(productId, productName, realWidthCm, productImageUrl) {
+            state.productId = String(productId);
+            state.productName = productName || '';
+            var rw = parseFloat(realWidthCm);
+            state.realWidthCm = (isFinite(rw) && rw > 0) ? rw : null;
+            productCards.forEach(function (c) {
+                c.classList.toggle('selected', c.dataset.productId === state.productId);
+            });
+            baseImg.src = productImageUrl;
+            setViewZoom(1);
+            uploadSection.hidden = false;
+            uploadText.textContent = DEFAULT_UPLOAD_HINT + ' — אפשר להוסיף עוד שכבות';
+        }
+
+        function openMockupForEdit(data) {
+            if (!data || !data.ok || !data.layers || !data.layers.length) {
+                showStatus((data && data.error) || 'לא ניתן לפתוח את ההדמיה', true);
+                return Promise.reject();
+            }
+            showStatus('טוענת את ההדמיה לעריכה...', false);
+            clearAllLayers();
+            state.editingMockupId = data.mockup_id;
+            selectProductById(
+                data.product_id,
+                data.product_name,
+                data.real_width_cm,
+                data.product_image_url
+            );
+
+            var chain = Promise.resolve();
+            data.layers.forEach(function (spec, index) {
+                chain = chain.then(function () {
+                    return urlToDataUrl(spec.image_url).then(function (dataUrl) {
+                        return new Promise(function (resolve) {
+                            var isLast = index === data.layers.length - 1;
+                            addLayerFromDataUrl(dataUrl, spec.name || ('שכבה ' + (index + 1)), {
+                                mode: spec.mode === 'allover' ? 'allover' : 'focused',
+                                x: spec.x,
+                                y: spec.y,
+                                width: spec.width,
+                                tile: spec.tile,
+                                density: spec.density,
+                                offsetX: spec.offsetX,
+                                offsetY: spec.offsetY,
+                                visible: spec.visible,
+                                blend: spec.blend,
+                                baseWidth: spec.baseWidth,
+                                baseTile: spec.baseTile,
+                                colorSlots: spec.colorSlots || null,
+                                activeColorSlot: spec.activeColorSlot,
+                                // Saved bitmap is already final — don't re-run knockout.
+                                patternPrepared: true,
+                                recolorSource: dataUrl,
+                                skipScroll: !isLast,
+                                onReady: function () { resolve(); }
+                            });
+                        });
+                    });
+                });
+            });
+
+            return chain.then(function () {
+                editorSection.hidden = false;
+                editorSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                syncTools();
+                updateButtons();
+                showStatus('ההדמיה נטענה — אפשר להמשיך לערוך ולשמור.', false);
+            }).catch(function () {
+                state.editingMockupId = null;
+                showStatus('שגיאה בטעינת השכבות. נסי שוב.', true);
+            });
+        }
+
+        function loadMockupFromUrl(loadUrl) {
+            if (!loadUrl) return;
+            showStatus('טוענת את ההדמיה...', false);
+            fetch(loadUrl, { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) { return openMockupForEdit(data); })
+                .catch(function () {
+                    showStatus('שגיאה בטעינת ההדמיה. נסי שוב.', true);
+                });
         }
 
         function layerIndex(id) {
@@ -1361,21 +1485,44 @@
             return window.matchMedia('(max-width: 900px)').matches ? 72 : 88;
         }
 
-        /** Enlarge the garment + prints together; viewport scrolls to pan. */
+        /**
+         * Zoom via CSS transform on the stage (layout size stays fixed).
+         * Keeps all-over garment mask aligned with the product at every zoom.
+         */
         function applyViewZoom() {
             var z = viewZoom;
             var vh = baseMaxVh();
-            if (z <= 1) {
-                baseImg.style.maxHeight = vh + 'vh';
-                baseImg.style.maxWidth = '100%';
-            } else {
-                baseImg.style.maxHeight = (vh * z) + 'vh';
-                baseImg.style.maxWidth = 'none';
-            }
+            // Keep layout size constant — only the visual scale changes.
+            baseImg.style.maxHeight = vh + 'vh';
+            baseImg.style.maxWidth = '100%';
             if (zoomLabel) zoomLabel.textContent = Math.round(z * 100) + '%';
             if (zoomOutBtn) zoomOutBtn.disabled = z <= VIEW_ZOOM_MIN + 0.001;
             if (zoomInBtn) zoomInBtn.disabled = z >= VIEW_ZOOM_MAX - 0.001;
+
             requestAnimationFrame(function () {
+                if (!stage) return;
+                // Measure unscaled layout first (clear scale briefly if needed).
+                stage.style.transform = '';
+                stage.style.maxWidth = '';
+                var w = stage.offsetWidth;
+                var h = stage.offsetHeight;
+                stage.style.transformOrigin = 'top left';
+                if (z === 1) {
+                    stage.style.transform = '';
+                    stage.style.maxWidth = '';
+                    if (stageSizer) {
+                        stageSizer.style.width = '';
+                        stageSizer.style.height = '';
+                    }
+                } else {
+                    // Lock layout size so the sizer (w*z) doesn't stretch the stage.
+                    stage.style.maxWidth = w + 'px';
+                    stage.style.transform = 'scale(' + z + ')';
+                    if (stageSizer) {
+                        stageSizer.style.width = Math.max(1, Math.round(w * z)) + 'px';
+                        stageSizer.style.height = Math.max(1, Math.round(h * z)) + 'px';
+                    }
+                }
                 applyAllTransforms();
             });
         }
@@ -1438,8 +1585,9 @@
                 var bw = baseImg.clientWidth;
                 var bh = baseImg.clientHeight;
                 if (!bw || !bh) return;
-                layer.x = clamp(dragging.origX + (e.clientX - dragging.startX) / bw, 0, 1);
-                layer.y = clamp(dragging.origY + (e.clientY - dragging.startY) / bh, 0, 1);
+                var z = viewZoom || 1;
+                layer.x = clamp(dragging.origX + (e.clientX - dragging.startX) / (bw * z), 0, 1);
+                layer.y = clamp(dragging.origY + (e.clientY - dragging.startY) / (bh * z), 0, 1);
                 applyTransform(layer);
             });
             ['pointerup', 'pointercancel'].forEach(function (ev) {
@@ -1464,8 +1612,9 @@
                 var bw = baseImg.clientWidth;
                 var bh = baseImg.clientHeight;
                 if (!bw || !bh) return;
-                layer.offsetX = dragging.origX + (e.clientX - dragging.startX) / bw;
-                layer.offsetY = dragging.origY + (e.clientY - dragging.startY) / bh;
+                var z = viewZoom || 1;
+                layer.offsetX = dragging.origX + (e.clientX - dragging.startX) / (bw * z);
+                layer.offsetY = dragging.origY + (e.clientY - dragging.startY) / (bh * z);
                 applyTransform(layer);
             });
             ['pointerup', 'pointercancel'].forEach(function (ev) {
@@ -2820,11 +2969,14 @@
                 var body = new FormData();
                 body.append('csrfmiddlewaretoken', csrf);
                 body.append('product_id', state.productId);
+                if (state.editingMockupId) {
+                    body.append('mockup_id', state.editingMockupId);
+                }
                 body.append('result_image', blob, 'mockup.png');
                 var layersData = [];
                 layers.forEach(function (layer, i) {
                     body.append('layer_images', dataUrlToBlob(layer.current), 'layer-' + (i + 1) + '.png');
-                    layersData.push({
+                    var entry = {
                         x: layer.x,
                         y: layer.y,
                         width: layer.width,
@@ -2835,8 +2987,24 @@
                         offsetX: layer.offsetX,
                         offsetY: layer.offsetY,
                         visible: layer.visible,
-                        blend: layer.blend
-                    });
+                        blend: layer.blend,
+                        baseWidth: layer.baseWidth == null ? layer.width : layer.baseWidth,
+                        baseTile: layer.baseTile == null ? layer.tile : layer.baseTile,
+                        activeColorSlot: layer.activeColorSlot == null ? 0 : layer.activeColorSlot
+                    };
+                    if (layer.colorSlots && layer.colorSlots.length) {
+                        entry.colorSlots = layer.colorSlots.map(function (s) {
+                            return {
+                                id: s.id,
+                                sourceHex: s.sourceHex,
+                                currentHex: s.currentHex,
+                                label: s.label,
+                                lab: s.lab,
+                                avgL: s.avgL
+                            };
+                        });
+                    }
+                    layersData.push(entry);
                 });
                 body.append('layers_data', JSON.stringify(layersData));
                 fetch(SAVE_URL, { method: 'POST', body: body, credentials: 'same-origin' })
@@ -2847,8 +3015,12 @@
                             showStatus(data.error || 'שגיאה בשמירה', true);
                             return;
                         }
-                        showStatus('ההדמיה נשמרה בהצלחה!', false);
-                        addGalleryCard(data);
+                        state.editingMockupId = data.mockup_id;
+                        showStatus(
+                            data.updated ? 'ההדמיה עודכנה בהצלחה!' : 'ההדמיה נשמרה בהצלחה!',
+                            false
+                        );
+                        upsertGalleryCard(data);
                     })
                     .catch(function () {
                         saveBtn.disabled = false;
@@ -2864,29 +3036,62 @@
         }
 
         // --- Saved gallery ---
+        function galleryCardHtml(data) {
+            var loadUrl = '/molly/mockups/' + data.mockup_id + '/';
+            return (
+                '<button type="button" class="molly-mockup-gallery-open">' +
+                    '<img src="' + data.result_url + '" alt="">' +
+                    '<span class="molly-mockup-gallery-open-label">עריכה</span>' +
+                '</button>' +
+                '<div class="molly-mockup-gallery-meta"><strong></strong><span>' + data.created + '</span></div>' +
+                '<div class="molly-mockup-gallery-actions">' +
+                    '<a class="molly-mockup-gallery-btn" href="' + data.result_url + '" download>הורדה</a>' +
+                    '<button type="button" class="molly-mockup-gallery-btn danger" data-delete-url="' + data.delete_url + '">מחיקה</button>' +
+                '</div>'
+            );
+        }
+
+        function upsertGalleryCard(data) {
+            galleryEmpty.hidden = true;
+            var existing = gallery.querySelector(
+                '.molly-mockup-gallery-card[data-mockup-id="' + data.mockup_id + '"]'
+            );
+            if (existing) {
+                existing.dataset.loadUrl = '/molly/mockups/' + data.mockup_id + '/';
+                existing.title = 'לחצי לפתיחה לעריכה';
+                delete existing.dataset.openBound;
+                existing.innerHTML = galleryCardHtml(data);
+                existing.querySelector('strong').textContent = data.product_name || 'הדמיה';
+                var img = existing.querySelector('.molly-mockup-gallery-open img');
+                if (img) img.src = data.result_url + (data.result_url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+                bindGalleryDeletes(existing);
+                bindGalleryOpens(existing);
+                gallery.prepend(existing);
+                return;
+            }
+            addGalleryCard(data);
+        }
+
         function addGalleryCard(data) {
             galleryEmpty.hidden = true;
             var card = document.createElement('div');
             card.className = 'molly-mockup-gallery-card';
             card.dataset.mockupId = data.mockup_id;
-            card.innerHTML =
-                '<a href="' + data.result_url + '" target="_blank" rel="noopener">' +
-                    '<img src="' + data.result_url + '" alt=""></a>' +
-                '<div class="molly-mockup-gallery-meta"><strong></strong><span>' + data.created + '</span></div>' +
-                '<div class="molly-mockup-gallery-actions">' +
-                    '<a class="molly-mockup-gallery-btn" href="' + data.result_url + '" download>הורדה</a>' +
-                    '<button type="button" class="molly-mockup-gallery-btn danger" data-delete-url="' + data.delete_url + '">מחיקה</button>' +
-                '</div>';
+            card.dataset.loadUrl = '/molly/mockups/' + data.mockup_id + '/';
+            card.title = 'לחצי לפתיחה לעריכה';
+            card.innerHTML = galleryCardHtml(data);
             card.querySelector('strong').textContent = data.product_name || 'הדמיה';
             gallery.prepend(card);
             bindGalleryDeletes(card);
+            bindGalleryOpens(card);
         }
 
         function bindGalleryDeletes(root) {
             root.querySelectorAll('[data-delete-url]').forEach(function (btn) {
                 if (btn.dataset.bound) return;
                 btn.dataset.bound = '1';
-                btn.addEventListener('click', function () {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
                     if (!confirm('למחוק את ההדמיה?')) return;
                     var body = new FormData();
                     body.append('csrfmiddlewaretoken', csrf);
@@ -2895,7 +3100,14 @@
                         .then(function (data) {
                             if (data.ok) {
                                 var card = btn.closest('.molly-mockup-gallery-card');
-                                if (card) card.remove();
+                                if (card) {
+                                    var mid = card.dataset.mockupId;
+                                    if (typeof state !== 'undefined' && state.editingMockupId
+                                        && String(state.editingMockupId) === String(mid)) {
+                                        state.editingMockupId = null;
+                                    }
+                                    card.remove();
+                                }
                                 if (!gallery.children.length) galleryEmpty.hidden = false;
                             }
                         });
@@ -2903,7 +3115,28 @@
             });
         }
 
+        function bindGalleryOpens(root) {
+            var cards = [];
+            if (root.classList && root.classList.contains('molly-mockup-gallery-card')) {
+                cards = [root];
+            } else {
+                cards = Array.prototype.slice.call(
+                    root.querySelectorAll('.molly-mockup-gallery-card')
+                );
+            }
+            cards.forEach(function (card) {
+                if (card.dataset.openBound) return;
+                card.dataset.openBound = '1';
+                var openBtn = card.querySelector('.molly-mockup-gallery-open');
+                if (!openBtn) return;
+                openBtn.addEventListener('click', function () {
+                    loadMockupFromUrl(card.dataset.loadUrl);
+                });
+            });
+        }
+
         bindGalleryDeletes(document);
+        bindGalleryOpens(document);
     })();
     </script>
 </body>
