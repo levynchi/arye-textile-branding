@@ -190,7 +190,6 @@
             <div class="molly-crop-title" id="layer-mode-title">איזה סוג שכבה זה?</div>
             <p class="molly-mockup-hint" id="layer-mode-hint">בחרי איך הקובץ יופיע על הבגד.</p>
             <p class="molly-layer-mode-filename" id="layer-mode-filename" hidden></p>
-            <img class="molly-layer-mode-preview" id="layer-mode-preview" src="" alt="" hidden>
             <div class="molly-mockup-mode-pick" id="layer-mode-pick">
                 <button type="button" class="molly-mockup-mode-card" data-mode="allover" id="layer-mode-allover">
                     <strong>שכבת אול אובר</strong>
@@ -201,6 +200,7 @@
                     <span>תמונה אחת במקום שבחרת על הבגד — גרירה ושינוי גודל.</span>
                 </button>
             </div>
+            <img class="molly-layer-mode-preview" id="layer-mode-preview" src="" alt="" hidden>
             <div class="molly-crop-actions">
                 <button type="button" class="molly-button molly-button-secondary" id="layer-mode-cancel-btn">ביטול</button>
             </div>
@@ -510,6 +510,13 @@
                 y: opts.y == null ? 0.45 : opts.y,
                 width: opts.width == null ? DEFAULT_FOCUSED_WIDTH : opts.width,
                 tile: opts.tile == null ? DEFAULT_ALLOVER_TILE : opts.tile,
+                // Reset baseline = size at creation (crop keeps its true size on reset).
+                baseWidth: opts.baseWidth == null
+                    ? (opts.width == null ? DEFAULT_FOCUSED_WIDTH : opts.width)
+                    : opts.baseWidth,
+                baseTile: opts.baseTile == null
+                    ? (opts.tile == null ? DEFAULT_ALLOVER_TILE : opts.tile)
+                    : opts.baseTile,
                 density: opts.density == null ? DEFAULT_DENSITY : opts.density,
                 offsetX: opts.offsetX == null ? 0 : opts.offsetX,
                 offsetY: opts.offsetY == null ? 0 : opts.offsetY
@@ -564,6 +571,8 @@
                 y: clamp((src.y == null ? 0.45 : src.y) + 0.05 * step, 0.05, 0.95),
                 width: src.width,
                 tile: src.tile,
+                baseWidth: src.baseWidth == null ? src.width : src.baseWidth,
+                baseTile: src.baseTile == null ? src.tile : src.baseTile,
                 density: src.density,
                 offsetX: (src.offsetX || 0) + 0.04 * step,
                 offsetY: (src.offsetY || 0) + 0.04 * step,
@@ -1445,9 +1454,9 @@
                 var layer = activeLayer();
                 if (!layer) return;
                 if (layer.mode === 'allover') {
-                    layer.tile = DEFAULT_ALLOVER_TILE;
+                    layer.tile = layer.baseTile == null ? DEFAULT_ALLOVER_TILE : layer.baseTile;
                 } else {
-                    layer.width = DEFAULT_FOCUSED_WIDTH;
+                    layer.width = layer.baseWidth == null ? DEFAULT_FOCUSED_WIDTH : layer.baseWidth;
                 }
                 syncTools();
                 applyTransform(layer);

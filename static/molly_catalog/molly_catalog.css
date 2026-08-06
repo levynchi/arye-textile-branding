@@ -1251,6 +1251,17 @@ body.molly-body {
 .molly-layer-mode-modal {
     max-width: min(92vw, 560px);
     width: 100%;
+    max-height: min(92vh, 720px);
+    overflow-y: auto;
+}
+
+.molly-layer-mode-modal .molly-mockup-mode-pick {
+    flex-shrink: 0;
+    width: 100%;
+}
+
+.molly-layer-mode-modal .molly-mockup-mode-card {
+    min-height: 72px;
 }
 
 .molly-layer-mode-filename {
@@ -1264,16 +1275,23 @@ body.molly-body {
 .molly-layer-mode-preview {
     display: block;
     align-self: center;
-    max-width: min(70vw, 280px);
-    max-height: 160px;
+    width: auto;
+    max-width: min(60vw, 220px);
+    max-height: 120px;
+    height: auto;
     object-fit: contain;
+    flex-shrink: 0;
     border-radius: 8px;
     background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 12px 12px;
     border: 1px solid var(--molly-border);
 }
 
 .molly-layer-mode-preview[hidden] {
-    display: none;
+    display: none !important;
+}
+
+.molly-layer-mode-modal .molly-crop-actions {
+    flex-shrink: 0;
 }
 
 .molly-mockup-upload {
