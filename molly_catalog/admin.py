@@ -353,11 +353,11 @@ class MollyMockupLayerInline(admin.TabularInline):
 
 @admin.register(MollyMockup)
 class MollyMockupAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "product_name", "result_thumb", "layer_count", "created")
+    list_display = ("id", "user", "name", "product_name", "result_thumb", "layer_count", "created")
     list_filter = ("user", "created")
-    search_fields = ("product_name", "user__display_name", "user__username")
+    search_fields = ("name", "product_name", "user__display_name", "user__username")
     readonly_fields = (
-        "user", "mockup_product", "product_name", "print_image",
+        "user", "mockup_product", "name", "product_name", "print_image",
         "result_image", "result_large", "transform_data", "created",
     )
     date_hierarchy = "created"

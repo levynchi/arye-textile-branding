@@ -131,7 +131,8 @@
                     </div>
 
                     <div class="molly-mockup-actions">
-                        <button type="button" class="molly-button" id="mockup-save-btn" disabled>שמירת ההדמיה</button>
+                        <button type="button" class="molly-button" id="mockup-save-btn" disabled title="שומרת על ההדמיה הנוכחית">שמור שינויים</button>
+                        <button type="button" class="molly-button molly-button-secondary" id="mockup-save-as-btn" disabled title="שומרת כהדמיה חדשה בגלריה">שמירה בשם</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-download-btn" disabled>הורדה למחשב</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-print-1to1-btn" disabled title="הדפסת הפרינט בגודל אמיתי להשוואה מול הבגד">הדפסה 1:1</button>
                     </div>
@@ -153,15 +154,15 @@
                 {% for m in saved_mockups %}
                 <div class="molly-mockup-gallery-card" data-mockup-id="{{ m.id }}" data-load-url="{% url 'molly_catalog:mockup_detail' m.id %}" title="לחצי לפתיחה לעריכה">
                     <button type="button" class="molly-mockup-gallery-open">
-                        <img src="{{ m.result_image.url }}" alt="{{ m.product_name }}" loading="lazy">
+                        <img src="{{ m.result_image.url }}?t={{ m.created|date:'U' }}" alt="{{ m.display_name }}" loading="lazy">
                         <span class="molly-mockup-gallery-open-label">עריכה</span>
                     </button>
                     <div class="molly-mockup-gallery-meta">
-                        <strong>{{ m.product_name|default:"הדמיה" }}</strong>
-                        <span>{{ m.created|date:"d/m/Y H:i" }}</span>
+                        <strong>{{ m.display_name }}</strong>
+                        <span>{{ m.created|date:"d/m/Y H:i" }}{% if m.product_name %} · {{ m.product_name }}{% endif %}</span>
                     </div>
                     <div class="molly-mockup-gallery-actions">
-                        <a class="molly-mockup-gallery-btn" href="{{ m.result_image.url }}" download>הורדה</a>
+                        <a class="molly-mockup-gallery-btn" href="{% url 'molly_catalog:mockup_result_image' m.id %}?download=1">הורדה</a>
                         <button type="button" class="molly-mockup-gallery-btn danger" data-delete-url="{% url 'molly_catalog:mockup_delete' m.id %}">מחיקה</button>
                     </div>
                 </div>
@@ -188,6 +189,21 @@
             <div class="molly-crop-actions">
                 <button type="button" class="molly-button" id="crop-apply-btn">צור אלמנט על הבגד</button>
                 <button type="button" class="molly-button molly-button-secondary" id="crop-cancel-btn">ביטול</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Name prompt on first save / save-as -->
+    <div class="molly-crop-overlay" id="mockup-name-overlay" hidden>
+        <div class="molly-crop-modal molly-mockup-name-modal">
+            <div class="molly-crop-title" id="mockup-name-title">שם להדמיה</div>
+            <p class="molly-mockup-hint" id="mockup-name-hint">בחרי שם כדי למצוא את ההדמיה אחר כך בגלריה.</p>
+            <label class="molly-mockup-name-label" for="mockup-name-input">שם ההדמיה</label>
+            <input type="text" id="mockup-name-input" class="molly-mockup-name-input" maxlength="200" autocomplete="off" placeholder="לדוגמה: ברווזים על אוברול">
+            <p class="molly-mockup-status error" id="mockup-name-error" hidden>נא להזין שם להדמיה.</p>
+            <div class="molly-crop-actions">
+                <button type="button" class="molly-button" id="mockup-name-confirm-btn">שמירה</button>
+                <button type="button" class="molly-button molly-button-secondary" id="mockup-name-cancel-btn">ביטול</button>
             </div>
         </div>
     </div>
@@ -270,6 +286,7 @@
         var modeHint = document.getElementById('mockup-mode-hint');
         var cropBtn = document.getElementById('mockup-crop-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
+        var saveAsBtn = document.getElementById('mockup-save-as-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
         var print1to1Btn = document.getElementById('mockup-print-1to1-btn');
         var print1to1Hint = document.getElementById('mockup-print-1to1-hint');
@@ -289,8 +306,17 @@
             productName: '',
             uploadMode: 'focused',
             realWidthCm: null,
-            editingMockupId: null
+            editingMockupId: null,
+            editingMockupName: ''
         };
+        var pendingSaveAsNew = false;
+        var nameOverlay = document.getElementById('mockup-name-overlay');
+        var nameInput = document.getElementById('mockup-name-input');
+        var nameError = document.getElementById('mockup-name-error');
+        var nameConfirmBtn = document.getElementById('mockup-name-confirm-btn');
+        var nameCancelBtn = document.getElementById('mockup-name-cancel-btn');
+        var nameTitle = document.getElementById('mockup-name-title');
+        var nameHint = document.getElementById('mockup-name-hint');
         var pendingModeQueue = [];
         var pendingModeItem = null;
 
@@ -332,6 +358,7 @@
                 state.productId = card.dataset.productId;
                 state.productName = card.dataset.productName;
                 state.editingMockupId = null;
+                state.editingMockupName = '';
                 var rw = parseFloat(card.dataset.realWidthCm);
                 state.realWidthCm = (isFinite(rw) && rw > 0) ? rw : null;
                 baseImg.src = card.dataset.productImage;
@@ -896,6 +923,7 @@
                 editorSection.hidden = true;
                 uploadText.textContent = DEFAULT_UPLOAD_HINT;
                 state.editingMockupId = null;
+                state.editingMockupName = '';
             }
             selectLayer(activeId);
             renderLayersPanel();
@@ -951,6 +979,7 @@
             showStatus('טוענת את ההדמיה לעריכה...', false);
             clearAllLayers();
             state.editingMockupId = data.mockup_id;
+            state.editingMockupName = data.name || '';
             selectProductById(
                 data.product_id,
                 data.product_name,
@@ -998,6 +1027,7 @@
                 showStatus('ההדמיה נטענה — אפשר להמשיך לערוך ולשמור.', false);
             }).catch(function () {
                 state.editingMockupId = null;
+                state.editingMockupName = '';
                 showStatus('שגיאה בטעינת השכבות. נסי שוב.', true);
             });
         }
@@ -1490,11 +1520,13 @@
         /**
          * Zoom via CSS transform on the stage (layout size stays fixed).
          * Keeps all-over garment mask aligned with the product at every zoom.
+         * Important: reset the sizer BEFORE measuring, otherwise a previous zoom
+         * leaves a wide sizer and the stage expands — breaking the mask sync.
          */
         function applyViewZoom() {
             var z = viewZoom;
             var vh = baseMaxVh();
-            // Keep layout size constant — only the visual scale changes.
+            // Keep layout size constant — never scale via max-height (that broke the mask).
             baseImg.style.maxHeight = vh + 'vh';
             baseImg.style.maxWidth = '100%';
             if (zoomLabel) zoomLabel.textContent = Math.round(z * 100) + '%';
@@ -1503,21 +1535,23 @@
 
             requestAnimationFrame(function () {
                 if (!stage) return;
-                // Measure unscaled layout first (clear scale briefly if needed).
+                // 1) Return to natural 100% layout before measuring.
+                if (stageSizer) {
+                    stageSizer.style.width = '';
+                    stageSizer.style.height = '';
+                }
                 stage.style.transform = '';
                 stage.style.maxWidth = '';
+
                 var w = stage.offsetWidth;
                 var h = stage.offsetHeight;
                 stage.style.transformOrigin = 'top left';
+
                 if (z === 1) {
                     stage.style.transform = '';
                     stage.style.maxWidth = '';
-                    if (stageSizer) {
-                        stageSizer.style.width = '';
-                        stageSizer.style.height = '';
-                    }
                 } else {
-                    // Lock layout size so the sizer (w*z) doesn't stretch the stage.
+                    // 2) Lock layout, scale visually, expand sizer for scrolling.
                     stage.style.maxWidth = w + 'px';
                     stage.style.transform = 'scale(' + z + ')';
                     if (stageSizer) {
@@ -2007,7 +2041,18 @@
 
         function updateButtons() {
             var ready = !!(state.productId && layers.length);
+            var editing = !!state.editingMockupId;
+            // Save changes: update when editing; first save when new.
             saveBtn.disabled = !ready;
+            saveBtn.textContent = editing ? 'שמור שינויים' : 'שמירה';
+            saveBtn.title = editing
+                ? 'מעדכנת את ההדמיה שנפתחה לעריכה'
+                : 'שומרת הדמיה חדשה בגלריה';
+            // Save As: always create a new gallery item (copy).
+            if (saveAsBtn) {
+                saveAsBtn.disabled = !ready;
+                saveAsBtn.hidden = !editing;
+            }
             downloadBtn.disabled = !ready;
             var canPrint = ready && !!state.realWidthCm && !!activeLayer();
             if (print1to1Btn) {
@@ -2959,25 +3004,97 @@
             return new Blob([arr], { type: mime });
         }
 
-        saveBtn.addEventListener('click', function () {
-            saveBtn.disabled = true;
-            showStatus('שומרת את ההדמיה...', false);
+        function setSaveButtonsBusy(busy) {
+            var ready = !!(state.productId && layers.length);
+            saveBtn.disabled = busy || !ready;
+            if (saveAsBtn) saveAsBtn.disabled = busy || !ready || !state.editingMockupId;
+        }
+
+        function closeMockupNamePrompt() {
+            if (nameOverlay) nameOverlay.hidden = true;
+            if (nameError) nameError.hidden = true;
+            pendingSaveAsNew = false;
+        }
+
+        function askMockupName(asNew) {
+            pendingSaveAsNew = !!asNew;
+            if (nameTitle) {
+                nameTitle.textContent = asNew ? 'שמירה בשם' : 'שם להדמיה';
+            }
+            if (nameHint) {
+                nameHint.textContent = asNew
+                    ? 'בחרי שם להדמיה החדשה שתישמר בגלריה.'
+                    : 'בחרי שם כדי למצוא את ההדמיה אחר כך בגלריה.';
+            }
+            if (nameError) nameError.hidden = true;
+            if (nameInput) {
+                var suggestion = '';
+                if (asNew && state.editingMockupName) {
+                    suggestion = state.editingMockupName + ' — עותק';
+                } else if (state.productName) {
+                    suggestion = state.productName;
+                }
+                nameInput.value = suggestion;
+                nameOverlay.hidden = false;
+                setTimeout(function () {
+                    nameInput.focus();
+                    nameInput.select();
+                }, 0);
+            } else {
+                var fallback = window.prompt('שם להדמיה:', state.productName || '');
+                if (fallback == null) return;
+                fallback = String(fallback).trim();
+                if (!fallback) {
+                    showStatus('נא לתת שם להדמיה', true);
+                    return;
+                }
+                saveMockup({ asNew: asNew, name: fallback });
+            }
+        }
+
+        function confirmMockupName() {
+            var name = nameInput ? String(nameInput.value || '').trim() : '';
+            if (!name) {
+                if (nameError) nameError.hidden = false;
+                if (nameInput) nameInput.focus();
+                return;
+            }
+            var asNew = pendingSaveAsNew;
+            closeMockupNamePrompt();
+            saveMockup({ asNew: asNew, name: name });
+        }
+
+        function saveMockup(options) {
+            var asNew = !!(options && options.asNew);
+            var mockupName = options && options.name != null
+                ? String(options.name).trim()
+                : '';
+            setSaveButtonsBusy(true);
+            showStatus(asNew ? 'שומרת כהדמיה חדשה...' : 'שומרת את ההדמיה...', false);
             composeCanvas().toBlob(function (blob) {
                 if (!blob) {
                     showStatus('שגיאה ביצירת התמונה', true);
-                    saveBtn.disabled = false;
+                    setSaveButtonsBusy(false);
+                    updateButtons();
                     return;
                 }
                 var body = new FormData();
                 body.append('csrfmiddlewaretoken', csrf);
                 body.append('product_id', state.productId);
-                if (state.editingMockupId) {
+                // Save changes updates; Save As always creates a new record.
+                if (!asNew && state.editingMockupId) {
                     body.append('mockup_id', state.editingMockupId);
                 }
-                body.append('result_image', blob, 'mockup.png');
+                if (mockupName) body.append('name', mockupName);
+                var saveStamp = Date.now().toString(36);
+                body.append('result_image', blob, 'mockup-' + saveStamp + '.png');
                 var layersData = [];
                 layers.forEach(function (layer, i) {
-                    body.append('layer_images', dataUrlToBlob(layer.current), 'layer-' + (i + 1) + '.png');
+                    body.append(
+                        'layer_images',
+                        dataUrlToBlob(layer.current),
+                        'layer-' + (i + 1) + '-' + saveStamp + '.png'
+                    );
                     var entry = {
                         x: layer.x,
                         y: layer.y,
@@ -3012,24 +3129,60 @@
                 fetch(SAVE_URL, { method: 'POST', body: body, credentials: 'same-origin' })
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
-                        saveBtn.disabled = false;
                         if (!data.ok) {
                             showStatus(data.error || 'שגיאה בשמירה', true);
+                            setSaveButtonsBusy(false);
+                            updateButtons();
                             return;
                         }
                         state.editingMockupId = data.mockup_id;
+                        state.editingMockupName = data.name || mockupName || state.editingMockupName;
                         showStatus(
-                            data.updated ? 'ההדמיה עודכנה בהצלחה!' : 'ההדמיה נשמרה בהצלחה!',
+                            data.updated
+                                ? 'השינויים נשמרו בהצלחה!'
+                                : (asNew ? 'נשמרה הדמיה חדשה בגלריה!' : 'ההדמיה נשמרה בהצלחה!'),
                             false
                         );
                         upsertGalleryCard(data);
+                        setSaveButtonsBusy(false);
+                        updateButtons();
                     })
                     .catch(function () {
-                        saveBtn.disabled = false;
                         showStatus('שגיאה בשמירה, נסי שוב', true);
+                        setSaveButtonsBusy(false);
+                        updateButtons();
                     });
             }, 'image/png');
+        }
+
+        saveBtn.addEventListener('click', function () {
+            // First save needs a name; later "שמור שינויים" keeps the existing name.
+            if (!state.editingMockupId) {
+                askMockupName(false);
+            } else {
+                saveMockup({ asNew: false });
+            }
         });
+        if (saveAsBtn) {
+            saveAsBtn.addEventListener('click', function () { askMockupName(true); });
+        }
+        if (nameConfirmBtn) {
+            nameConfirmBtn.addEventListener('click', confirmMockupName);
+        }
+        if (nameCancelBtn) {
+            nameCancelBtn.addEventListener('click', closeMockupNamePrompt);
+        }
+        if (nameInput) {
+            nameInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    confirmMockupName();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeMockupNamePrompt();
+                }
+            });
+        }
 
         function showStatus(text, isError) {
             statusEl.textContent = text;
@@ -3039,15 +3192,20 @@
 
         // --- Saved gallery ---
         function galleryCardHtml(data) {
-            var loadUrl = '/molly/mockups/' + data.mockup_id + '/';
+            var resultSrc = data.result_url
+                + (data.result_url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+            var downloadUrl = data.download_url
+                || ('/molly/mockups/' + data.mockup_id + '/result/?download=1');
             return (
                 '<button type="button" class="molly-mockup-gallery-open">' +
-                    '<img src="' + data.result_url + '" alt="">' +
+                    '<img src="' + resultSrc + '" alt="">' +
                     '<span class="molly-mockup-gallery-open-label">עריכה</span>' +
                 '</button>' +
-                '<div class="molly-mockup-gallery-meta"><strong></strong><span>' + data.created + '</span></div>' +
+                '<div class="molly-mockup-gallery-meta"><strong></strong><span>' + data.created
+                    + (data.product_name ? (' · ' + data.product_name) : '')
+                    + '</span></div>' +
                 '<div class="molly-mockup-gallery-actions">' +
-                    '<a class="molly-mockup-gallery-btn" href="' + data.result_url + '" download>הורדה</a>' +
+                    '<a class="molly-mockup-gallery-btn" href="' + downloadUrl + '">הורדה</a>' +
                     '<button type="button" class="molly-mockup-gallery-btn danger" data-delete-url="' + data.delete_url + '">מחיקה</button>' +
                 '</div>'
             );
@@ -3055,17 +3213,16 @@
 
         function upsertGalleryCard(data) {
             galleryEmpty.hidden = true;
+            var loadUrl = data.load_url || ('/molly/mockups/' + data.mockup_id + '/');
             var existing = gallery.querySelector(
                 '.molly-mockup-gallery-card[data-mockup-id="' + data.mockup_id + '"]'
             );
             if (existing) {
-                existing.dataset.loadUrl = '/molly/mockups/' + data.mockup_id + '/';
+                existing.dataset.loadUrl = loadUrl;
                 existing.title = 'לחצי לפתיחה לעריכה';
                 delete existing.dataset.openBound;
                 existing.innerHTML = galleryCardHtml(data);
-                existing.querySelector('strong').textContent = data.product_name || 'הדמיה';
-                var img = existing.querySelector('.molly-mockup-gallery-open img');
-                if (img) img.src = data.result_url + (data.result_url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+                existing.querySelector('strong').textContent = data.name || data.product_name || 'הדמיה';
                 bindGalleryDeletes(existing);
                 bindGalleryOpens(existing);
                 gallery.prepend(existing);
@@ -3079,10 +3236,10 @@
             var card = document.createElement('div');
             card.className = 'molly-mockup-gallery-card';
             card.dataset.mockupId = data.mockup_id;
-            card.dataset.loadUrl = '/molly/mockups/' + data.mockup_id + '/';
+            card.dataset.loadUrl = data.load_url || ('/molly/mockups/' + data.mockup_id + '/');
             card.title = 'לחצי לפתיחה לעריכה';
             card.innerHTML = galleryCardHtml(data);
-            card.querySelector('strong').textContent = data.product_name || 'הדמיה';
+            card.querySelector('strong').textContent = data.name || data.product_name || 'הדמיה';
             gallery.prepend(card);
             bindGalleryDeletes(card);
             bindGalleryOpens(card);
@@ -3107,6 +3264,7 @@
                                     if (typeof state !== 'undefined' && state.editingMockupId
                                         && String(state.editingMockupId) === String(mid)) {
                                         state.editingMockupId = null;
+                                        state.editingMockupName = '';
                                     }
                                     card.remove();
                                 }

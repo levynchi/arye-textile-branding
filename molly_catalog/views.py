@@ -1048,6 +1048,7 @@ def mockup_detail(request, mockup_id):
     return JsonResponse({
         "ok": True,
         "mockup_id": mockup.id,
+        "name": mockup.display_name,
         "product_id": product.id,
         "product_name": product.name,
         "product_image_url": reverse(
@@ -1082,6 +1083,21 @@ def mockup_legacy_print_image(request, mockup_id):
     if not mockup.print_image:
         raise Http404()
     return _serve_mockup_owned_image(request, mockup_id, mockup.print_image)
+
+
+@require_GET
+@require_molly_login
+def mockup_result_image(request, mockup_id):
+    """Serve saved result image same-origin (download / preview without Spaces navigation)."""
+    user = get_current_molly_user(request)
+    mockup = get_object_or_404(MollyMockup, pk=mockup_id, user=user)
+    if not mockup.result_image:
+        raise Http404()
+    response = _serve_mockup_owned_image(request, mockup_id, mockup.result_image)
+    if request.GET.get("download"):
+        filename = f"mockup-{mockup_id}.png"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @require_POST
@@ -1127,6 +1143,10 @@ def mockup_save(request):
         except (MollyMockup.DoesNotExist, TypeError, ValueError):
             return JsonResponse({"ok": False, "error": "ההדמיה לעדכון לא נמצאה"}, status=404)
 
+    mockup_name = (request.POST.get("name") or "").strip()[:200]
+    if not existing and not mockup_name:
+        return JsonResponse({"ok": False, "error": "נא לתת שם להדמיה"}, status=400)
+
     if existing:
         for layer in existing.layers.all():
             layer.image.delete(save=False)
@@ -1138,6 +1158,8 @@ def mockup_save(request):
             existing.print_image = None
         existing.mockup_product = product
         existing.product_name = product.name
+        if mockup_name:
+            existing.name = mockup_name
         existing.result_image = result_image
         existing.transform_data = {"layers": layers_data}
         existing.save()
@@ -1148,6 +1170,7 @@ def mockup_save(request):
             user=user,
             mockup_product=product,
             product_name=product.name,
+            name=mockup_name,
             result_image=result_image,
             transform_data={"layers": layers_data},
         )
@@ -1167,6 +1190,14 @@ def mockup_save(request):
         "updated": updated,
         "mockup_id": mockup.id,
         "result_url": mockup.result_image.url,
+        "download_url": reverse(
+            "molly_catalog:mockup_result_image",
+            kwargs={"mockup_id": mockup.id},
+        ) + "?download=1",
+        "load_url": reverse(
+            "molly_catalog:mockup_detail", kwargs={"mockup_id": mockup.id}
+        ),
+        "name": mockup.display_name,
         "product_name": mockup.product_name,
         "created": mockup.created.strftime("%d/%m/%Y %H:%M"),
         "delete_url": reverse(

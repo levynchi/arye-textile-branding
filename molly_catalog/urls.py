@@ -38,6 +38,11 @@ urlpatterns = [
         views.mockup_legacy_print_image,
         name="mockup_legacy_print_image",
     ),
+    path(
+        "mockups/<int:mockup_id>/result/",
+        views.mockup_result_image,
+        name="mockup_result_image",
+    ),
     path("mockups/<int:mockup_id>/delete/", views.mockup_delete, name="mockup_delete"),
     # Standalone product detail (no category) – must come before category_detail
     re_path(r"^product/(?P<product_slug>[\w\-]+)/$", views.product_detail, name="standalone_product_detail"),

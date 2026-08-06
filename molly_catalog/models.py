@@ -11,6 +11,9 @@ Design notes
   every combination.
 """
 
+import os
+import uuid
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
@@ -441,6 +444,22 @@ class MollyVariant(models.Model):
 # Mockups (הדמיות) – admin-defined base products + customer-saved mockups
 # ---------------------------------------------------------------------------
 
+def _unique_mockup_media_name(folder, filename):
+    """Unique S3/media keys so every save does not overwrite mockup.png / layer-1.png."""
+    ext = os.path.splitext(filename or "")[1].lower() or ".png"
+    if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+        ext = ".png"
+    return f"{folder}/{uuid.uuid4().hex}{ext}"
+
+
+def mockup_print_upload_to(instance, filename):
+    return _unique_mockup_media_name("molly_catalog/mockups/prints", filename)
+
+
+def mockup_result_upload_to(instance, filename):
+    return _unique_mockup_media_name("molly_catalog/mockups/results", filename)
+
+
 class MollyMockupProduct(models.Model):
     """A base garment/product image the admin uploads for the mockup studio.
 
@@ -502,13 +521,21 @@ class MollyMockup(models.Model):
         "שם המוצר", max_length=200, blank=True,
         help_text="שם המוצר בזמן השמירה (נשמר גם אם המוצר נמחק).",
     )
+    name = models.CharField(
+        "שם ההדמיה",
+        max_length=200,
+        blank=True,
+        help_text="שם שהמשתמשת נתנה להדמיה בשמירה.",
+    )
     print_image = models.ImageField(
-        "קובץ ההדפסה", upload_to="molly_catalog/mockups/prints/",
+        "קובץ ההדפסה",
+        upload_to=mockup_print_upload_to,
         blank=True, null=True,
         help_text="נשמר בהדמיות ישנות עם הדפסה אחת. הדמיות חדשות שומרות שכבות.",
     )
     result_image = models.ImageField(
-        "תמונת ההדמיה", upload_to="molly_catalog/mockups/results/"
+        "תמונת ההדמיה",
+        upload_to=mockup_result_upload_to,
     )
     transform_data = models.JSONField(
         "נתוני מיקום", default=dict, blank=True,
@@ -523,7 +550,12 @@ class MollyMockup(models.Model):
         verbose_name_plural = "הדמיות"
 
     def __str__(self):
-        return f"הדמיה #{self.pk} — {self.product_name or 'ללא מוצר'} ({self.user.display_name})"
+        label = self.name or self.product_name or "ללא שם"
+        return f"הדמיה #{self.pk} — {label} ({self.user.display_name})"
+
+    @property
+    def display_name(self):
+        return (self.name or "").strip() or self.product_name or "הדמיה"
 
 
 class MollyMockupLayer(models.Model):
@@ -536,7 +568,8 @@ class MollyMockupLayer(models.Model):
         verbose_name="הדמיה",
     )
     image = models.ImageField(
-        "תמונת השכבה", upload_to="molly_catalog/mockups/prints/"
+        "תמונת השכבה",
+        upload_to=mockup_print_upload_to,
     )
     transform_data = models.JSONField(
         "נתוני מיקום", default=dict, blank=True,
