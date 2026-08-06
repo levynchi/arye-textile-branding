@@ -1248,6 +1248,34 @@ body.molly-body {
     box-shadow: 0 0 0 1px var(--molly-primary-dark);
 }
 
+.molly-layer-mode-modal {
+    max-width: min(92vw, 560px);
+    width: 100%;
+}
+
+.molly-layer-mode-filename {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--molly-text);
+    word-break: break-word;
+}
+
+.molly-layer-mode-preview {
+    display: block;
+    align-self: center;
+    max-width: min(70vw, 280px);
+    max-height: 160px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 12px 12px;
+    border: 1px solid var(--molly-border);
+}
+
+.molly-layer-mode-preview[hidden] {
+    display: none;
+}
+
 .molly-mockup-upload {
     display: flex;
     flex-direction: column;
@@ -1508,32 +1536,6 @@ body.molly-body {
 .molly-mockup-layer-btn.danger:hover {
     background: var(--molly-danger-light);
     color: #b02a2a;
-}
-
-.molly-mockup-mode-toggle {
-    display: flex;
-    border: 1px solid var(--molly-border);
-    border-radius: 999px;
-    overflow: hidden;
-    background: #fff;
-}
-
-.molly-mockup-mode-toggle button {
-    flex: 1;
-    padding: 8px 6px;
-    border: none;
-    background: transparent;
-    font-family: var(--molly-font);
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--molly-text-soft);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-}
-
-.molly-mockup-mode-toggle button.active {
-    background: var(--molly-primary-dark);
-    color: #fff;
 }
 
 .molly-mockup-tool-row {
