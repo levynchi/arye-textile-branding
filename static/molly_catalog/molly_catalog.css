@@ -1363,8 +1363,8 @@ body.molly-body {
 
 .molly-mockup-zoom-btn {
     width: 40px;
-    min-height: 36px;
-    border: none;
+    height: 36px;
+    border: 0;
     border-radius: 0;
     background: transparent;
     color: var(--molly-text);
@@ -1374,12 +1374,12 @@ body.molly-body {
     line-height: 1;
     cursor: pointer;
     padding: 0;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .molly-mockup-zoom-btn:hover:not(:disabled) {
     background: var(--molly-accent-light);
-    color: var(--molly-primary-dark);
+    color: var(--molly-text);
 }
 
 .molly-mockup-zoom-btn:active:not(:disabled) {
@@ -1387,9 +1387,9 @@ body.molly-body {
 }
 
 .molly-mockup-zoom-btn:disabled {
-    opacity: 0.35;
+    color: #c4c4c4;
+    background: transparent;
     cursor: default;
-    color: var(--molly-text-soft);
 }
 
 .molly-mockup-zoom-label {
@@ -1410,6 +1410,7 @@ body.molly-body {
 }
 
 .molly-mockup-zoom-reset {
+    appearance: none;
     border: 1px solid var(--molly-border);
     border-radius: 999px;
     background: var(--molly-card-bg);
@@ -1420,14 +1421,17 @@ body.molly-body {
     padding: 8px 14px;
     cursor: pointer;
     box-shadow: var(--molly-shadow);
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .molly-mockup-zoom-reset:hover {
     background: var(--molly-accent-light);
     border-color: var(--molly-accent-dark);
-    color: var(--molly-primary-dark);
+    color: var(--molly-text);
+}
+
+.molly-mockup-zoom-reset:active {
+    background: var(--molly-accent);
 }
 
 .molly-mockup-stage-viewport {
