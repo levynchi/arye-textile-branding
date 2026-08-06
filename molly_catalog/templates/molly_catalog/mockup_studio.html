@@ -112,14 +112,9 @@
                             <p class="molly-mockup-hint" id="mockup-color-hint">משנה רק את צבע המוטיבים — הצורה והבגד נשארים.</p>
                         </div>
                         <div class="molly-mockup-tool-row">
-                            <button type="button" class="molly-mockup-tool-btn" id="mockup-center-btn">מרכוז</button>
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-crop-btn">חתוך אלמנט</button>
                         </div>
-                        <div class="molly-mockup-tool-row">
-                            <button type="button" class="molly-mockup-tool-btn" id="mockup-duplicate-btn">שכפל שכבה</button>
-                            <button type="button" class="molly-mockup-tool-btn" id="mockup-duplicate-5-btn">שכפל ×5</button>
-                        </div>
-                        <p class="molly-mockup-hint">חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן). אחר כך שכפלי ולמקמי כל עותק איפה שרוצים.</p>
+                        <p class="molly-mockup-hint">חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן).</p>
                         <p class="molly-mockup-hint" id="mockup-mode-hint">גררי את התמונה כדי למקם אותה על הבגד.</p>
                     </div>
 
@@ -250,10 +245,7 @@
         var colorResetBtn = document.getElementById('mockup-color-reset-btn');
         var colorHint = document.getElementById('mockup-color-hint');
         var modeHint = document.getElementById('mockup-mode-hint');
-        var centerBtn = document.getElementById('mockup-center-btn');
         var cropBtn = document.getElementById('mockup-crop-btn');
-        var duplicateBtn = document.getElementById('mockup-duplicate-btn');
-        var duplicate5Btn = document.getElementById('mockup-duplicate-5-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
         var print1to1Btn = document.getElementById('mockup-print-1to1-btn');
@@ -583,24 +575,6 @@
             });
         }
 
-        function duplicateLayerMany(id, count) {
-            var n = Math.max(1, count || 1);
-            var done = 0;
-            function next() {
-                done += 1;
-                if (done > n) {
-                    showStatus('נוצרו ' + n + ' עותקים — גררי כל אחד למקום הרצוי.', false);
-                    return;
-                }
-                duplicateLayer(id, {
-                    step: done,
-                    forceFocused: true,
-                    onReady: next
-                });
-            }
-            next();
-        }
-
         function setLayerImage(layer, dataUrl, done, opts) {
             opts = opts || {};
             layer.el.onload = function () {
@@ -801,7 +775,6 @@
             var spacing = layer.density == null ? 1 : layer.density;
             if (densitySlider) densitySlider.value = String(spacingToDensityUi(spacing));
             if (densityValueLabel) densityValueLabel.textContent = densityLabelText(spacing);
-            centerBtn.textContent = allover ? 'איפוס מיקום' : 'מרכוז';
             modeHint.textContent = allover
                 ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים. אפשר לשנות כל צבע מוטיב בנפרד.'
                 : 'גררי את התמונה כדי למקם אותה על הבגד.';
@@ -1718,19 +1691,6 @@
             });
         }
 
-        centerBtn.addEventListener('click', function () {
-            var layer = activeLayer();
-            if (!layer) return;
-            if (layer.mode === 'allover') {
-                layer.offsetX = 0;
-                layer.offsetY = 0;
-            } else {
-                layer.x = 0.5;
-                layer.y = 0.45;
-            }
-            applyTransform(layer);
-        });
-
         window.addEventListener('resize', applyAllTransforms);
         baseImg.addEventListener('load', function () {
             applyAllTransforms();
@@ -2320,21 +2280,6 @@
         }
 
         cropBtn.addEventListener('click', function () { openCropModal(); });
-        if (duplicateBtn) {
-            duplicateBtn.addEventListener('click', function () {
-                var layer = activeLayer();
-                if (!layer) return;
-                duplicateLayer(layer.id, { forceFocused: layer.mode === 'focused' });
-            });
-        }
-        if (duplicate5Btn) {
-            duplicate5Btn.addEventListener('click', function () {
-                var layer = activeLayer();
-                if (!layer) return;
-                // ×5 מיועד לאלמנטים בודדים — אם זו שכבת אול-אובר, משכפלים כממוקד מהתמונה הנוכחית
-                duplicateLayerMany(layer.id, 5);
-            });
-        }
 
         function layoutCropRect() {
             cropRect.style.left = crop.x + 'px';
@@ -2465,7 +2410,7 @@
                 skipScroll: true,
                 onReady: function () {
                     showStatus(
-                        'נוצר אלמנט בגודל המקורי — גררי למקום. אפשר «שכפל שכבה» או «שכפל ×5».',
+                        'נוצר אלמנט בגודל המקורי — גררי למקום הרצוי.',
                         false
                     );
                 }
