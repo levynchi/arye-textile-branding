@@ -52,8 +52,8 @@
             <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">3</span> עריכת ההדמיה</h2>
             <div class="molly-mockup-editor">
 
-                <aside class="molly-mockup-layers-sidebar">
-                    <div class="molly-mockup-panel">
+                <aside class="molly-mockup-layers-sidebar" id="mockup-layers-home">
+                    <div class="molly-mockup-panel" id="mockup-layers-panel">
                         <div class="molly-mockup-panel-title">שכבות</div>
                         <div class="molly-mockup-layers" id="mockup-layers-list"></div>
                         <button type="button" class="molly-mockup-tool-btn" id="mockup-add-layer-btn">+ הוספת תמונה</button>
@@ -76,9 +76,11 @@
                             </div>
                         </div>
                     </div>
+                    <div class="molly-mockup-mobile-strip" id="mockup-mobile-layer-strip" aria-label="שכבות"></div>
                 </div>
 
                 <div class="molly-mockup-controls">
+                    <div id="mockup-tools-home">
                     <div class="molly-mockup-panel" id="mockup-layer-tools" hidden>
                         <div class="molly-mockup-panel-title">עריכת השכבה הנבחרת</div>
 
@@ -131,18 +133,56 @@
                         <p class="molly-mockup-hint" id="mockup-crop-hint">חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן).</p>
                         <p class="molly-mockup-hint" id="mockup-mode-hint">גררי את התמונה כדי למקם אותה על הבגד.</p>
                     </div>
+                    </div>
 
-                    <div class="molly-mockup-actions">
+                    <div id="mockup-actions-home">
+                    <div class="molly-mockup-actions" id="mockup-actions">
                         <button type="button" class="molly-button" id="mockup-save-btn" disabled title="שומרת על ההדמיה הנוכחית">שמור שינויים</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-save-as-btn" disabled title="שומרת כהדמיה חדשה בגלריה">שמירה בשם</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-download-btn" disabled>הורדה למחשב</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-print-1to1-btn" disabled title="הדפסת הפרינט בגודל אמיתי להשוואה מול הבגד">הדפסה 1:1</button>
+                    </div>
                     </div>
                     <p class="molly-mockup-hint" id="mockup-print-1to1-hint" hidden>הדפיסו ב־Actual size / ללא התאמה לדף. אם יש כמה דפים — הדביקו לפי סימני היישור.</p>
                     <p class="molly-mockup-status" id="mockup-status" hidden></p>
                 </div>
             </div>
         </section>
+
+        <!-- Mobile bottom bar + sheets (visible ≤900px while editing) -->
+        <nav class="molly-mockup-mobile-bar" id="mockup-mobile-bar" hidden aria-label="ניווט עריכה">
+            <button type="button" class="molly-mockup-mobile-bar-btn" id="mockup-mobile-tools-btn" data-sheet="tools">עריכה</button>
+            <button type="button" class="molly-mockup-mobile-bar-btn" id="mockup-mobile-layers-btn" data-sheet="layers">שכבות</button>
+            <button type="button" class="molly-mockup-mobile-bar-btn primary" id="mockup-mobile-save-btn" data-sheet="save">שמירה</button>
+        </nav>
+
+        <div class="molly-mockup-sheet-overlay" id="mockup-tools-sheet" hidden>
+            <div class="molly-mockup-sheet" role="dialog" aria-modal="true" aria-labelledby="mockup-tools-sheet-title">
+                <div class="molly-mockup-sheet-head">
+                    <strong id="mockup-tools-sheet-title">עריכת שכבה</strong>
+                    <button type="button" class="molly-mockup-sheet-close" data-close-sheet>סגור</button>
+                </div>
+                <div class="molly-mockup-sheet-body" id="mockup-tools-sheet-body"></div>
+            </div>
+        </div>
+        <div class="molly-mockup-sheet-overlay" id="mockup-layers-sheet" hidden>
+            <div class="molly-mockup-sheet" role="dialog" aria-modal="true" aria-labelledby="mockup-layers-sheet-title">
+                <div class="molly-mockup-sheet-head">
+                    <strong id="mockup-layers-sheet-title">שכבות</strong>
+                    <button type="button" class="molly-mockup-sheet-close" data-close-sheet>סגור</button>
+                </div>
+                <div class="molly-mockup-sheet-body" id="mockup-layers-sheet-body"></div>
+            </div>
+        </div>
+        <div class="molly-mockup-sheet-overlay" id="mockup-save-sheet" hidden>
+            <div class="molly-mockup-sheet molly-mockup-sheet-compact" role="dialog" aria-modal="true" aria-labelledby="mockup-save-sheet-title">
+                <div class="molly-mockup-sheet-head">
+                    <strong id="mockup-save-sheet-title">שמירה והורדה</strong>
+                    <button type="button" class="molly-mockup-sheet-close" data-close-sheet>סגור</button>
+                </div>
+                <div class="molly-mockup-sheet-body" id="mockup-save-sheet-body"></div>
+            </div>
+        </div>
         {% else %}
         <div class="molly-empty" style="background:var(--molly-card-bg);border-radius:var(--molly-radius);box-shadow:var(--molly-shadow);">
             <p>עדיין לא הוגדרו מוצרים להדמיה. נא לפנות לאריה.</p>
@@ -1110,6 +1150,32 @@
             for (var i = layers.length - 1; i >= 0; i--) {
                 layersList.appendChild(buildLayerRow(layers[i], i));
             }
+            renderMobileLayerStrip();
+        }
+
+        function renderMobileLayerStrip() {
+            var strip = document.getElementById('mockup-mobile-layer-strip');
+            if (!strip) return;
+            strip.innerHTML = '';
+            for (var i = layers.length - 1; i >= 0; i--) {
+                (function (layer) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'molly-mockup-mobile-strip-item'
+                        + (layer.id === activeId ? ' active' : '')
+                        + (layer.visible ? '' : ' layer-hidden');
+                    var img = document.createElement('img');
+                    img.src = layer.current;
+                    img.alt = '';
+                    img.draggable = false;
+                    var name = document.createElement('span');
+                    name.textContent = layer.name || 'שכבה';
+                    btn.appendChild(img);
+                    btn.appendChild(name);
+                    btn.addEventListener('click', function () { selectLayer(layer.id); });
+                    strip.appendChild(btn);
+                })(layers[i]);
+            }
         }
 
         function buildLayerRow(layer, index) {
@@ -1552,7 +1618,7 @@
         }
 
         function baseMaxVh() {
-            return window.matchMedia('(max-width: 900px)').matches ? 72 : 88;
+            return window.matchMedia('(max-width: 900px)').matches ? 58 : 88;
         }
 
         /**
@@ -3049,21 +3115,33 @@
             cropShape = 'rect';
 
             // תמיד אלמנט בודד (שכבה ממוקדת) — גודל כמו על הבגד, בלי הגדלה ל-35%
+            // אם המקור כבר מוכן לצביעה — שומרים את זה; אחרת מכינים אוטומטית כמו «העלם רקע».
             var baseName = layer.name || 'אלמנט';
             var place = extractLayerSizeAndPos(layer, cropInfo);
+            var inheritPrep = !!layer.patternPrepared;
             addLayerFromDataUrl(cropInfo.url, 'אלמנט מ-' + baseName, {
                 mode: 'focused',
                 x: place.x,
                 y: place.y,
                 width: place.width,
                 blend: layer.blend || 'multiply',
-                patternPrepared: false,
+                patternPrepared: inheritPrep,
+                recolorSource: inheritPrep ? cropInfo.url : null,
+                plateLab: inheritPrep ? (layer.plateLab || null) : null,
                 skipScroll: true,
-                onReady: function () {
-                    showStatus(
-                        'נוצר אלמנט בגודל המקורי — גררי למקום הרצוי.',
-                        false
-                    );
+                onReady: function (newLayer) {
+                    if (inheritPrep) {
+                        ensureColorSlots(newLayer, function () {
+                            syncTools();
+                            showStatus(
+                                'נוצר אלמנט — אפשר לשנות צבעים ולגרור למקום הרצוי.',
+                                false
+                            );
+                        });
+                        return;
+                    }
+                    // כמו בפרינט ממוקד אחרי «העלם רקע» — מפעיל צבעי מוטיבים
+                    knockOutLayerBackground(newLayer, { manual: true });
                 }
             });
         });
@@ -3684,6 +3762,154 @@
 
         bindGalleryDeletes(document);
         bindGalleryOpens(document);
+
+        // --- Mobile editor shell: bottom bar + sheets, DOM park ≤900px ---
+        (function setupMobileEditorShell() {
+            var mobileMq = window.matchMedia('(max-width: 900px)');
+            var mobileBar = document.getElementById('mockup-mobile-bar');
+            var layersHome = document.getElementById('mockup-layers-home');
+            var layersPanel = document.getElementById('mockup-layers-panel');
+            var toolsHome = document.getElementById('mockup-tools-home');
+            var actionsHome = document.getElementById('mockup-actions-home');
+            var actionsEl = document.getElementById('mockup-actions');
+            var toolsSheet = document.getElementById('mockup-tools-sheet');
+            var layersSheet = document.getElementById('mockup-layers-sheet');
+            var saveSheet = document.getElementById('mockup-save-sheet');
+            var toolsSheetBody = document.getElementById('mockup-tools-sheet-body');
+            var layersSheetBody = document.getElementById('mockup-layers-sheet-body');
+            var saveSheetBody = document.getElementById('mockup-save-sheet-body');
+            var stageViewportEl = document.getElementById('mockup-stage-viewport');
+            var sheets = {
+                tools: toolsSheet,
+                layers: layersSheet,
+                save: saveSheet
+            };
+
+            function isMobileEditor() {
+                return mobileMq.matches;
+            }
+
+            function closeAllSheets() {
+                Object.keys(sheets).forEach(function (key) {
+                    if (sheets[key]) sheets[key].hidden = true;
+                });
+                document.body.classList.remove('molly-mockup-sheet-open');
+            }
+
+            function openSheet(name) {
+                if (!isMobileEditor()) return;
+                parkMobilePanels();
+                Object.keys(sheets).forEach(function (key) {
+                    if (sheets[key]) sheets[key].hidden = key !== name;
+                });
+                document.body.classList.toggle('molly-mockup-sheet-open', !!sheets[name]);
+            }
+
+            function syncMobileEditorChrome() {
+                var mobile = isMobileEditor();
+                var editing = !!(editorSection && !editorSection.hidden);
+                document.body.classList.toggle('molly-mockup-mobile-layout', mobile);
+                document.body.classList.toggle('molly-mockup-editing', editing);
+                if (mobileBar) {
+                    mobileBar.hidden = !(editing && mobile);
+                }
+                if (stageViewportEl) {
+                    stageViewportEl.title = mobile
+                        ? 'השתמשי בכפתורי הזום להגדלה'
+                        : 'Ctrl + גלגלת לזום';
+                }
+                if (!editing) closeAllSheets();
+            }
+
+            function parkMobilePanels() {
+                var mobile = isMobileEditor();
+                if (mobile) {
+                    if (layersPanel && layersSheetBody && layersPanel.parentNode !== layersSheetBody) {
+                        layersSheetBody.appendChild(layersPanel);
+                    }
+                    if (layerTools && toolsSheetBody && layerTools.parentNode !== toolsSheetBody) {
+                        toolsSheetBody.appendChild(layerTools);
+                    }
+                    if (actionsEl && saveSheetBody && actionsEl.parentNode !== saveSheetBody) {
+                        saveSheetBody.appendChild(actionsEl);
+                    }
+                } else {
+                    closeAllSheets();
+                    if (layersPanel && layersHome && layersPanel.parentNode !== layersHome) {
+                        layersHome.appendChild(layersPanel);
+                    }
+                    if (layerTools && toolsHome && layerTools.parentNode !== toolsHome) {
+                        toolsHome.appendChild(layerTools);
+                    }
+                    if (actionsEl && actionsHome && actionsEl.parentNode !== actionsHome) {
+                        actionsHome.appendChild(actionsEl);
+                    }
+                }
+                syncMobileEditorChrome();
+            }
+
+            if (mobileBar) {
+                mobileBar.addEventListener('click', function (e) {
+                    var btn = e.target.closest('[data-sheet]');
+                    if (!btn) return;
+                    openSheet(btn.getAttribute('data-sheet'));
+                });
+            }
+
+            [toolsSheet, layersSheet, saveSheet].forEach(function (overlay) {
+                if (!overlay) return;
+                overlay.addEventListener('click', function (e) {
+                    if (e.target === overlay || e.target.closest('[data-close-sheet]')) {
+                        closeAllSheets();
+                    }
+                });
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeAllSheets();
+            });
+
+            // Close sheets after primary save/download actions on mobile
+            [saveBtn, saveAsBtn, downloadBtn, print1to1Btn].forEach(function (btn) {
+                if (!btn) return;
+                btn.addEventListener('click', function () {
+                    if (isMobileEditor()) closeAllSheets();
+                });
+            });
+            if (cropBtn) {
+                cropBtn.addEventListener('click', function () {
+                    if (isMobileEditor()) closeAllSheets();
+                });
+            }
+
+            // Sync whenever editor visibility changes
+            if (editorSection && typeof MutationObserver !== 'undefined') {
+                new MutationObserver(function () {
+                    parkMobilePanels();
+                    if (typeof applyAllTransforms === 'function') {
+                        requestAnimationFrame(function () { applyAllTransforms(); });
+                    }
+                }).observe(editorSection, { attributes: true, attributeFilter: ['hidden'] });
+            }
+
+            function onViewportChange() {
+                parkMobilePanels();
+                if (typeof applyAllTransforms === 'function') {
+                    requestAnimationFrame(function () { applyAllTransforms(); });
+                }
+            }
+            if (mobileMq.addEventListener) {
+                mobileMq.addEventListener('change', onViewportChange);
+            } else if (mobileMq.addListener) {
+                mobileMq.addListener(onViewportChange);
+            }
+
+            parkMobilePanels();
+            renderMobileLayerStrip();
+
+            // Expose for selectLayer refresh of strip active state (already via renderLayersPanel)
+            window.__mollyCloseMockupSheets = closeAllSheets;
+        })();
     })();
     </script>
 </body>

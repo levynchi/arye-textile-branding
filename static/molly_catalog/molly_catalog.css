@@ -2196,35 +2196,353 @@ body.molly-body {
     margin: 8px 0 0;
 }
 
+/* ---------- Mockup mobile shell (bottom bar + sheets) ---------- */
+
+.molly-mockup-mobile-bar {
+    display: none;
+}
+
+.molly-mockup-mobile-strip {
+    display: none;
+}
+
+.molly-mockup-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 280;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+}
+
+.molly-mockup-sheet-overlay[hidden] {
+    display: none !important;
+}
+
+.molly-mockup-sheet {
+    width: 100%;
+    max-width: 560px;
+    max-height: min(75dvh, 75vh);
+    background: var(--molly-card-bg);
+    border-radius: 16px 16px 0 0;
+    box-shadow: var(--molly-shadow-hover);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.molly-mockup-sheet-compact {
+    max-height: min(50dvh, 50vh);
+}
+
+.molly-mockup-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--molly-border);
+    flex-shrink: 0;
+}
+
+.molly-mockup-sheet-head strong {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.molly-mockup-sheet-close {
+    border: 1px solid var(--molly-border);
+    background: #fff;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    min-height: 44px;
+}
+
+.molly-mockup-sheet-body {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 16px 20px;
+    flex: 1 1 auto;
+}
+
+.molly-mockup-sheet-body .molly-mockup-panel {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+    background: transparent;
+}
+
+.molly-mockup-sheet-body .molly-mockup-panel-title {
+    display: none;
+}
+
+.molly-mockup-sheet-body .molly-mockup-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.molly-mockup-sheet-body .molly-mockup-actions .molly-button {
+    width: 100%;
+    min-height: 48px;
+}
+
 @media (max-width: 900px) {
     .molly-mockup-editor {
         flex-direction: column;
+        gap: 12px;
     }
 
-    /* Stage first on small screens, then layers, then tools */
     .molly-mockup-stage-wrap {
         order: 1;
         width: 100%;
+        position: sticky;
+        top: 56px;
+        z-index: 20;
+        background: var(--molly-bg);
+        padding-bottom: 4px;
     }
 
     .molly-mockup-stage-viewport {
-        max-height: 72vh;
+        max-height: min(58dvh, 480px);
     }
 
     .molly-mockup-stage #mockup-base-img {
-        max-height: 72vh;
+        max-height: min(58dvh, 480px);
     }
 
+    /* Layer list lives in a sheet; keep controls wrapper for status/hints */
     .molly-mockup-layers-sidebar {
-        order: 2;
-        flex: 1 1 auto;
-        width: 100%;
+        display: none !important;
     }
 
     .molly-mockup-controls {
         order: 3;
-        flex: 1 1 auto;
         width: 100%;
+        gap: 8px;
+    }
+
+    body.molly-mockup-mobile-layout .molly-mockup-controls #mockup-tools-home,
+    body.molly-mockup-mobile-layout .molly-mockup-controls #mockup-actions-home {
+        display: none !important;
+    }
+
+    body.molly-mockup-editing .molly-mockup-mobile-bar {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 260;
+        gap: 8px;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0));
+        background: var(--molly-card-bg);
+        border-top: 1px solid var(--molly-border);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    body.molly-mockup-editing .molly-main {
+        padding-bottom: calc(96px + env(safe-area-inset-bottom, 0));
+    }
+
+    body.molly-mockup-editing .molly-page-title {
+        font-size: 1.45rem;
+        margin-bottom: 4px;
+    }
+
+    body.molly-mockup-editing .molly-page-subtitle {
+        font-size: 0.9rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .molly-mockup-mobile-bar-btn {
+        flex: 1 1 0;
+        min-height: 48px;
+        border: 1px solid var(--molly-border);
+        background: #fff;
+        color: var(--molly-text);
+        font: inherit;
+        font-weight: 800;
+        font-size: 0.95rem;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .molly-mockup-mobile-bar-btn.primary {
+        background: var(--molly-primary-dark);
+        border-color: var(--molly-primary-dark);
+        color: #fff;
+    }
+
+    .molly-mockup-mobile-bar-btn:active {
+        transform: scale(0.98);
+    }
+
+    body.molly-mockup-editing .molly-mockup-mobile-strip {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 8px 2px 4px;
+        scrollbar-width: thin;
+    }
+
+    .molly-mockup-mobile-strip-item {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        width: 64px;
+        padding: 6px;
+        border: 2px solid var(--molly-border);
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+        font: inherit;
+        color: inherit;
+    }
+
+    .molly-mockup-mobile-strip-item.active {
+        border-color: var(--molly-accent-dark);
+        background: var(--molly-accent-light);
+    }
+
+    .molly-mockup-mobile-strip-item img {
+        width: 44px;
+        height: 44px;
+        object-fit: contain;
+        border-radius: 6px;
+        background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 8px 8px;
+    }
+
+    .molly-mockup-mobile-strip-item span {
+        font-size: 0.68rem;
+        font-weight: 700;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .molly-mockup-mobile-strip-item.layer-hidden {
+        opacity: 0.45;
+    }
+
+    .molly-mockup-products {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+    }
+
+    .molly-mockup-gallery {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+    }
+
+    .molly-mockup-swatches {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px;
+    }
+
+    .molly-mockup-tool-row {
+        flex-wrap: wrap;
+    }
+
+    .molly-mockup-tool-btn {
+        min-height: 44px;
+        flex: 1 1 auto;
+    }
+
+    /* Crop nearly fullscreen */
+    .molly-crop-overlay {
+        padding: 0;
+        align-items: stretch;
+    }
+
+    .molly-crop-modal {
+        max-width: 100vw;
+        max-height: 100dvh;
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0));
+        gap: 10px;
+    }
+
+    .molly-crop-area img {
+        max-width: 100%;
+        max-height: min(52dvh, 52vh);
+    }
+
+    .molly-crop-handle {
+        width: 28px;
+        height: 28px;
+    }
+
+    .molly-crop-handle[data-handle="nw"] { top: -12px; left: -12px; }
+    .molly-crop-handle[data-handle="ne"] { top: -12px; right: -12px; }
+    .molly-crop-handle[data-handle="sw"] { bottom: -12px; left: -12px; }
+    .molly-crop-handle[data-handle="se"] { bottom: -12px; right: -12px; }
+
+    .molly-crop-actions {
+        margin-top: auto;
+        position: sticky;
+        bottom: 0;
+        background: var(--molly-card-bg);
+        padding-top: 8px;
+        flex-wrap: wrap;
+    }
+
+    .molly-crop-actions .molly-button {
+        flex: 1 1 auto;
+        min-height: 48px;
+    }
+}
+
+@media (max-width: 640px) {
+    .molly-header-inner {
+        padding: 10px 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .molly-header-brand-title {
+        font-size: 1.2rem;
+    }
+
+    .molly-header-brand-subtitle {
+        font-size: 0.75rem;
+    }
+
+    .molly-header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 6px;
+    }
+
+    .molly-header-link,
+    .molly-header-cart {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        white-space: normal;
+    }
+
+    .molly-mockup-upload {
+        padding: 20px 14px;
+    }
+
+    .molly-mockup-stage-wrap {
+        top: 48px;
     }
 }
 
