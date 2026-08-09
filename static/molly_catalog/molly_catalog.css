@@ -1820,16 +1820,19 @@ body.molly-body {
 
 .molly-crop-lasso-canvas {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    left: 0;
+    top: 0;
+    display: block;
     cursor: crosshair;
     touch-action: none;
-    z-index: 2;
+    z-index: 5;
+    pointer-events: auto;
 }
 
-.molly-crop-area.is-lasso .molly-crop-rect {
-    display: none;
+.molly-crop-area.is-lasso .molly-crop-rect,
+.molly-crop-rect.is-lasso-hidden {
+    display: none !important;
+    pointer-events: none !important;
 }
 
 .molly-crop-rect {

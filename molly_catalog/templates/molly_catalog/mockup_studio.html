@@ -186,13 +186,13 @@
             </div>
             <div class="molly-crop-area" id="crop-area">
                 <img id="crop-img" src="" alt="" draggable="false">
-                <canvas class="molly-crop-lasso-canvas" id="crop-lasso-canvas" hidden></canvas>
                 <div class="molly-crop-rect" id="crop-rect">
                     <div class="molly-crop-handle" data-handle="nw"></div>
                     <div class="molly-crop-handle" data-handle="ne"></div>
                     <div class="molly-crop-handle" data-handle="sw"></div>
                     <div class="molly-crop-handle" data-handle="se"></div>
                 </div>
+                <canvas class="molly-crop-lasso-canvas" id="crop-lasso-canvas" hidden></canvas>
             </div>
             <div class="molly-crop-actions">
                 <button type="button" class="molly-button" id="crop-apply-btn">צור אלמנט על הבגד</button>
@@ -2660,13 +2660,24 @@
         }
 
         function syncCropShapeUi() {
-            if (cropShapeRectBtn) cropShapeRectBtn.classList.toggle('active', cropShape === 'rect');
-            if (cropShapeLassoBtn) cropShapeLassoBtn.classList.toggle('active', cropShape === 'lasso');
-            if (cropArea) cropArea.classList.toggle('is-lasso', cropShape === 'lasso');
-            if (cropLassoCanvas) cropLassoCanvas.hidden = cropShape !== 'lasso';
-            if (cropLassoClearBtn) cropLassoClearBtn.hidden = cropShape !== 'lasso';
+            var isLasso = cropShape === 'lasso';
+            if (cropShapeRectBtn) cropShapeRectBtn.classList.toggle('active', !isLasso);
+            if (cropShapeLassoBtn) cropShapeLassoBtn.classList.toggle('active', isLasso);
+            if (cropArea) cropArea.classList.toggle('is-lasso', isLasso);
+            if (cropRect) {
+                cropRect.classList.toggle('is-lasso-hidden', isLasso);
+                cropRect.hidden = isLasso;
+                cropRect.style.display = isLasso ? 'none' : '';
+                cropRect.style.pointerEvents = isLasso ? 'none' : '';
+            }
+            if (cropLassoCanvas) {
+                cropLassoCanvas.hidden = !isLasso;
+                cropLassoCanvas.style.display = isLasso ? 'block' : 'none';
+                cropLassoCanvas.style.pointerEvents = isLasso ? 'auto' : 'none';
+            }
+            if (cropLassoClearBtn) cropLassoClearBtn.hidden = !isLasso;
             setCropHintForShape();
-            if (cropShape === 'lasso') {
+            if (isLasso) {
                 sizeLassoCanvas();
                 drawLassoPreview();
             }
@@ -2674,6 +2685,10 @@
 
         function setCropShape(shape) {
             cropShape = shape === 'lasso' ? 'lasso' : 'rect';
+            if (cropShape === 'rect') {
+                lassoPoints = [];
+                lassoDrawing = false;
+            }
             syncCropShapeUi();
         }
 
@@ -2685,9 +2700,15 @@
 
         function sizeLassoCanvas() {
             if (!cropLassoCanvas || !cropImg) return;
-            var w = cropImg.clientWidth || 0;
-            var h = cropImg.clientHeight || 0;
-            if (w < 1 || h < 1) return;
+            var w = Math.max(1, Math.round(cropImg.clientWidth || 0));
+            var h = Math.max(1, Math.round(cropImg.clientHeight || 0));
+            if (w < 2 || h < 2) return;
+            cropLassoCanvas.style.position = 'absolute';
+            cropLassoCanvas.style.left = '0';
+            cropLassoCanvas.style.top = '0';
+            cropLassoCanvas.style.width = w + 'px';
+            cropLassoCanvas.style.height = h + 'px';
+            cropLassoCanvas.style.zIndex = '5';
             if (cropLassoCanvas.width !== w || cropLassoCanvas.height !== h) {
                 cropLassoCanvas.width = w;
                 cropLassoCanvas.height = h;
@@ -2831,21 +2852,26 @@
         })();
 
         (function setupLassoInteractions() {
-            if (!cropLassoCanvas) return;
+            if (!cropLassoCanvas && !cropArea) return;
             var lastPt = null;
             var MIN_DIST = 2;
+            var surface = cropLassoCanvas || cropArea;
 
-            cropLassoCanvas.addEventListener('pointerdown', function (e) {
+            function onLassoDown(e) {
                 if (cropShape !== 'lasso') return;
+                // Ignore clicks on modal chrome outside the image surface
+                if (cropArea && !cropArea.contains(e.target) && e.target !== cropLassoCanvas) return;
                 e.preventDefault();
-                cropLassoCanvas.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                sizeLassoCanvas();
+                try { surface.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
                 lassoDrawing = true;
                 lassoPoints = [];
                 lastPt = pointerToCropImg(e);
                 lassoPoints.push(lastPt);
                 drawLassoPreview();
-            });
-            cropLassoCanvas.addEventListener('pointermove', function (e) {
+            }
+            function onLassoMove(e) {
                 if (!lassoDrawing || cropShape !== 'lasso') return;
                 var pt = pointerToCropImg(e);
                 if (lastPt) {
@@ -2856,18 +2882,31 @@
                 lastPt = pt;
                 lassoPoints.push(pt);
                 drawLassoPreview();
-            });
-            function endLasso() {
+            }
+            function endLasso(e) {
                 if (!lassoDrawing) return;
                 lassoDrawing = false;
                 lastPt = null;
+                if (e && surface.releasePointerCapture) {
+                    try { surface.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+                }
                 if (lassoPoints.length < 3) {
                     lassoPoints = [];
                 }
                 drawLassoPreview();
             }
-            cropLassoCanvas.addEventListener('pointerup', endLasso);
-            cropLassoCanvas.addEventListener('pointercancel', endLasso);
+            surface.addEventListener('pointerdown', onLassoDown);
+            surface.addEventListener('pointermove', onLassoMove);
+            surface.addEventListener('pointerup', endLasso);
+            surface.addEventListener('pointercancel', endLasso);
+            // Also accept drawing that starts on the image if canvas missed the hit
+            if (cropArea && surface !== cropArea) {
+                cropArea.addEventListener('pointerdown', function (e) {
+                    if (cropShape !== 'lasso') return;
+                    if (e.target === cropLassoCanvas) return;
+                    onLassoDown(e);
+                });
+            }
         })();
 
         function getRectCroppedDataUrl() {
