@@ -1771,6 +1771,35 @@ body.molly-body {
     font-size: 1.1rem;
 }
 
+.molly-crop-shape-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.molly-crop-shape-btn {
+    border: 1px solid var(--molly-border, #d8d0c4);
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.molly-crop-shape-btn:hover {
+    border-color: var(--molly-accent-dark);
+}
+
+.molly-crop-shape-btn.active {
+    background: var(--molly-accent-dark);
+    border-color: var(--molly-accent-dark);
+    color: #fff;
+}
+
 .molly-crop-area {
     position: relative;
     display: inline-block;
@@ -1787,6 +1816,20 @@ body.molly-body {
     max-height: 58vh;
     user-select: none;
     -webkit-user-drag: none;
+}
+
+.molly-crop-lasso-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+    z-index: 2;
+}
+
+.molly-crop-area.is-lasso .molly-crop-rect {
+    display: none;
 }
 
 .molly-crop-rect {

@@ -179,8 +179,14 @@
         <div class="molly-crop-modal">
             <div class="molly-crop-title" id="crop-title">חיתוך אלמנט בודד</div>
             <p class="molly-mockup-hint" id="crop-hint">סמני אלמנט אחד — הוא יהפוך לשכבה נפרדת על הבגד (לא פאטרן חוזר). אחר כך אפשר לשכפל ולמקם כל עותק בנפרד.</p>
+            <div class="molly-crop-shape-bar" id="crop-shape-bar" role="group" aria-label="צורת חיתוך">
+                <button type="button" class="molly-crop-shape-btn active" id="crop-shape-rect" data-shape="rect">ריבוע</button>
+                <button type="button" class="molly-crop-shape-btn" id="crop-shape-lasso" data-shape="lasso">לאסו</button>
+                <button type="button" class="molly-mockup-reset-link" id="crop-lasso-clear" hidden>נקה לאסו</button>
+            </div>
             <div class="molly-crop-area" id="crop-area">
                 <img id="crop-img" src="" alt="" draggable="false">
+                <canvas class="molly-crop-lasso-canvas" id="crop-lasso-canvas" hidden></canvas>
                 <div class="molly-crop-rect" id="crop-rect">
                     <div class="molly-crop-handle" data-handle="nw"></div>
                     <div class="molly-crop-handle" data-handle="ne"></div>
@@ -2628,13 +2634,116 @@
         var cropArea = document.getElementById('crop-area');
         var cropImg = document.getElementById('crop-img');
         var cropRect = document.getElementById('crop-rect');
+        var cropLassoCanvas = document.getElementById('crop-lasso-canvas');
+        var cropShapeRectBtn = document.getElementById('crop-shape-rect');
+        var cropShapeLassoBtn = document.getElementById('crop-shape-lasso');
+        var cropLassoClearBtn = document.getElementById('crop-lasso-clear');
         var cropTitle = document.getElementById('crop-title');
         var cropHint = document.getElementById('crop-hint');
         var cropApplyBtn = document.getElementById('crop-apply-btn');
         var cropCancelBtn = document.getElementById('crop-cancel-btn');
         var crop = { x: 0, y: 0, w: 0, h: 0 };
         var cropMode = 'extract'; // תמיד אלמנט בודד (שכבה ממוקדת)
+        var cropShape = 'rect'; // 'rect' | 'lasso'
         var cropSourceLayerId = null;
+        var lassoPoints = []; // display coords relative to cropImg
+        var lassoDrawing = false;
+
+        function setCropHintForShape() {
+            if (!cropHint) return;
+            cropHint.hidden = false;
+            if (cropShape === 'lasso') {
+                cropHint.textContent = 'ציירי קו חופשי סביב האלמנט — שחרור העכבר סוגר את הצורה. אפשר לנקות ולצייר שוב.';
+            } else {
+                cropHint.textContent = 'סמני אלמנט אחד — הוא יהפוך לשכבה נפרדת על הבגד (לא פאטרן חוזר). אחר כך אפשר לשכפל ולמקם כל עותק בנפרד.';
+            }
+        }
+
+        function syncCropShapeUi() {
+            if (cropShapeRectBtn) cropShapeRectBtn.classList.toggle('active', cropShape === 'rect');
+            if (cropShapeLassoBtn) cropShapeLassoBtn.classList.toggle('active', cropShape === 'lasso');
+            if (cropArea) cropArea.classList.toggle('is-lasso', cropShape === 'lasso');
+            if (cropLassoCanvas) cropLassoCanvas.hidden = cropShape !== 'lasso';
+            if (cropLassoClearBtn) cropLassoClearBtn.hidden = cropShape !== 'lasso';
+            setCropHintForShape();
+            if (cropShape === 'lasso') {
+                sizeLassoCanvas();
+                drawLassoPreview();
+            }
+        }
+
+        function setCropShape(shape) {
+            cropShape = shape === 'lasso' ? 'lasso' : 'rect';
+            syncCropShapeUi();
+        }
+
+        function clearLasso() {
+            lassoPoints = [];
+            lassoDrawing = false;
+            drawLassoPreview();
+        }
+
+        function sizeLassoCanvas() {
+            if (!cropLassoCanvas || !cropImg) return;
+            var w = cropImg.clientWidth || 0;
+            var h = cropImg.clientHeight || 0;
+            if (w < 1 || h < 1) return;
+            if (cropLassoCanvas.width !== w || cropLassoCanvas.height !== h) {
+                cropLassoCanvas.width = w;
+                cropLassoCanvas.height = h;
+            }
+        }
+
+        function drawLassoPreview() {
+            if (!cropLassoCanvas) return;
+            var ctx = cropLassoCanvas.getContext('2d');
+            var w = cropLassoCanvas.width;
+            var h = cropLassoCanvas.height;
+            ctx.clearRect(0, 0, w, h);
+            if (!lassoPoints.length) return;
+
+            // Dim outside (when closed enough or finished stroke has 3+ points)
+            if (lassoPoints.length >= 3 && !lassoDrawing) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+                ctx.fillRect(0, 0, w, h);
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+                for (var i = 1; i < lassoPoints.length; i++) {
+                    ctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+            for (var j = 1; j < lassoPoints.length; j++) {
+                ctx.lineTo(lassoPoints[j].x, lassoPoints[j].y);
+            }
+            if (!lassoDrawing && lassoPoints.length >= 3) {
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(232, 202, 165, 0.2)';
+                ctx.fill();
+            }
+            ctx.strokeStyle = '#8a6a3a';
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.setLineDash([6, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function pointerToCropImg(e) {
+            var rect = cropImg.getBoundingClientRect();
+            return {
+                x: clamp(e.clientX - rect.left, 0, rect.width),
+                y: clamp(e.clientY - rect.top, 0, rect.height)
+            };
+        }
 
         function openCropModal() {
             var layer = activeLayer();
@@ -2642,9 +2751,11 @@
             // תמיד יוצרים אלמנט בודד — לא פאטרן אול-אובר מהחיתוך
             cropMode = 'extract';
             cropSourceLayerId = layer.id;
+            cropShape = 'rect';
+            clearLasso();
             if (cropTitle) cropTitle.textContent = 'חיתוך אלמנט בודד';
-            if (cropHint) cropHint.hidden = false;
             if (cropApplyBtn) cropApplyBtn.textContent = 'צור אלמנט על הבגד';
+            syncCropShapeUi();
             cropImg.onload = function () {
                 cropImg.onload = null;
                 cropOverlay.hidden = false;
@@ -2653,6 +2764,8 @@
                     var ih = cropImg.clientHeight;
                     crop = { x: iw * 0.1, y: ih * 0.1, w: iw * 0.8, h: ih * 0.8 };
                     layoutCropRect();
+                    sizeLassoCanvas();
+                    syncCropShapeUi();
                 });
             };
             cropImg.src = layer.current;
@@ -2660,6 +2773,16 @@
         }
 
         cropBtn.addEventListener('click', function () { openCropModal(); });
+
+        if (cropShapeRectBtn) {
+            cropShapeRectBtn.addEventListener('click', function () { setCropShape('rect'); });
+        }
+        if (cropShapeLassoBtn) {
+            cropShapeLassoBtn.addEventListener('click', function () { setCropShape('lasso'); });
+        }
+        if (cropLassoClearBtn) {
+            cropLassoClearBtn.addEventListener('click', function () { clearLasso(); });
+        }
 
         function layoutCropRect() {
             cropRect.style.left = crop.x + 'px';
@@ -2674,6 +2797,7 @@
             var MIN = 24;
 
             cropRect.addEventListener('pointerdown', function (e) {
+                if (cropShape !== 'rect') return;
                 e.preventDefault();
                 e.stopPropagation();
                 cropRect.setPointerCapture(e.pointerId);
@@ -2682,7 +2806,7 @@
                 start = { x: e.clientX, y: e.clientY, rect: { x: crop.x, y: crop.y, w: crop.w, h: crop.h } };
             });
             cropRect.addEventListener('pointermove', function (e) {
-                if (!mode) return;
+                if (!mode || cropShape !== 'rect') return;
                 var dx = e.clientX - start.x;
                 var dy = e.clientY - start.y;
                 var iw = cropImg.clientWidth;
@@ -2706,7 +2830,47 @@
             });
         })();
 
-        function getCroppedDataUrl() {
+        (function setupLassoInteractions() {
+            if (!cropLassoCanvas) return;
+            var lastPt = null;
+            var MIN_DIST = 2;
+
+            cropLassoCanvas.addEventListener('pointerdown', function (e) {
+                if (cropShape !== 'lasso') return;
+                e.preventDefault();
+                cropLassoCanvas.setPointerCapture(e.pointerId);
+                lassoDrawing = true;
+                lassoPoints = [];
+                lastPt = pointerToCropImg(e);
+                lassoPoints.push(lastPt);
+                drawLassoPreview();
+            });
+            cropLassoCanvas.addEventListener('pointermove', function (e) {
+                if (!lassoDrawing || cropShape !== 'lasso') return;
+                var pt = pointerToCropImg(e);
+                if (lastPt) {
+                    var dx = pt.x - lastPt.x;
+                    var dy = pt.y - lastPt.y;
+                    if (dx * dx + dy * dy < MIN_DIST * MIN_DIST) return;
+                }
+                lastPt = pt;
+                lassoPoints.push(pt);
+                drawLassoPreview();
+            });
+            function endLasso() {
+                if (!lassoDrawing) return;
+                lassoDrawing = false;
+                lastPt = null;
+                if (lassoPoints.length < 3) {
+                    lassoPoints = [];
+                }
+                drawLassoPreview();
+            }
+            cropLassoCanvas.addEventListener('pointerup', endLasso);
+            cropLassoCanvas.addEventListener('pointercancel', endLasso);
+        })();
+
+        function getRectCroppedDataUrl() {
             var scaleX = cropImg.naturalWidth / (cropImg.clientWidth || 1);
             var scaleY = cropImg.naturalHeight / (cropImg.clientHeight || 1);
             var sx = Math.round(crop.x * scaleX);
@@ -2721,12 +2885,70 @@
             var dispH = cropImg.clientHeight || 1;
             return {
                 url: canvas.toDataURL('image/png'),
-                // יחס החיתוך מתוך תמונת המקור (0–1)
                 fracW: clamp(crop.w / dispW, 0.01, 1),
                 fracH: clamp(crop.h / dispH, 0.01, 1),
                 centerX: clamp((crop.x + crop.w / 2) / dispW, 0, 1),
                 centerY: clamp((crop.y + crop.h / 2) / dispH, 0, 1)
             };
+        }
+
+        function getLassoCroppedDataUrl() {
+            if (lassoPoints.length < 3) return null;
+            var dispW = cropImg.clientWidth || 1;
+            var dispH = cropImg.clientHeight || 1;
+            var scaleX = cropImg.naturalWidth / dispW;
+            var scaleY = cropImg.naturalHeight / dispH;
+
+            var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            var natPts = [];
+            for (var i = 0; i < lassoPoints.length; i++) {
+                var nx = lassoPoints[i].x * scaleX;
+                var ny = lassoPoints[i].y * scaleY;
+                natPts.push({ x: nx, y: ny });
+                if (nx < minX) minX = nx;
+                if (ny < minY) minY = ny;
+                if (nx > maxX) maxX = nx;
+                if (ny > maxY) maxY = ny;
+            }
+            minX = Math.floor(minX);
+            minY = Math.floor(minY);
+            maxX = Math.ceil(maxX);
+            maxY = Math.ceil(maxY);
+            var sw = Math.max(1, maxX - minX);
+            var sh = Math.max(1, maxY - minY);
+
+            var canvas = document.createElement('canvas');
+            canvas.width = sw;
+            canvas.height = sh;
+            var ctx = canvas.getContext('2d');
+            ctx.beginPath();
+            ctx.moveTo(natPts[0].x - minX, natPts[0].y - minY);
+            for (var j = 1; j < natPts.length; j++) {
+                ctx.lineTo(natPts[j].x - minX, natPts[j].y - minY);
+            }
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(cropImg, minX, minY, sw, sh, 0, 0, sw, sh);
+
+            var dispMinX = minX / scaleX;
+            var dispMinY = minY / scaleY;
+            var dispMaxX = maxX / scaleX;
+            var dispMaxY = maxY / scaleY;
+            var boxW = Math.max(1, dispMaxX - dispMinX);
+            var boxH = Math.max(1, dispMaxY - dispMinY);
+
+            return {
+                url: canvas.toDataURL('image/png'),
+                fracW: clamp(boxW / dispW, 0.01, 1),
+                fracH: clamp(boxH / dispH, 0.01, 1),
+                centerX: clamp((dispMinX + boxW / 2) / dispW, 0, 1),
+                centerY: clamp((dispMinY + boxH / 2) / dispH, 0, 1)
+            };
+        }
+
+        function getCroppedDataUrl() {
+            if (cropShape === 'lasso') return getLassoCroppedDataUrl();
+            return getRectCroppedDataUrl();
         }
 
         function extractLayerSizeAndPos(sourceLayer, cropInfo) {
@@ -2774,8 +2996,18 @@
                 }
             }
             if (!layer) { cropOverlay.hidden = true; return; }
+            if (cropShape === 'lasso' && lassoPoints.length < 3) {
+                showStatus('ציירי לאסו סביב האלמנט לפני יצירה.', true);
+                return;
+            }
             var cropInfo = getCroppedDataUrl();
+            if (!cropInfo) {
+                showStatus('לא ניתן ליצור אלמנט מהבחירה הנוכחית.', true);
+                return;
+            }
             cropOverlay.hidden = true;
+            clearLasso();
+            cropShape = 'rect';
 
             // תמיד אלמנט בודד (שכבה ממוקדת) — גודל כמו על הבגד, בלי הגדלה ל-35%
             var baseName = layer.name || 'אלמנט';
@@ -2800,6 +3032,8 @@
         cropCancelBtn.addEventListener('click', function () {
             cropOverlay.hidden = true;
             cropMode = 'extract';
+            cropShape = 'rect';
+            clearLasso();
             cropSourceLayerId = null;
         });
 
