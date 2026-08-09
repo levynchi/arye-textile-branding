@@ -125,8 +125,10 @@
                         </div>
                         <div class="molly-mockup-tool-row">
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-crop-btn">חתוך אלמנט</button>
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-remove-bg-btn" hidden>העלם רקע</button>
+                            <button type="button" class="molly-mockup-tool-btn" id="mockup-restore-bg-btn" hidden>החזר תמונה מקורית</button>
                         </div>
-                        <p class="molly-mockup-hint">חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן).</p>
+                        <p class="molly-mockup-hint" id="mockup-crop-hint">חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן).</p>
                         <p class="molly-mockup-hint" id="mockup-mode-hint">גררי את התמונה כדי למקם אותה על הבגד.</p>
                     </div>
 
@@ -285,6 +287,9 @@
         var colorHint = document.getElementById('mockup-color-hint');
         var modeHint = document.getElementById('mockup-mode-hint');
         var cropBtn = document.getElementById('mockup-crop-btn');
+        var toolsCropHint = document.getElementById('mockup-crop-hint');
+        var removeBgBtn = document.getElementById('mockup-remove-bg-btn');
+        var restoreBgBtn = document.getElementById('mockup-restore-bg-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
         var saveAsBtn = document.getElementById('mockup-save-as-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
@@ -542,6 +547,7 @@
                 visible: opts.visible == null ? true : !!opts.visible,
                 blend: opts.blend || 'multiply',
                 patternPrepared: !!opts.patternPrepared,
+                preKnockoutUrl: opts.preKnockoutUrl || null,
                 recolorSource: opts.recolorSource || null,
                 plateLab: opts.plateLab || null,
                 colorSlots: opts.colorSlots
@@ -613,7 +619,8 @@
                 original: src.original,
                 working: src.working,
                 blend: src.blend,
-                patternPrepared: dupMode === 'allover' ? src.patternPrepared : false,
+                patternPrepared: !!src.patternPrepared,
+                preKnockoutUrl: src.preKnockoutUrl || null,
                 recolorSource: src.recolorSource || null,
                 plateLab: src.plateLab || null,
                 colorSlots: src.colorSlots || null,
@@ -731,8 +738,13 @@
 
         function applyMotifColor(hex) {
             var layer = activeLayer();
-            if (!layer || layer.mode !== 'allover') {
-                showStatus('בחרי שכבת אול אובר כדי לשנות צבע.', true);
+            if (!layer || !layer.patternPrepared) {
+                showStatus(
+                    layer && layer.mode === 'focused'
+                        ? 'לחצי «העלם רקע» לפני שינוי צבע.'
+                        : 'בחרי שכבה עם רקע שהוסר כדי לשנות צבע.',
+                    true
+                );
                 return;
             }
             if (!hex) return;
@@ -815,28 +827,45 @@
             var layer = activeLayer();
             if (!layer) return;
             var allover = layer.mode === 'allover';
+            var focused = !allover;
+            var prepared = !!layer.patternPrepared;
             scaleLabel.textContent = allover ? 'גודל הפאטרן' : 'גודל';
             scaleSlider.value = Math.round((allover ? layer.tile : layer.width) * 100);
             if (densityControl) densityControl.hidden = !allover;
-            if (colorControl) colorControl.hidden = !allover;
-            if (allover) {
+            // Motif colors: allover always (after auto prep); focused only after manual bg remove.
+            if (colorControl) colorControl.hidden = !(prepared && (allover || focused));
+            if (prepared && (allover || focused)) {
                 if (layer.colorSlots) {
                     renderColorSlotsUI(layer);
-                } else if (layer.patternPrepared) {
-                    ensureColorSlots(layer);
                 } else {
-                    renderColorSlotsUI(null);
+                    ensureColorSlots(layer);
                 }
             } else if (colorSlotsEl) {
                 colorSlotsEl.hidden = true;
                 colorSlotsEl.innerHTML = '';
+            }
+            if (removeBgBtn) {
+                removeBgBtn.hidden = !(focused && !prepared);
+                removeBgBtn.disabled = false;
+            }
+            if (restoreBgBtn) {
+                restoreBgBtn.hidden = !(focused && prepared && !!layer.preKnockoutUrl);
+            }
+            if (toolsCropHint) {
+                toolsCropHint.textContent = focused
+                    ? (prepared
+                        ? 'אפשר לשנות צבעי מוטיבים או לחתוך אלמנט לשכבה נפרדת.'
+                        : 'העלם רקע להסרת הרקע מהפרינט, או חתוך אלמנט לשכבה נפרדת.')
+                    : 'חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן).';
             }
             var spacing = layer.density == null ? 1 : layer.density;
             if (densitySlider) densitySlider.value = String(spacingToDensityUi(spacing));
             if (densityValueLabel) densityValueLabel.textContent = densityLabelText(spacing);
             modeHint.textContent = allover
                 ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים. אפשר לשנות כל צבע מוטיב בנפרד.'
-                : 'גררי את התמונה כדי למקם אותה על הבגד.';
+                : (prepared
+                    ? 'גררי למקום על הבגד. אפשר לשנות צבעי מוטיבים או להחזיר את התמונה המקורית.'
+                    : 'גררי את התמונה כדי למקם אותה על הבגד. לחצי «העלם רקע» כדי להסיר רקע מהפרינט.');
             syncCmLabel();
         }
 
@@ -1476,6 +1505,9 @@
                 layer.el.style.height = h + 'px';
                 layer.el.style.left = (layer.x * bw - w / 2) + 'px';
                 layer.el.style.top = (layer.y * bh - h / 2) + 'px';
+                layer.el.style.mixBlendMode = layer.patternPrepared
+                    ? (layer.blend || 'multiply')
+                    : 'normal';
             } else {
                 // layer.tile = CSS size of one *original* period. Scale CSS period
                 // by (periodW/srcW) so motif pixel size stays constant when denser.
@@ -1933,7 +1965,7 @@
         if (colorResetBtn) {
             colorResetBtn.addEventListener('click', function () {
                 var layer = activeLayer();
-                if (!layer || layer.mode !== 'allover') return;
+                if (!layer || !layer.patternPrepared) return;
                 var source = layer.recolorSource || layer.working || layer.original;
                 if (!source) return;
                 if (layer.colorSlots) {
@@ -1946,7 +1978,7 @@
                 setLayerImage(layer, source, function () {
                     layer.working = source;
                     layer.recolorSource = source;
-                    showStatus('חזרה לצבע המקורי של הפאטרן.', false);
+                    showStatus('חזרה לצבע המקורי של הפרינט.', false);
                 }, { keepRecolorSource: true });
             });
         }
@@ -2453,36 +2485,65 @@
             return palette;
         }
 
-        // When switching to all-over, knock out the pattern's solid background
-        // once so the print sits on the garment color.
-        function prepareAlloverPattern(layer) {
-            applyTransform(layer);
-            syncTools();
-            renderLayersPanel();
-            if (layer.patternPrepared) return;
+        /**
+         * Knock out solid background from a layer image (all-over or focused).
+         * opts.manual: focused user click — allow retry on failure.
+         */
+        function knockOutLayerBackground(layer, opts) {
+            opts = opts || {};
+            var manual = !!opts.manual;
+            if (!layer) return;
+            if (layer.patternPrepared && !opts.force) return;
+
+            var sourceUrl = layer.working || layer.current;
+            if (!sourceUrl) return;
+            if (manual) {
+                layer.preKnockoutUrl = sourceUrl;
+            }
+
             layer.patternPrepared = true;
-            showStatus('מזהה רקע הפאטרן...', false);
-            dataUrlToCanvas(layer.working, 2500, function (canvas) {
+            if (removeBgBtn) removeBgBtn.disabled = true;
+            showStatus(manual ? 'מזהה רקע הפרינט...' : 'מזהה רקע הפאטרן...', false);
+
+            function failPrep(msg) {
+                if (manual) {
+                    layer.patternPrepared = false;
+                    layer.preKnockoutUrl = null;
+                    if (removeBgBtn) removeBgBtn.disabled = false;
+                }
+                applyTransform(layer);
+                syncTools();
+                showStatus(msg, false);
+            }
+
+            dataUrlToCanvas(sourceUrl, 2500, function (canvas) {
                 var ctx = canvas.getContext('2d');
                 var W = canvas.width;
                 var H = canvas.height;
                 var imageData = ctx.getImageData(0, 0, W, H);
                 if (borderMostlyTransparent(imageData, W, H)) {
                     layer.blend = chooseBlendFromImageData(imageData);
-                    layer.recolorSource = layer.working || layer.current;
+                    layer.recolorSource = sourceUrl;
                     layer.colorSlots = null;
-                    // No plate detected here — only solid remaining ink becomes slots.
                     applyTransform(layer);
                     ensureColorSlots(layer, function () {
-                        showStatus('', false);
-                        statusEl.hidden = true;
+                        syncTools();
+                        if (manual) {
+                            showStatus('הרקע כבר שקוף. אפשר לשנות צבעי מוטיבים.', false);
+                        } else {
+                            showStatus('', false);
+                            statusEl.hidden = true;
+                        }
                     });
                     return;
                 }
                 var palette = knockOutPatternPlate(imageData, W, H);
                 if (!palette) {
-                    applyTransform(layer);
-                    showStatus('לא זוהה רקע אחיד — הפאטרן נשאר כמו שהועלה.', false);
+                    failPrep(
+                        manual
+                            ? 'לא זוהה רקע אחיד — אפשר לנסות שוב או להשאיר כמו שהועלה.'
+                            : 'לא זוהה רקע אחיד — הפאטרן נשאר כמו שהועלה.'
+                    );
                     return;
                 }
                 layer.plateLab = palette.bgLab;
@@ -2490,8 +2551,11 @@
                 // Sparse motifs (leaves on white) can be ~0.5–1% of the tile.
                 if (kept < 0.004 || kept > 0.92) {
                     layer.plateLab = null;
-                    applyTransform(layer);
-                    showStatus('הרקע לא הוסר אוטומטית — הפאטרן נשאר כמו שהועלה.', false);
+                    failPrep(
+                        manual
+                            ? 'הרקע לא הוסר — אפשר לנסות שוב או להשאיר כמו שהועלה.'
+                            : 'הרקע לא הוסר אוטומטית — הפאטרן נשאר כמו שהועלה.'
+                    );
                     return;
                 }
                 ctx.putImageData(imageData, 0, 0);
@@ -2502,17 +2566,60 @@
                 layer.colorSlots = null;
                 setLayerImage(layer, resultUrl, function () {
                     ensureColorSlots(layer, function () {
+                        syncTools();
                         var multi = layer.colorSlots && layer.colorSlots.length > 1;
+                        var label = manual ? 'הפרינט' : 'הפאטרן';
                         showStatus(
                             multi
-                                ? 'רקע הפאטרן הוסר. זוהו ' + layer.colorSlots.length + ' צבעי מוטיב — אפשר לשנות כל אחד בנפרד.'
+                                ? 'רקע ' + label + ' הוסר. זוהו ' + layer.colorSlots.length + ' צבעי מוטיב — אפשר לשנות כל אחד בנפרד.'
                                 : (layer.blend === 'normal'
-                                    ? 'רקע הפאטרן הוסר. הפרינט הבהיר יוצג על צבע הבגד.'
-                                    : 'רקע הפאטרן הוסר. הפרינט הכהה מתמזג עם הבגד.'),
+                                    ? 'רקע ' + label + ' הוסר. הפרינט הבהיר יוצג על צבע הבגד.'
+                                    : 'רקע ' + label + ' הוסר. הפרינט הכהה מתמזג עם הבגד.'),
                             false
                         );
                     });
                 }, { keepRecolorSource: true });
+            });
+        }
+
+        // When switching to all-over, knock out the pattern's solid background
+        // once so the print sits on the garment color.
+        function prepareAlloverPattern(layer) {
+            applyTransform(layer);
+            syncTools();
+            renderLayersPanel();
+            knockOutLayerBackground(layer, { manual: false });
+        }
+
+        function restoreFocusedBackground(layer) {
+            if (!layer || layer.mode !== 'focused') return;
+            var source = layer.preKnockoutUrl || layer.original;
+            if (!source) return;
+            layer.patternPrepared = false;
+            layer.preKnockoutUrl = null;
+            layer.plateLab = null;
+            layer.colorSlots = null;
+            layer.recolorSource = null;
+            layer.blend = 'normal';
+            layer.working = source;
+            setLayerImage(layer, source, function () {
+                syncTools();
+                showStatus('התמונה המקורית הוחזרה.', false);
+            });
+        }
+
+        if (removeBgBtn) {
+            removeBgBtn.addEventListener('click', function () {
+                var layer = activeLayer();
+                if (!layer || layer.mode !== 'focused') return;
+                knockOutLayerBackground(layer, { manual: true });
+            });
+        }
+        if (restoreBgBtn) {
+            restoreBgBtn.addEventListener('click', function () {
+                var layer = activeLayer();
+                if (!layer) return;
+                restoreFocusedBackground(layer);
             });
         }
 
