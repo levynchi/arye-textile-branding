@@ -1807,8 +1807,24 @@ body.molly-body {
     color: #fff;
 }
 
-body.molly-fill-bucket-on .molly-mockup-stage .molly-mockup-layer {
+.molly-fill-bucket-modal {
+    max-width: min(96vw, 900px);
+}
+
+.molly-fill-bucket-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.molly-fill-bucket-area {
     cursor: cell;
+}
+
+.molly-fill-bucket-area img {
+    max-width: min(92vw, 820px);
+    max-height: min(68vh, 68dvh);
 }
 
 /* Crop modal */
@@ -2769,6 +2785,11 @@ body.molly-share-body {
     .molly-crop-area img {
         max-width: 100%;
         max-height: min(52dvh, 52vh);
+    }
+
+    .molly-fill-bucket-area img {
+        max-width: 100%;
+        max-height: min(62dvh, 62vh);
     }
 
     .molly-crop-handle {

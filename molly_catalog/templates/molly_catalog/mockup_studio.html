@@ -132,7 +132,7 @@
                             <button type="button" class="molly-mockup-tool-btn" id="mockup-restore-bg-btn" hidden>החזר תמונה מקורית</button>
                         </div>
                         <p class="molly-mockup-hint" id="mockup-crop-hint">חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן).</p>
-                        <p class="molly-mockup-hint" id="mockup-fill-hint" hidden>בחרי צבע בפלטה, הפעילי דלי מילוי, ולחצי בתוך אזור שקוף סגור (למשל פנים הזנב).</p>
+                        <p class="molly-mockup-hint" id="mockup-fill-hint" hidden>דלי מילוי פותח תצוגה מוגדלת — בחרי צבע ולחצי בתוך אזורים שקופים סגורים.</p>
                         <p class="molly-mockup-hint" id="mockup-mode-hint">גררי את התמונה כדי למקם אותה על הבגד.</p>
                     </div>
                     </div>
@@ -217,6 +217,38 @@
             <p class="molly-mockup-empty" id="mockup-gallery-empty" {% if saved_mockups %}hidden{% endif %}>עוד לא נשמרו הדמיות.</p>
         </section>
     </main>
+
+    <!-- Fill-bucket modal (enlarged print for precise hole clicks) -->
+    <div class="molly-crop-overlay" id="fill-bucket-overlay" hidden>
+        <div class="molly-crop-modal molly-fill-bucket-modal">
+            <div class="molly-crop-title">דלי מילוי</div>
+            <p class="molly-mockup-hint">בחרי צבע ולחצי בתוך אזור שקוף סגור (למשל פנים הזנב). אפשר למלא כמה אזורים ואז לסיים.</p>
+            <div class="molly-fill-bucket-toolbar">
+                <div class="molly-mockup-swatches" id="fill-bucket-swatches" role="listbox" aria-label="צבע למילוי">
+                    <button type="button" class="molly-mockup-swatch" data-hex="#fafafa" title="לבן" style="background:#fafafa"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#212121" title="שחור" style="background:#212121"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#e53935" title="אדום" style="background:#e53935"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#f4a0c0" title="ורוד" style="background:#f4a0c0"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#fb8c00" title="כתום" style="background:#fb8c00"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#fdd835" title="צהוב" style="background:#fdd835"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#43a047" title="ירוק" style="background:#43a047"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#1e88e5" title="כחול" style="background:#1e88e5"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#8e24aa" title="סגול" style="background:#8e24aa"></button>
+                    <button type="button" class="molly-mockup-swatch" data-hex="#8d6e63" title="חום" style="background:#8d6e63"></button>
+                </div>
+                <label class="molly-mockup-custom-color" for="fill-bucket-color-input">
+                    <span>בחירה חופשית</span>
+                    <input type="color" id="fill-bucket-color-input" value="#ffffff">
+                </label>
+            </div>
+            <div class="molly-crop-area molly-fill-bucket-area" id="fill-bucket-area">
+                <img id="fill-bucket-img" src="" alt="פרינט למילוי" draggable="false">
+            </div>
+            <div class="molly-crop-actions">
+                <button type="button" class="molly-button" id="fill-bucket-done-btn">סיום</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Crop modal -->
     <div class="molly-crop-overlay" id="crop-overlay" hidden>
@@ -369,9 +401,16 @@
         var toolsCropHint = document.getElementById('mockup-crop-hint');
         var fillBucketBtn = document.getElementById('mockup-fill-bucket-btn');
         var fillHint = document.getElementById('mockup-fill-hint');
+        var fillBucketOverlay = document.getElementById('fill-bucket-overlay');
+        var fillBucketImg = document.getElementById('fill-bucket-img');
+        var fillBucketArea = document.getElementById('fill-bucket-area');
+        var fillBucketSwatches = document.getElementById('fill-bucket-swatches');
+        var fillBucketColorInput = document.getElementById('fill-bucket-color-input');
+        var fillBucketDoneBtn = document.getElementById('fill-bucket-done-btn');
         var removeBgBtn = document.getElementById('mockup-remove-bg-btn');
         var fillBucketActive = false;
         var fillBucketColor = '#ffffff';
+        var fillBucketLayerId = null;
         var FILL_ALPHA_THRESHOLD = 40;
         var restoreBgBtn = document.getElementById('mockup-restore-bg-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
@@ -1209,7 +1248,7 @@
             if (fillBucketBtn) {
                 fillBucketBtn.hidden = !(focused && prepared);
                 fillBucketBtn.disabled = !(focused && prepared);
-                if (!(focused && prepared) && fillBucketActive) setFillBucketActive(false);
+                if (!(focused && prepared) && fillBucketActive) closeFillBucketModal();
             }
             if (fillHint) {
                 fillHint.hidden = !(focused && prepared);
@@ -1226,56 +1265,104 @@
             if (densityValueLabel) densityValueLabel.textContent = densityLabelText(spacing);
             modeHint.textContent = allover
                 ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים. אפשר לשנות כל צבע מוטיב בנפרד.'
-                : (fillBucketActive
-                    ? 'דלי מילוי פעיל — בחרי צבע ולחצי בתוך אזור שקוף סגור על השכבה.'
-                    : (layer.positionLocked
-                        ? 'שכבה נעולה במיקום — אפשר לשנות צבעים, בלי להזיז.'
-                        : (prepared
-                            ? 'גררי למקום על הבגד. אפשר לשנות צבעי מוטיבים, למלא חורים בדלי, או להחזיר את התמונה המקורית.'
-                            : 'גררי את התמונה כדי למקם אותה על הבגד. לחצי «העלם רקע» כדי להסיר רקע מהפרינט.')));
+                : (layer.positionLocked
+                    ? 'שכבה נעולה במיקום — אפשר לשנות צבעים, בלי להזיז.'
+                    : (prepared
+                        ? 'גררי למקום על הבגד. אפשר לשנות צבעי מוטיבים, למלא חורים בדלי, או להחזיר את התמונה המקורית.'
+                        : 'גררי את התמונה כדי למקם אותה על הבגד. לחצי «העלם רקע» כדי להסיר רקע מהפרינט.'));
             syncCmLabel();
         }
 
-        function setFillBucketActive(on) {
-            fillBucketActive = !!on;
-            if (fillBucketBtn) fillBucketBtn.classList.toggle('active', fillBucketActive);
-            document.body.classList.toggle('molly-fill-bucket-on', fillBucketActive);
-            if (fillBucketActive) {
-                if (customColorInput && customColorInput.value) {
-                    fillBucketColor = customColorInput.value;
-                }
-                showStatus('דלי מילוי פעיל — לחצי בתוך אזור שקוף סגור (למשל פנים הזנב).', false);
+        function markFillBucketSwatchActive(hex) {
+            if (!fillBucketSwatches) return;
+            var buttons = fillBucketSwatches.querySelectorAll('.molly-mockup-swatch');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].classList.toggle(
+                    'active',
+                    (buttons[i].getAttribute('data-hex') || '').toLowerCase() === (hex || '').toLowerCase()
+                );
             }
-            syncTools();
         }
 
-        function paintEnclosedHoleOnLayer(layer, clientX, clientY) {
-            if (!layer || !layer.el || layer.mode === 'allover') return;
-            var el = layer.el;
-            var rect = el.getBoundingClientRect();
-            if (!rect.width || !rect.height || !el.naturalWidth || !el.naturalHeight) {
-                showStatus('השכבה עדיין לא מוכנה למילוי.', true);
+        function setFillBucketColor(hex) {
+            fillBucketColor = hex || '#ffffff';
+            if (fillBucketColorInput && fillBucketColor.length === 7) {
+                fillBucketColorInput.value = fillBucketColor;
+            }
+            markFillBucketSwatchActive(fillBucketColor);
+        }
+
+        function closeFillBucketModal() {
+            fillBucketActive = false;
+            fillBucketLayerId = null;
+            if (fillBucketBtn) fillBucketBtn.classList.remove('active');
+            if (fillBucketOverlay) fillBucketOverlay.hidden = true;
+            if (fillBucketImg) {
+                fillBucketImg.removeAttribute('src');
+                fillBucketImg.alt = '';
+            }
+        }
+
+        function openFillBucketModal() {
+            var layer = activeLayer();
+            if (!layer || layer.mode === 'allover' || !layer.patternPrepared) {
+                showStatus('הסירי רקע מהשכבה לפני שימוש בדלי מילוי.', true);
                 return;
             }
-            var dispX = clientX - rect.left;
-            var dispY = clientY - rect.top;
-            if (dispX < 0 || dispY < 0 || dispX > rect.width || dispY > rect.height) {
-                showStatus('לחצי על השכבה עצמה כדי למלא.', true);
-                return;
+            fillBucketActive = true;
+            fillBucketLayerId = layer.id;
+            if (fillBucketBtn) fillBucketBtn.classList.add('active');
+            setFillBucketColor(
+                fillBucketColor
+                || (customColorInput && customColorInput.value)
+                || '#ffffff'
+            );
+            if (fillBucketImg) {
+                fillBucketImg.onload = function () {
+                    fillBucketImg.onload = null;
+                    if (fillBucketOverlay) fillBucketOverlay.hidden = false;
+                };
+                fillBucketImg.alt = layer.name || 'פרינט למילוי';
+                fillBucketImg.src = layer.current;
+                if (fillBucketImg.complete && fillBucketImg.naturalWidth) {
+                    if (fillBucketOverlay) fillBucketOverlay.hidden = false;
+                }
+            } else if (fillBucketOverlay) {
+                fillBucketOverlay.hidden = false;
             }
-            var natW = el.naturalWidth;
-            var natH = el.naturalHeight;
-            var sx = (dispX / rect.width) * natW;
-            var sy = (dispY / rect.height) * natH;
-            var hex = fillBucketColor || (customColorInput && customColorInput.value) || '#ffffff';
+            showStatus('לחצי בתוך אזור שקוף סגור בתמונה המוגדלת.', false);
+        }
+
+        function getFillBucketLayer() {
+            if (fillBucketLayerId == null) return activeLayer();
+            for (var i = 0; i < layers.length; i++) {
+                if (layers[i].id === fillBucketLayerId) return layers[i];
+            }
+            return activeLayer();
+        }
+
+        function paintEnclosedHoleOnLayerAtNatural(layer, sx, sy) {
+            if (!layer || layer.mode === 'allover') return;
+            var hex = fillBucketColor || (fillBucketColorInput && fillBucketColorInput.value) || '#ffffff';
             var rgb = hexToRgb(hex);
             if (!rgb) {
                 showStatus('צבע לא תקין למילוי.', true);
                 return;
             }
+            var srcUrl = layer.current;
+            if (!srcUrl) {
+                showStatus('השכבה עדיין לא מוכנה למילוי.', true);
+                return;
+            }
 
             var img = new Image();
             img.onload = function () {
+                var natW = img.naturalWidth || img.width;
+                var natH = img.naturalHeight || img.height;
+                if (!natW || !natH) {
+                    showStatus('השכבה עדיין לא מוכנה למילוי.', true);
+                    return;
+                }
                 var canvas = document.createElement('canvas');
                 canvas.width = natW;
                 canvas.height = natH;
@@ -1310,19 +1397,42 @@
                 layer.working = url;
                 layer.recolorSource = url;
                 layer.patternPrepared = true;
-                // Light fills must stay visible on fabric.
                 layer.blend = 'normal';
                 setLayerImage(layer, url, function () {
+                    if (fillBucketImg && fillBucketActive) {
+                        fillBucketImg.src = url;
+                    }
                     ensureColorSlots(layer, function () {
                         syncTools();
-                        showStatus('האזור מולא בצבע שנבחר.', false);
+                        showStatus('האזור מולא — אפשר למלא עוד או ללחוץ סיום.', false);
                     });
                 }, { keepRecolorSource: true });
             };
             img.onerror = function () {
                 showStatus('שגיאה בטעינת השכבה למילוי.', true);
             };
-            img.src = layer.current;
+            img.src = srcUrl;
+        }
+
+        function paintEnclosedHoleFromDisplayEl(layer, displayEl, clientX, clientY) {
+            if (!layer || !displayEl) return;
+            var rect = displayEl.getBoundingClientRect();
+            if (!rect.width || !rect.height) {
+                showStatus('התמונה עדיין לא מוכנה למילוי.', true);
+                return;
+            }
+            var dispX = clientX - rect.left;
+            var dispY = clientY - rect.top;
+            if (dispX < 0 || dispY < 0 || dispX > rect.width || dispY > rect.height) return;
+            var natW = displayEl.naturalWidth || 0;
+            var natH = displayEl.naturalHeight || 0;
+            if (!natW || !natH) {
+                showStatus('התמונה עדיין לא מוכנה למילוי.', true);
+                return;
+            }
+            var sx = (dispX / rect.width) * natW;
+            var sy = (dispY / rect.height) * natH;
+            paintEnclosedHoleOnLayerAtNatural(layer, sx, sy);
         }
 
         function formatCm(n) {
@@ -2149,17 +2259,13 @@
             layer.el.addEventListener('pointerdown', function (e) {
                 e.preventDefault();
                 selectLayer(layer.id);
-                if (fillBucketActive) {
-                    paintEnclosedHoleOnLayer(layer, e.clientX, e.clientY);
-                    return;
-                }
                 if (layer.positionLocked) return;
                 layer.el.setPointerCapture(e.pointerId);
                 dragging = { startX: e.clientX, startY: e.clientY, origX: layer.x, origY: layer.y };
                 layer.el.classList.add('dragging');
             });
             layer.el.addEventListener('pointermove', function (e) {
-                if (!dragging || layer.positionLocked || fillBucketActive) return;
+                if (!dragging || layer.positionLocked) return;
                 var bw = baseImg.clientWidth;
                 var bh = baseImg.clientHeight;
                 if (!bw || !bh) return;
@@ -2453,17 +2559,7 @@
             colorSwatches.addEventListener('click', function (e) {
                 var btn = e.target.closest('.molly-mockup-swatch');
                 if (!btn) return;
-                var hex = btn.getAttribute('data-hex');
-                if (fillBucketActive) {
-                    fillBucketColor = hex || '#ffffff';
-                    if (customColorInput && fillBucketColor.length === 7) {
-                        customColorInput.value = fillBucketColor;
-                    }
-                    markSwatchActive(fillBucketColor);
-                    showStatus('צבע הדלי: ' + fillBucketColor + ' — לחצי על אזור סגור בשכבה.', false);
-                    return;
-                }
-                applyMotifColor(hex);
+                applyMotifColor(btn.getAttribute('data-hex'));
             });
         }
         var customColorTimer = null;
@@ -2471,24 +2567,55 @@
             customColorInput.addEventListener('input', function () {
                 if (customColorTimer) clearTimeout(customColorTimer);
                 customColorTimer = setTimeout(function () {
-                    if (fillBucketActive) {
-                        fillBucketColor = customColorInput.value || '#ffffff';
-                        markSwatchActive(fillBucketColor);
-                        showStatus('צבע הדלי עודכן — לחצי על אזור סגור בשכבה.', false);
-                        return;
-                    }
                     applyMotifColor(customColorInput.value);
                 }, 80);
             });
         }
         if (fillBucketBtn) {
             fillBucketBtn.addEventListener('click', function () {
-                var layer = activeLayer();
-                if (!layer || layer.mode === 'allover' || !layer.patternPrepared) {
-                    showStatus('הסירי רקע מהשכבה לפני שימוש בדלי מילוי.', true);
-                    return;
-                }
-                setFillBucketActive(!fillBucketActive);
+                openFillBucketModal();
+            });
+        }
+        if (fillBucketSwatches) {
+            fillBucketSwatches.addEventListener('click', function (e) {
+                var btn = e.target.closest('.molly-mockup-swatch');
+                if (!btn) return;
+                setFillBucketColor(btn.getAttribute('data-hex') || '#ffffff');
+                showStatus('צבע הדלי עודכן — לחצי בתוך אזור סגור.', false);
+            });
+        }
+        if (fillBucketColorInput) {
+            fillBucketColorInput.addEventListener('input', function () {
+                setFillBucketColor(fillBucketColorInput.value || '#ffffff');
+            });
+        }
+        if (fillBucketDoneBtn) {
+            fillBucketDoneBtn.addEventListener('click', function () {
+                closeFillBucketModal();
+                showStatus('סיום מילוי.', false);
+            });
+        }
+        if (fillBucketOverlay) {
+            fillBucketOverlay.addEventListener('click', function (e) {
+                if (e.target === fillBucketOverlay) closeFillBucketModal();
+            });
+        }
+        if (fillBucketImg) {
+            fillBucketImg.addEventListener('pointerdown', function (e) {
+                if (!fillBucketActive) return;
+                e.preventDefault();
+                var layer = getFillBucketLayer();
+                if (!layer) return;
+                paintEnclosedHoleFromDisplayEl(layer, fillBucketImg, e.clientX, e.clientY);
+            });
+        }
+        if (fillBucketArea && fillBucketImg) {
+            fillBucketArea.addEventListener('pointerdown', function (e) {
+                if (!fillBucketActive || e.target === fillBucketImg) return;
+                e.preventDefault();
+                var layer = getFillBucketLayer();
+                if (!layer) return;
+                paintEnclosedHoleFromDisplayEl(layer, fillBucketImg, e.clientX, e.clientY);
             });
         }
         if (colorResetBtn) {
@@ -3354,7 +3481,7 @@
         function openCropModal() {
             var layer = activeLayer();
             if (!layer) return;
-            if (fillBucketActive) setFillBucketActive(false);
+            if (fillBucketActive) closeFillBucketModal();
             // תמיד יוצרים אלמנט בודד — לא פאטרן אול-אובר מהחיתוך
             cropMode = 'extract';
             cropSourceLayerId = layer.id;
