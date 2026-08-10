@@ -1520,16 +1520,17 @@ body.molly-body {
     touch-action: none;
     user-select: none;
     -webkit-user-drag: none;
-    outline: 1px dashed rgba(0, 0, 0, 0.2);
-    outline-offset: 2px;
+    outline: none;
 }
 
 .molly-mockup-stage .molly-mockup-layer.active {
     outline: 2px dashed var(--molly-accent-dark);
+    outline-offset: 2px;
 }
 
 .molly-mockup-stage .molly-mockup-layer.dragging {
-    outline-color: var(--molly-primary-dark);
+    outline: 2px dashed var(--molly-primary-dark);
+    outline-offset: 2px;
 }
 
 /* All-over pattern overlay — blend mode set in JS (multiply for dark ink, normal for light) */
@@ -1538,16 +1539,17 @@ body.molly-body {
     cursor: move;
     touch-action: none;
     user-select: none;
-    outline: 1px dashed rgba(0, 0, 0, 0.2);
-    outline-offset: -1px;
+    outline: none;
 }
 
 .molly-mockup-stage .molly-mockup-pattern.active {
     outline: 2px dashed var(--molly-accent-dark);
+    outline-offset: -1px;
 }
 
 .molly-mockup-stage .molly-mockup-pattern.dragging {
-    outline-color: var(--molly-primary-dark);
+    outline: 2px dashed var(--molly-primary-dark);
+    outline-offset: -1px;
 }
 
 .molly-mockup-controls {
