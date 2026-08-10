@@ -4788,8 +4788,12 @@
 
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') closeAllSheets();
-                var key = e.key || '';
-                var isUndo = (key === 'z' || key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey;
+                // Use e.code (physical KeyZ) so Ctrl+Z works on Hebrew layout too
+                // (e.key becomes ז / etc. when the OS keyboard is Hebrew).
+                var isUndo = (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z')
+                    && (e.ctrlKey || e.metaKey)
+                    && !e.shiftKey
+                    && !e.altKey;
                 if (!isUndo) return;
                 var t = e.target;
                 if (t) {
