@@ -1172,7 +1172,13 @@
                     name.textContent = layer.name || 'שכבה';
                     btn.appendChild(img);
                     btn.appendChild(name);
-                    btn.addEventListener('click', function () { selectLayer(layer.id); });
+                    btn.addEventListener('click', function () {
+                        selectLayer(layer.id);
+                        if (typeof window.__mollyOpenMockupSheet === 'function'
+                            && window.matchMedia('(max-width: 900px)').matches) {
+                            window.__mollyOpenMockupSheet('tools');
+                        }
+                    });
                     strip.appendChild(btn);
                 })(layers[i]);
             }
@@ -3796,6 +3802,31 @@
                 document.body.classList.remove('molly-mockup-sheet-open');
             }
 
+            function ensureToolsSheetContent() {
+                if (!toolsSheetBody) return;
+                var emptyHint = toolsSheetBody.querySelector('.molly-mockup-sheet-empty');
+                var layer = activeLayer();
+                if (!layer && layers.length) {
+                    selectLayer(layers[layers.length - 1].id);
+                    layer = activeLayer();
+                }
+                if (layer && layerTools) {
+                    layerTools.hidden = false;
+                    syncTools();
+                    if (emptyHint) emptyHint.hidden = true;
+                } else if (layerTools) {
+                    layerTools.hidden = true;
+                    if (!emptyHint) {
+                        emptyHint = document.createElement('p');
+                        emptyHint.className = 'molly-mockup-sheet-empty';
+                        emptyHint.textContent = 'הוסיפי שכבה קודם — ואז אפשר לשנות גודל, צבעים וצפיפות.';
+                        toolsSheetBody.appendChild(emptyHint);
+                    }
+                    emptyHint.hidden = false;
+                }
+                toolsSheetBody.scrollTop = 0;
+            }
+
             function openSheet(name) {
                 if (!isMobileEditor()) return;
                 parkMobilePanels();
@@ -3803,6 +3834,15 @@
                     if (sheets[key]) sheets[key].hidden = key !== name;
                 });
                 document.body.classList.toggle('molly-mockup-sheet-open', !!sheets[name]);
+                if (name === 'tools') {
+                    ensureToolsSheetContent();
+                }
+                if (name === 'layers' && layersSheetBody) {
+                    layersSheetBody.scrollTop = 0;
+                }
+                if (name === 'save' && saveSheetBody) {
+                    saveSheetBody.scrollTop = 0;
+                }
             }
 
             function syncMobileEditorChrome() {
@@ -3907,8 +3947,8 @@
             parkMobilePanels();
             renderMobileLayerStrip();
 
-            // Expose for selectLayer refresh of strip active state (already via renderLayersPanel)
             window.__mollyCloseMockupSheets = closeAllSheets;
+            window.__mollyOpenMockupSheet = openSheet;
         })();
     })();
     </script>

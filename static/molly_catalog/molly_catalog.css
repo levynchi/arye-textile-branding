@@ -2224,7 +2224,7 @@ body.molly-body {
 .molly-mockup-sheet {
     width: 100%;
     max-width: 560px;
-    max-height: min(75dvh, 75vh);
+    max-height: min(92dvh, 92vh);
     background: var(--molly-card-bg);
     border-radius: 16px 16px 0 0;
     box-shadow: var(--molly-shadow-hover);
@@ -2268,8 +2268,24 @@ body.molly-body {
 .molly-mockup-sheet-body {
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 14px 16px 20px;
+    overscroll-behavior: contain;
+    padding: 14px 16px calc(20px + env(safe-area-inset-bottom, 0));
     flex: 1 1 auto;
+    min-height: 0;
+}
+
+.molly-mockup-sheet-body .molly-mockup-control input[type="range"] {
+    touch-action: pan-y;
+    min-height: 44px;
+}
+
+.molly-mockup-sheet-empty {
+    margin: 0;
+    padding: 24px 8px;
+    text-align: center;
+    color: var(--molly-text-soft);
+    font-weight: 600;
+    line-height: 1.45;
 }
 
 .molly-mockup-sheet-body .molly-mockup-panel {
