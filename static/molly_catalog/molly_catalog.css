@@ -2307,6 +2307,9 @@ body.molly-share-body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    transform: none;
     padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0));
     background: rgba(255, 255, 255, 0.96);
     border-top: 1px solid var(--molly-border);
@@ -2348,7 +2351,7 @@ body.molly-share-body {
 
 @media (min-width: 720px) {
     .molly-share-main {
-        padding: 20px 20px 160px;
+        padding: 20px 20px 28px;
     }
 
     .molly-share-title {
@@ -2356,11 +2359,33 @@ body.molly-share-body {
     }
 
     .molly-share-bar {
-        left: 50%;
+        position: static;
+        left: auto;
         right: auto;
-        transform: translateX(-50%);
-        width: min(720px, calc(100% - 32px));
-        border-radius: 16px 16px 0 0;
+        bottom: auto;
+        z-index: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: stretch;
+        width: 100%;
+        max-width: 720px;
+        margin: 0 auto;
+        transform: none;
+        padding: 0 20px 28px;
+        background: transparent;
+        border-top: none;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    .molly-share-btn {
+        flex: 1 1 0;
+        width: auto !important;
+        min-width: 0;
+    }
+
+    .molly-share-note {
+        flex: 1 1 100%;
     }
 }
 

@@ -98,6 +98,7 @@
             gap: 8px;
             width: 100%;
             max-width: 100%;
+            transform: none;
             padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0));
             background: rgba(255,255,255,0.97);
             border-top: 1px solid #e2e2e2;
@@ -128,6 +129,40 @@
             color: #6b6b6b;
             font-weight: 600;
             font-size: 0.9rem;
+        }
+        @media (min-width: 720px) {
+            .molly-share-main {
+                padding: 20px 20px 28px;
+            }
+            .molly-share-title {
+                font-size: 1.7rem;
+            }
+            .molly-share-bar {
+                position: static;
+                left: auto;
+                right: auto;
+                bottom: auto;
+                z-index: auto;
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: stretch;
+                width: 100%;
+                max-width: 720px;
+                margin: 0 auto;
+                transform: none;
+                padding: 0 20px 28px;
+                background: transparent;
+                border-top: none;
+                box-shadow: none;
+            }
+            .molly-share-btn {
+                flex: 1 1 0;
+                width: auto !important;
+                min-width: 0;
+            }
+            .molly-share-note {
+                flex: 1 1 100%;
+            }
         }
     </style>
     <meta property="og:site_name" content="קטלוג מולי">
