@@ -41,9 +41,9 @@
         <section class="molly-mockup-section" id="mockup-upload-section" hidden>
             <h2 class="molly-mockup-step-title"><span class="molly-mockup-step-num">2</span> העלאת תמונות הדפסה</h2>
             <label class="molly-mockup-upload" id="mockup-upload-label">
-                <input type="file" id="mockup-print-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple hidden>
+                <input type="file" id="mockup-print-input" accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf,.pdf" multiple hidden>
                 <span class="molly-mockup-upload-icon">⬆</span>
-                <span id="mockup-upload-text">לחצי לבחירת קבצים (PNG / JPG / SVG) או גררי לכאן — אחרי כל קובץ תבחרי אם זו שכבת אול אובר או הדפס ממוקד.</span>
+                <span id="mockup-upload-text">לחצי לבחירת קבצים (PNG / JPG / SVG / PDF) או גררי לכאן — אחרי כל קובץ תבחרי אם זו שכבת אול אובר או הדפס ממוקד.</span>
             </label>
         </section>
 
@@ -284,12 +284,20 @@
     {% include 'molly_catalog/partials/footer.html' %}
 
     <script src="{% static 'molly_catalog/vendor/jspdf.umd.min.js' %}"></script>
+    <script src="{% static 'molly_catalog/vendor/pdf.min.js' %}"></script>
     <script>
     (function () {
         'use strict';
 
         var SAVE_URL = "{% url 'molly_catalog:mockup_save' %}";
         var csrf = (document.querySelector('#mockup-csrf [name=csrfmiddlewaretoken]') || {}).value || '';
+        var PDF_WORKER_SRC = "{% static 'molly_catalog/vendor/pdf.worker.min.js' %}";
+        var PDF_MAX_PAGES = 8;
+        var PDF_RENDER_SCALE = 2.5;
+
+        if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
+        }
 
         var uploadSection = document.getElementById('mockup-upload-section');
         var editorSection = document.getElementById('mockup-editor-section');
@@ -411,7 +419,7 @@
             return null;
         }
 
-        var DEFAULT_UPLOAD_HINT = 'לחצי לבחירת קבצים (PNG / JPG / SVG) או גררי לכאן — אחרי כל קובץ תבחרי אם זו שכבת אול אובר או הדפס ממוקד.';
+        var DEFAULT_UPLOAD_HINT = 'לחצי לבחירת קבצים (PNG / JPG / SVG / PDF) או גררי לכאן — אחרי כל קובץ תבחרי אם זו שכבת אול אובר או הדפס ממוקד.';
 
         var layerModeOverlay = document.getElementById('layer-mode-overlay');
         var layerModeFilename = document.getElementById('layer-mode-filename');
@@ -539,33 +547,125 @@
             showStatus('העלאת הקובץ בוטלה.', false);
         }
 
+        function isPdfFile(file) {
+            if (!file) return false;
+            if (file.type === 'application/pdf') return true;
+            return /\.pdf$/i.test(file.name || '');
+        }
+
+        function isImageFile(file) {
+            return !!(file && file.type && /^image\//.test(file.type));
+        }
+
+        function getPdfLib() {
+            return window.pdfjsLib || null;
+        }
+
+        function pdfFileToDataUrls(file) {
+            var pdfjs = getPdfLib();
+            if (!pdfjs || typeof pdfjs.getDocument !== 'function') {
+                return Promise.reject(new Error('pdfjs-missing'));
+            }
+            return file.arrayBuffer().then(function (buffer) {
+                var loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+                return loadingTask.promise.then(function (pdf) {
+                    var total = pdf.numPages || 0;
+                    var pageCount = Math.min(total, PDF_MAX_PAGES);
+                    var pages = [];
+                    var chain = Promise.resolve();
+                    for (var i = 1; i <= pageCount; i++) {
+                        (function (pageNum) {
+                            chain = chain.then(function () {
+                                return pdf.getPage(pageNum).then(function (page) {
+                                    var viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+                                    var canvas = document.createElement('canvas');
+                                    canvas.width = Math.max(1, Math.floor(viewport.width));
+                                    canvas.height = Math.max(1, Math.floor(viewport.height));
+                                    var ctx = canvas.getContext('2d');
+                                    return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+                                        var label = file.name || 'PDF';
+                                        if (total > 1) {
+                                            label = label + ' — עמוד ' + pageNum;
+                                        }
+                                        pages.push({
+                                            dataUrl: canvas.toDataURL('image/png'),
+                                            name: label
+                                        });
+                                    });
+                                });
+                            });
+                        })(i);
+                    }
+                    return chain.then(function () {
+                        return { pages: pages, total: total, loaded: pageCount };
+                    });
+                });
+            });
+        }
+
         function addFiles(fileList) {
             if (!state.productId) {
                 showStatus('בחרי קודם מוצר.', true);
                 return;
             }
             var files = Array.prototype.slice.call(fileList || []);
-            var imageFiles = files.filter(function (file) {
-                if (!file.type.match(/^image\//)) {
-                    showStatus('הקובץ ' + file.name + ' אינו תמונה', true);
-                    return false;
+            var accepted = [];
+            files.forEach(function (file) {
+                if (isImageFile(file) || isPdfFile(file)) {
+                    accepted.push(file);
+                } else {
+                    showStatus('הקובץ ' + file.name + ' אינו תמונה או PDF', true);
                 }
-                return true;
             });
-            if (!imageFiles.length) return;
+            if (!accepted.length) return;
 
-            var remaining = imageFiles.length;
-            imageFiles.forEach(function (file) {
+            var remaining = accepted.length;
+
+            function finishOne() {
+                remaining -= 1;
+                if (remaining === 0) processNextModePick();
+            }
+
+            accepted.forEach(function (file) {
+                if (isPdfFile(file)) {
+                    showStatus('טוענת PDF: ' + file.name + '...', false);
+                    pdfFileToDataUrls(file).then(function (result) {
+                        result.pages.forEach(function (item) {
+                            pendingModeQueue.push(item);
+                        });
+                        if (result.total > result.loaded) {
+                            showStatus(
+                                'נטענו ' + result.loaded + ' מתוך ' + result.total +
+                                ' עמודים מ־' + file.name + ' (מקסימום ' + PDF_MAX_PAGES + ').',
+                                false
+                            );
+                        } else if (result.loaded > 1) {
+                            showStatus('נטענו ' + result.loaded + ' עמודים מ־' + file.name + '.', false);
+                        }
+                        finishOne();
+                    }).catch(function (err) {
+                        var msg = 'שגיאה בטעינת ה־PDF ' + file.name;
+                        if (err && err.name === 'PasswordException') {
+                            msg = 'ה־PDF ' + file.name + ' מוגן בסיסמה.';
+                        } else if (err && err.message === 'pdfjs-missing') {
+                            msg = 'ספריית ה־PDF לא נטענה. רענני את הדף ונסי שוב.';
+                        } else if (err && (err.name === 'InvalidPDFException' || err.name === 'MissingPDFException')) {
+                            msg = 'הקובץ ' + file.name + ' אינו PDF תקין.';
+                        }
+                        showStatus(msg, true);
+                        finishOne();
+                    });
+                    return;
+                }
+
                 var reader = new FileReader();
                 reader.onload = function () {
                     pendingModeQueue.push({ dataUrl: reader.result, name: file.name });
-                    remaining -= 1;
-                    if (remaining === 0) processNextModePick();
+                    finishOne();
                 };
                 reader.onerror = function () {
-                    remaining -= 1;
                     showStatus('שגיאה בקריאת הקובץ ' + file.name, true);
-                    if (remaining === 0) processNextModePick();
+                    finishOne();
                 };
                 reader.readAsDataURL(file);
             });
