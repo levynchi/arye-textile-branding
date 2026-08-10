@@ -2207,6 +2207,12 @@ body.molly-body {
 }
 
 /* Public share page — mobile-first landing for WhatsApp links */
+html:has(body.molly-share-body),
+body.molly-share-body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 body.molly-share-body {
     min-height: 100dvh;
     min-height: 100vh;
@@ -2256,6 +2262,8 @@ body.molly-share-body {
 }
 
 .molly-share-hero {
+    width: 100%;
+    max-width: 100%;
     background: #fff;
     border-radius: 14px;
     box-shadow: var(--molly-shadow);
@@ -2264,8 +2272,9 @@ body.molly-share-body {
 
 .molly-share-image {
     display: block;
-    width: 100%;
-    height: auto;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
     max-height: min(70dvh, 70vh);
     object-fit: contain;
     background: #fff;
