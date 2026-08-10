@@ -224,7 +224,8 @@
             <div class="molly-crop-shape-bar" id="crop-shape-bar" role="group" aria-label="צורת חיתוך">
                 <button type="button" class="molly-crop-shape-btn active" id="crop-shape-rect" data-shape="rect">ריבוע</button>
                 <button type="button" class="molly-crop-shape-btn" id="crop-shape-lasso" data-shape="lasso">לאסו</button>
-                <button type="button" class="molly-mockup-reset-link" id="crop-lasso-clear" hidden>נקה לאסו</button>
+                <button type="button" class="molly-crop-shape-btn" id="crop-shape-wand" data-shape="wand">שרביט</button>
+                <button type="button" class="molly-mockup-reset-link" id="crop-lasso-clear" hidden>נקה בחירה</button>
             </div>
             <div class="molly-crop-area" id="crop-area">
                 <img id="crop-img" src="" alt="" draggable="false">
@@ -884,6 +885,7 @@
                 preKnockoutUrl: opts.preKnockoutUrl || null,
                 recolorSource: opts.recolorSource || null,
                 plateLab: opts.plateLab || null,
+                positionLocked: !!opts.positionLocked,
                 colorSlots: opts.colorSlots
                     ? opts.colorSlots.map(function (s) {
                         return {
@@ -912,6 +914,7 @@
                 offsetX: opts.offsetX == null ? 0 : opts.offsetX,
                 offsetY: opts.offsetY == null ? 0 : opts.offsetY
             };
+            if (layer.positionLocked) el.classList.add('is-locked');
             el.onload = function () {
                 el.onload = null;
                 layers.push(layer);
@@ -948,6 +951,7 @@
             var dupMode = src.mode === 'allover' && !opts.forceFocused
                 ? 'allover'
                 : 'focused';
+            var locked = !!src.positionLocked;
             addLayerFromDataUrl(src.current, src.name + ' (עותק)', {
                 mode: dupMode,
                 original: src.original,
@@ -957,20 +961,30 @@
                 preKnockoutUrl: src.preKnockoutUrl || null,
                 recolorSource: src.recolorSource || null,
                 plateLab: src.plateLab || null,
+                positionLocked: locked,
                 colorSlots: src.colorSlots || null,
                 activeColorSlot: src.activeColorSlot == null ? 0 : src.activeColorSlot,
-                x: clamp((src.x == null ? 0.5 : src.x) + 0.07 * step, 0.05, 0.95),
-                y: clamp((src.y == null ? 0.45 : src.y) + 0.05 * step, 0.05, 0.95),
+                x: locked
+                    ? (src.x == null ? 0.5 : src.x)
+                    : clamp((src.x == null ? 0.5 : src.x) + 0.07 * step, 0.05, 0.95),
+                y: locked
+                    ? (src.y == null ? 0.45 : src.y)
+                    : clamp((src.y == null ? 0.45 : src.y) + 0.05 * step, 0.05, 0.95),
                 width: src.width,
                 tile: src.tile,
                 baseWidth: src.baseWidth == null ? src.width : src.baseWidth,
                 baseTile: src.baseTile == null ? src.tile : src.baseTile,
                 density: src.density,
-                offsetX: (src.offsetX || 0) + 0.04 * step,
-                offsetY: (src.offsetY || 0) + 0.04 * step,
+                offsetX: locked ? (src.offsetX || 0) : (src.offsetX || 0) + 0.04 * step,
+                offsetY: locked ? (src.offsetY || 0) : (src.offsetY || 0) + 0.04 * step,
                 skipScroll: true,
                 onReady: opts.onReady || function () {
-                    showStatus('השכבה שוכפלה — גררי אותה למקום הרצוי.', false);
+                    showStatus(
+                        locked
+                            ? 'השכבה שוכפלה (מיקום נעול).'
+                            : 'השכבה שוכפלה — גררי אותה למקום הרצוי.',
+                        false
+                    );
                 }
             });
         }
@@ -1197,9 +1211,11 @@
             if (densityValueLabel) densityValueLabel.textContent = densityLabelText(spacing);
             modeHint.textContent = allover
                 ? 'הפאטרן חוזר על כל הבגד. גררי להזזת היסט. צפיפות משנה מרווחים. אפשר לשנות כל צבע מוטיב בנפרד.'
-                : (prepared
-                    ? 'גררי למקום על הבגד. אפשר לשנות צבעי מוטיבים או להחזיר את התמונה המקורית.'
-                    : 'גררי את התמונה כדי למקם אותה על הבגד. לחצי «העלם רקע» כדי להסיר רקע מהפרינט.');
+                : (layer.positionLocked
+                    ? 'שכבה נעולה במיקום — אפשר לשנות צבעים, בלי להזיז.'
+                    : (prepared
+                        ? 'גררי למקום על הבגד. אפשר לשנות צבעי מוטיבים או להחזיר את התמונה המקורית.'
+                        : 'גררי את התמונה כדי למקם אותה על הבגד. לחצי «העלם רקע» כדי להסיר רקע מהפרינט.'));
             syncCmLabel();
         }
 
@@ -1371,6 +1387,7 @@
                                 baseTile: spec.baseTile,
                                 colorSlots: spec.colorSlots || null,
                                 activeColorSlot: spec.activeColorSlot,
+                                positionLocked: !!spec.positionLocked,
                                 // Saved bitmap is already final — don't re-run knockout.
                                 patternPrepared: true,
                                 recolorSource: dataUrl,
@@ -2026,12 +2043,13 @@
             layer.el.addEventListener('pointerdown', function (e) {
                 e.preventDefault();
                 selectLayer(layer.id);
+                if (layer.positionLocked) return;
                 layer.el.setPointerCapture(e.pointerId);
                 dragging = { startX: e.clientX, startY: e.clientY, origX: layer.x, origY: layer.y };
                 layer.el.classList.add('dragging');
             });
             layer.el.addEventListener('pointermove', function (e) {
-                if (!dragging) return;
+                if (!dragging || layer.positionLocked) return;
                 var bw = baseImg.clientWidth;
                 var bh = baseImg.clientHeight;
                 if (!bw || !bh) return;
@@ -3011,6 +3029,7 @@
         var cropLassoCanvas = document.getElementById('crop-lasso-canvas');
         var cropShapeRectBtn = document.getElementById('crop-shape-rect');
         var cropShapeLassoBtn = document.getElementById('crop-shape-lasso');
+        var cropShapeWandBtn = document.getElementById('crop-shape-wand');
         var cropLassoClearBtn = document.getElementById('crop-lasso-clear');
         var cropTitle = document.getElementById('crop-title');
         var cropHint = document.getElementById('crop-hint');
@@ -3018,16 +3037,24 @@
         var cropCancelBtn = document.getElementById('crop-cancel-btn');
         var crop = { x: 0, y: 0, w: 0, h: 0 };
         var cropMode = 'extract'; // תמיד אלמנט בודד (שכבה ממוקדת)
-        var cropShape = 'rect'; // 'rect' | 'lasso'
+        var cropShape = 'rect'; // 'rect' | 'lasso' | 'wand'
         var cropSourceLayerId = null;
         var lassoPoints = []; // display coords relative to cropImg
         var lassoDrawing = false;
+        var wandMask = null; // { mask, W, H, minX, minY, maxX, maxY, count }
+        var WAND_TOLERANCE = 32;
+
+        function usesOverlayCanvas() {
+            return cropShape === 'lasso' || cropShape === 'wand';
+        }
 
         function setCropHintForShape() {
             if (!cropHint) return;
             cropHint.hidden = false;
             if (cropShape === 'lasso') {
                 cropHint.textContent = 'ציירי קו חופשי סביב האלמנט — שחרור העכבר סוגר את הצורה. אפשר לנקות ולצייר שוב.';
+            } else if (cropShape === 'wand') {
+                cropHint.textContent = 'לחצי בתוך האזור לסמן אותו — למשל פנים הזנב. האזור יהפוך לשכבה נפרדת לצביעה (בלי הזזה).';
             } else {
                 cropHint.textContent = 'סמני אלמנט אחד — הוא יהפוך לשכבה נפרדת על הבגד (לא פאטרן חוזר). אחר כך אפשר לשכפל ולמקם כל עותק בנפרד.';
             }
@@ -3035,31 +3062,49 @@
 
         function syncCropShapeUi() {
             var isLasso = cropShape === 'lasso';
-            if (cropShapeRectBtn) cropShapeRectBtn.classList.toggle('active', !isLasso);
+            var isWand = cropShape === 'wand';
+            var overlay = usesOverlayCanvas();
+            if (cropShapeRectBtn) cropShapeRectBtn.classList.toggle('active', cropShape === 'rect');
             if (cropShapeLassoBtn) cropShapeLassoBtn.classList.toggle('active', isLasso);
-            if (cropArea) cropArea.classList.toggle('is-lasso', isLasso);
+            if (cropShapeWandBtn) cropShapeWandBtn.classList.toggle('active', isWand);
+            if (cropArea) {
+                cropArea.classList.toggle('is-lasso', isLasso);
+                cropArea.classList.toggle('is-wand', isWand);
+            }
             if (cropRect) {
-                cropRect.classList.toggle('is-lasso-hidden', isLasso);
-                cropRect.hidden = isLasso;
-                cropRect.style.display = isLasso ? 'none' : '';
-                cropRect.style.pointerEvents = isLasso ? 'none' : '';
+                cropRect.classList.toggle('is-lasso-hidden', overlay);
+                cropRect.hidden = overlay;
+                cropRect.style.display = overlay ? 'none' : '';
+                cropRect.style.pointerEvents = overlay ? 'none' : '';
             }
             if (cropLassoCanvas) {
-                cropLassoCanvas.hidden = !isLasso;
-                cropLassoCanvas.style.display = isLasso ? 'block' : 'none';
-                cropLassoCanvas.style.pointerEvents = isLasso ? 'auto' : 'none';
+                cropLassoCanvas.hidden = !overlay;
+                cropLassoCanvas.style.display = overlay ? 'block' : 'none';
+                cropLassoCanvas.style.pointerEvents = overlay ? 'auto' : 'none';
             }
-            if (cropLassoClearBtn) cropLassoClearBtn.hidden = !isLasso;
+            if (cropLassoClearBtn) {
+                cropLassoClearBtn.hidden = !overlay;
+                cropLassoClearBtn.textContent = isWand ? 'נקה בחירה' : 'נקה לאסו';
+            }
             setCropHintForShape();
-            if (isLasso) {
+            if (overlay) {
                 sizeLassoCanvas();
-                drawLassoPreview();
+                if (isWand) drawWandPreview();
+                else drawLassoPreview();
             }
         }
 
         function setCropShape(shape) {
-            cropShape = shape === 'lasso' ? 'lasso' : 'rect';
+            if (shape === 'lasso') cropShape = 'lasso';
+            else if (shape === 'wand') cropShape = 'wand';
+            else cropShape = 'rect';
             if (cropShape === 'rect') {
+                lassoPoints = [];
+                lassoDrawing = false;
+                wandMask = null;
+            } else if (cropShape === 'lasso') {
+                wandMask = null;
+            } else {
                 lassoPoints = [];
                 lassoDrawing = false;
             }
@@ -3069,7 +3114,9 @@
         function clearLasso() {
             lassoPoints = [];
             lassoDrawing = false;
-            drawLassoPreview();
+            wandMask = null;
+            if (cropShape === 'wand') drawWandPreview();
+            else drawLassoPreview();
         }
 
         function sizeLassoCanvas() {
@@ -3132,6 +3179,121 @@
             ctx.setLineDash([]);
         }
 
+        function floodSelectRegion(imageData, W, H, seedX, seedY, tolerance) {
+            var d = imageData.data;
+            seedX = clamp(Math.round(seedX), 0, W - 1);
+            seedY = clamp(Math.round(seedY), 0, H - 1);
+            var seedP = seedY * W + seedX;
+            var seedI = seedP * 4;
+            if (d[seedI + 3] < 8) return null;
+            var sr = d[seedI];
+            var sg = d[seedI + 1];
+            var sb = d[seedI + 2];
+            var thr = (tolerance == null ? WAND_TOLERANCE : tolerance) * 6;
+            var thr2 = thr * thr;
+            var mask = new Uint8Array(W * H);
+            var queue = [seedP];
+            var minX = seedX;
+            var minY = seedY;
+            var maxX = seedX;
+            var maxY = seedY;
+            var count = 0;
+            while (queue.length) {
+                var p = queue.pop();
+                if (mask[p]) continue;
+                var i4 = p * 4;
+                if (d[i4 + 3] < 8) continue;
+                var dr = d[i4] - sr;
+                var dg = d[i4 + 1] - sg;
+                var db = d[i4 + 2] - sb;
+                if (dr * dr + dg * dg + db * db > thr2) continue;
+                mask[p] = 1;
+                count += 1;
+                var px = p % W;
+                var py = (p - px) / W;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+                if (px > 0) queue.push(p - 1);
+                if (px < W - 1) queue.push(p + 1);
+                if (py > 0) queue.push(p - W);
+                if (py < H - 1) queue.push(p + W);
+            }
+            if (count < 4) return null;
+            return {
+                mask: mask,
+                W: W,
+                H: H,
+                minX: minX,
+                minY: minY,
+                maxX: maxX,
+                maxY: maxY,
+                count: count
+            };
+        }
+
+        function drawWandPreview() {
+            if (!cropLassoCanvas) return;
+            var ctx = cropLassoCanvas.getContext('2d');
+            var w = cropLassoCanvas.width;
+            var h = cropLassoCanvas.height;
+            ctx.clearRect(0, 0, w, h);
+            if (!wandMask || !wandMask.count) return;
+            var mW = wandMask.W;
+            var mH = wandMask.H;
+            var overlay = ctx.createImageData(w, h);
+            var od = overlay.data;
+            var mask = wandMask.mask;
+            for (var y = 0; y < h; y++) {
+                var sy = Math.min(mH - 1, Math.floor(y * mH / h));
+                for (var x = 0; x < w; x++) {
+                    var sx = Math.min(mW - 1, Math.floor(x * mW / w));
+                    if (!mask[sy * mW + sx]) continue;
+                    var i = (y * w + x) * 4;
+                    od[i] = 80;
+                    od[i + 1] = 140;
+                    od[i + 2] = 220;
+                    od[i + 3] = 120;
+                }
+            }
+            ctx.putImageData(overlay, 0, 0);
+            var scaleX = w / mW;
+            var scaleY = h / mH;
+            ctx.strokeStyle = '#2f6fbf';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.strokeRect(
+                wandMask.minX * scaleX,
+                wandMask.minY * scaleY,
+                (wandMask.maxX - wandMask.minX + 1) * scaleX,
+                (wandMask.maxY - wandMask.minY + 1) * scaleY
+            );
+            ctx.setLineDash([]);
+        }
+
+        function runWandAtDisplayPoint(dispX, dispY) {
+            if (!cropImg || !cropImg.naturalWidth) return;
+            var dispW = cropImg.clientWidth || 1;
+            var dispH = cropImg.clientHeight || 1;
+            var natW = cropImg.naturalWidth;
+            var natH = cropImg.naturalHeight;
+            var sx = (dispX / dispW) * natW;
+            var sy = (dispY / dispH) * natH;
+            var canvas = document.createElement('canvas');
+            canvas.width = natW;
+            canvas.height = natH;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(cropImg, 0, 0);
+            var imageData = ctx.getImageData(0, 0, natW, natH);
+            wandMask = floodSelectRegion(imageData, natW, natH, sx, sy, WAND_TOLERANCE);
+            sizeLassoCanvas();
+            drawWandPreview();
+            if (!wandMask) {
+                showStatus('לא נמצא אזור סגור בלחיצה הזו. נסי בתוך הצורה.', true);
+            }
+        }
+
         function pointerToCropImg(e) {
             var rect = cropImg.getBoundingClientRect();
             return {
@@ -3174,6 +3336,9 @@
         }
         if (cropShapeLassoBtn) {
             cropShapeLassoBtn.addEventListener('click', function () { setCropShape('lasso'); });
+        }
+        if (cropShapeWandBtn) {
+            cropShapeWandBtn.addEventListener('click', function () { setCropShape('wand'); });
         }
         if (cropLassoClearBtn) {
             cropLassoClearBtn.addEventListener('click', function () { clearLasso(); });
@@ -3269,16 +3434,29 @@
                 }
                 drawLassoPreview();
             }
-            surface.addEventListener('pointerdown', onLassoDown);
+            function onWandDown(e) {
+                if (cropShape !== 'wand') return;
+                if (cropArea && !cropArea.contains(e.target) && e.target !== cropLassoCanvas) return;
+                e.preventDefault();
+                e.stopPropagation();
+                sizeLassoCanvas();
+                var pt = pointerToCropImg(e);
+                runWandAtDisplayPoint(pt.x, pt.y);
+            }
+            surface.addEventListener('pointerdown', function (e) {
+                if (cropShape === 'wand') onWandDown(e);
+                else onLassoDown(e);
+            });
             surface.addEventListener('pointermove', onLassoMove);
             surface.addEventListener('pointerup', endLasso);
             surface.addEventListener('pointercancel', endLasso);
             // Also accept drawing that starts on the image if canvas missed the hit
             if (cropArea && surface !== cropArea) {
                 cropArea.addEventListener('pointerdown', function (e) {
-                    if (cropShape !== 'lasso') return;
+                    if (cropShape !== 'lasso' && cropShape !== 'wand') return;
                     if (e.target === cropLassoCanvas) return;
-                    onLassoDown(e);
+                    if (cropShape === 'wand') onWandDown(e);
+                    else onLassoDown(e);
                 });
             }
         })();
@@ -3359,8 +3537,67 @@
             };
         }
 
+        function getWandCroppedDataUrl() {
+            if (!wandMask || !wandMask.count) return null;
+            var dispW = cropImg.clientWidth || 1;
+            var dispH = cropImg.clientHeight || 1;
+            var natW = cropImg.naturalWidth || 1;
+            var natH = cropImg.naturalHeight || 1;
+            var minX = wandMask.minX;
+            var minY = wandMask.minY;
+            var maxX = wandMask.maxX;
+            var maxY = wandMask.maxY;
+            var sw = Math.max(1, maxX - minX + 1);
+            var sh = Math.max(1, maxY - minY + 1);
+
+            var srcCanvas = document.createElement('canvas');
+            srcCanvas.width = natW;
+            srcCanvas.height = natH;
+            var sctx = srcCanvas.getContext('2d');
+            sctx.drawImage(cropImg, 0, 0);
+            var srcData = sctx.getImageData(0, 0, natW, natH).data;
+
+            var canvas = document.createElement('canvas');
+            canvas.width = sw;
+            canvas.height = sh;
+            var ctx = canvas.getContext('2d');
+            var out = ctx.createImageData(sw, sh);
+            var od = out.data;
+            var mask = wandMask.mask;
+            for (var y = 0; y < sh; y++) {
+                for (var x = 0; x < sw; x++) {
+                    var sx = minX + x;
+                    var sy = minY + y;
+                    var mp = sy * natW + sx;
+                    if (!mask[mp]) continue;
+                    var si = mp * 4;
+                    var oi = (y * sw + x) * 4;
+                    od[oi] = srcData[si];
+                    od[oi + 1] = srcData[si + 1];
+                    od[oi + 2] = srcData[si + 2];
+                    od[oi + 3] = srcData[si + 3];
+                }
+            }
+            ctx.putImageData(out, 0, 0);
+
+            var scaleX = natW / dispW;
+            var scaleY = natH / dispH;
+            var dispMinX = minX / scaleX;
+            var dispMinY = minY / scaleY;
+            var boxW = sw / scaleX;
+            var boxH = sh / scaleY;
+            return {
+                url: canvas.toDataURL('image/png'),
+                fracW: clamp(boxW / dispW, 0.01, 1),
+                fracH: clamp(boxH / dispH, 0.01, 1),
+                centerX: clamp((dispMinX + boxW / 2) / dispW, 0, 1),
+                centerY: clamp((dispMinY + boxH / 2) / dispH, 0, 1)
+            };
+        }
+
         function getCroppedDataUrl() {
             if (cropShape === 'lasso') return getLassoCroppedDataUrl();
+            if (cropShape === 'wand') return getWandCroppedDataUrl();
             return getRectCroppedDataUrl();
         }
 
@@ -3413,11 +3650,16 @@
                 showStatus('ציירי לאסו סביב האלמנט לפני יצירה.', true);
                 return;
             }
+            if (cropShape === 'wand' && (!wandMask || !wandMask.count)) {
+                showStatus('לחצי בתוך האזור עם השרביט לפני יצירה.', true);
+                return;
+            }
             var cropInfo = getCroppedDataUrl();
             if (!cropInfo) {
                 showStatus('לא ניתן ליצור אלמנט מהבחירה הנוכחית.', true);
                 return;
             }
+            var fromWand = cropShape === 'wand';
             cropOverlay.hidden = true;
             clearLasso();
             cropShape = 'rect';
@@ -3436,13 +3678,16 @@
                 patternPrepared: inheritPrep,
                 recolorSource: inheritPrep ? cropInfo.url : null,
                 plateLab: inheritPrep ? (layer.plateLab || null) : null,
+                positionLocked: fromWand,
                 skipScroll: true,
                 onReady: function (newLayer) {
                     if (inheritPrep) {
                         ensureColorSlots(newLayer, function () {
                             syncTools();
                             showStatus(
-                                'נוצר אלמנט — אפשר לשנות צבעים ולגרור למקום הרצוי.',
+                                fromWand
+                                    ? 'נוצר אלמנט נעול — אפשר לשנות צבעים (בלי הזזה).'
+                                    : 'נוצר אלמנט — אפשר לשנות צבעים ולגרור למקום הרצוי.',
                                 false
                             );
                         });
@@ -3450,6 +3695,9 @@
                     }
                     // כמו בפרינט ממוקד אחרי «העלם רקע» — מפעיל צבעי מוטיבים
                     knockOutLayerBackground(newLayer, { manual: true });
+                    if (fromWand) {
+                        showStatus('נוצר אלמנט נעול — אפשר לשנות צבעים (בלי הזזה).', false);
+                    }
                 }
             });
         });
@@ -3882,7 +4130,8 @@
                         blend: layer.blend,
                         baseWidth: layer.baseWidth == null ? layer.width : layer.baseWidth,
                         baseTile: layer.baseTile == null ? layer.tile : layer.baseTile,
-                        activeColorSlot: layer.activeColorSlot == null ? 0 : layer.activeColorSlot
+                        activeColorSlot: layer.activeColorSlot == null ? 0 : layer.activeColorSlot,
+                        positionLocked: !!layer.positionLocked
                     };
                     if (layer.colorSlots && layer.colorSlots.length) {
                         entry.colorSlots = layer.colorSlots.map(function (s) {
