@@ -1845,6 +1845,15 @@
             }, { passive: false });
         }
 
+        // Click empty stage area (not a layer/pattern) to clear selection outline.
+        if (stage) {
+            stage.addEventListener('pointerdown', function (e) {
+                if (e.target.closest('.molly-mockup-layer, .molly-mockup-pattern')) return;
+                if (!activeId) return;
+                selectLayer(null);
+            });
+        }
+
         function attachLayerDrag(layer) {
             var dragging = null;
             layer.el.addEventListener('pointerdown', function (e) {
