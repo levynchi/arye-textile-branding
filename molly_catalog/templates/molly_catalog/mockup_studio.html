@@ -1112,7 +1112,8 @@
                             return;
                         }
                         layer.working = url;
-                        if (blend) layer.blend = blend;
+                        // Locked fill layers stay normal so light colors remain visible.
+                        if (blend && !layer.positionLocked) layer.blend = blend;
                         renderColorSlotsUI(layer);
                         setLayerImage(layer, url, function () {
                             showStatus('הצבע עודכן — הצורה והבגד לא השתנו.', false);
@@ -1128,7 +1129,7 @@
                         return;
                     }
                     layer.working = url;
-                    if (blend) layer.blend = blend;
+                    if (blend && !layer.positionLocked) layer.blend = blend;
                     markSwatchActive(hex);
                     if (customColorInput) customColorInput.value = hex.length === 7 ? hex : customColorInput.value;
                     setLayerImage(layer, url, function () {
@@ -3042,7 +3043,7 @@
         var lassoPoints = []; // display coords relative to cropImg
         var lassoDrawing = false;
         var wandMask = null; // { mask, W, H, minX, minY, maxX, maxY, count }
-        var WAND_TOLERANCE = 32;
+        var WAND_ALPHA_THRESHOLD = 40; // below = fillable hole; at/above = wall (line art)
 
         function usesOverlayCanvas() {
             return cropShape === 'lasso' || cropShape === 'wand';
@@ -3054,7 +3055,7 @@
             if (cropShape === 'lasso') {
                 cropHint.textContent = 'ציירי קו חופשי סביב האלמנט — שחרור העכבר סוגר את הצורה. אפשר לנקות ולצייר שוב.';
             } else if (cropShape === 'wand') {
-                cropHint.textContent = 'לחצי בתוך האזור לסמן אותו — למשל פנים הזנב. האזור יהפוך לשכבה נפרדת לצביעה (בלי הזזה).';
+                cropHint.textContent = 'לחצי בתוך אזור שקוף סגור (למשל פנים הזנב) — ניצור מילוי לבן שאפשר לצבוע (בלי הזזה).';
             } else {
                 cropHint.textContent = 'סמני אלמנט אחד — הוא יהפוך לשכבה נפרדת על הבגד (לא פאטרן חוזר). אחר כך אפשר לשכפל ולמקם כל עותק בנפרד.';
             }
@@ -3179,18 +3180,16 @@
             ctx.setLineDash([]);
         }
 
-        function floodSelectRegion(imageData, W, H, seedX, seedY, tolerance) {
+        function floodSelectEnclosedHole(imageData, W, H, seedX, seedY, alphaThr) {
             var d = imageData.data;
+            var thr = alphaThr == null ? WAND_ALPHA_THRESHOLD : alphaThr;
             seedX = clamp(Math.round(seedX), 0, W - 1);
             seedY = clamp(Math.round(seedY), 0, H - 1);
             var seedP = seedY * W + seedX;
-            var seedI = seedP * 4;
-            if (d[seedI + 3] < 8) return null;
-            var sr = d[seedI];
-            var sg = d[seedI + 1];
-            var sb = d[seedI + 2];
-            var thr = (tolerance == null ? WAND_TOLERANCE : tolerance) * 6;
-            var thr2 = thr * thr;
+            var seedA = d[seedP * 4 + 3];
+            if (seedA >= thr) {
+                return { error: 'opaque' };
+            }
             var mask = new Uint8Array(W * H);
             var queue = [seedP];
             var minX = seedX;
@@ -3198,19 +3197,19 @@
             var maxX = seedX;
             var maxY = seedY;
             var count = 0;
+            var hitBorder = false;
             while (queue.length) {
                 var p = queue.pop();
                 if (mask[p]) continue;
                 var i4 = p * 4;
-                if (d[i4 + 3] < 8) continue;
-                var dr = d[i4] - sr;
-                var dg = d[i4 + 1] - sg;
-                var db = d[i4 + 2] - sb;
-                if (dr * dr + dg * dg + db * db > thr2) continue;
+                if (d[i4 + 3] >= thr) continue; // opaque wall (line art)
                 mask[p] = 1;
                 count += 1;
                 var px = p % W;
                 var py = (p - px) / W;
+                if (px === 0 || py === 0 || px === W - 1 || py === H - 1) {
+                    hitBorder = true;
+                }
                 if (px < minX) minX = px;
                 if (py < minY) minY = py;
                 if (px > maxX) maxX = px;
@@ -3220,7 +3219,12 @@
                 if (py > 0) queue.push(p - W);
                 if (py < H - 1) queue.push(p + W);
             }
-            if (count < 4) return null;
+            if (hitBorder) {
+                return { error: 'open' };
+            }
+            if (count < 4) {
+                return { error: 'tiny' };
+            }
             return {
                 mask: mask,
                 W: W,
@@ -3286,10 +3290,24 @@
             var ctx = canvas.getContext('2d');
             ctx.drawImage(cropImg, 0, 0);
             var imageData = ctx.getImageData(0, 0, natW, natH);
-            wandMask = floodSelectRegion(imageData, natW, natH, sx, sy, WAND_TOLERANCE);
+            var result = floodSelectEnclosedHole(
+                imageData, natW, natH, sx, sy, WAND_ALPHA_THRESHOLD
+            );
+            if (result && !result.error) {
+                wandMask = result;
+                sizeLassoCanvas();
+                drawWandPreview();
+                showStatus('נבחר אזור סגור — לחצי «צור אלמנט על הבגד» למילוי.', false);
+                return;
+            }
+            wandMask = null;
             sizeLassoCanvas();
             drawWandPreview();
-            if (!wandMask) {
+            if (result && result.error === 'opaque') {
+                showStatus('לחצי בתוך האזור השקוף (לא על הקו השחור).', true);
+            } else if (result && result.error === 'open') {
+                showStatus('זה הרקע הפתוח — לחצי בתוך צורה סגורה (למשל פנים הזנב).', true);
+            } else {
                 showStatus('לא נמצא אזור סגור בלחיצה הזו. נסי בתוך הצורה.', true);
             }
         }
@@ -3550,13 +3568,6 @@
             var sw = Math.max(1, maxX - minX + 1);
             var sh = Math.max(1, maxY - minY + 1);
 
-            var srcCanvas = document.createElement('canvas');
-            srcCanvas.width = natW;
-            srcCanvas.height = natH;
-            var sctx = srcCanvas.getContext('2d');
-            sctx.drawImage(cropImg, 0, 0);
-            var srcData = sctx.getImageData(0, 0, natW, natH).data;
-
             var canvas = document.createElement('canvas');
             canvas.width = sw;
             canvas.height = sh;
@@ -3564,18 +3575,18 @@
             var out = ctx.createImageData(sw, sh);
             var od = out.data;
             var mask = wandMask.mask;
+            // Solid white fill inside the enclosed transparent hole (not source alpha).
             for (var y = 0; y < sh; y++) {
                 for (var x = 0; x < sw; x++) {
                     var sx = minX + x;
                     var sy = minY + y;
                     var mp = sy * natW + sx;
                     if (!mask[mp]) continue;
-                    var si = mp * 4;
                     var oi = (y * sw + x) * 4;
-                    od[oi] = srcData[si];
-                    od[oi + 1] = srcData[si + 1];
-                    od[oi + 2] = srcData[si + 2];
-                    od[oi + 3] = srcData[si + 3];
+                    od[oi] = 255;
+                    od[oi + 1] = 255;
+                    od[oi + 2] = 255;
+                    od[oi + 3] = 255;
                 }
             }
             ctx.putImageData(out, 0, 0);
@@ -3651,7 +3662,7 @@
                 return;
             }
             if (cropShape === 'wand' && (!wandMask || !wandMask.count)) {
-                showStatus('לחצי בתוך האזור עם השרביט לפני יצירה.', true);
+                showStatus('לחצי בתוך אזור שקוף סגור עם השרביט לפני יצירה.', true);
                 return;
             }
             var cropInfo = getCroppedDataUrl();
@@ -3669,24 +3680,40 @@
             var baseName = layer.name || 'אלמנט';
             var place = extractLayerSizeAndPos(layer, cropInfo);
             var inheritPrep = !!layer.patternPrepared;
-            addLayerFromDataUrl(cropInfo.url, 'אלמנט מ-' + baseName, {
+            var wandSlot = fromWand
+                ? [{
+                    id: 0,
+                    sourceHex: '#ffffff',
+                    currentHex: '#ffffff',
+                    label: 'מילוי',
+                    lab: rgbToLab(255, 255, 255),
+                    avgL: 1
+                }]
+                : null;
+            addLayerFromDataUrl(
+                cropInfo.url,
+                fromWand ? ('מילוי מ-' + baseName) : ('אלמנט מ-' + baseName),
+                {
                 mode: 'focused',
                 x: place.x,
                 y: place.y,
                 width: place.width,
-                blend: layer.blend || 'multiply',
-                patternPrepared: inheritPrep,
-                recolorSource: inheritPrep ? cropInfo.url : null,
-                plateLab: inheritPrep ? (layer.plateLab || null) : null,
+                // White fill must not use multiply or it disappears on light fabric.
+                blend: fromWand ? 'normal' : (layer.blend || 'multiply'),
+                patternPrepared: fromWand ? true : inheritPrep,
+                recolorSource: fromWand ? cropInfo.url : (inheritPrep ? cropInfo.url : null),
+                plateLab: fromWand ? null : (inheritPrep ? (layer.plateLab || null) : null),
+                colorSlots: wandSlot,
+                activeColorSlot: 0,
                 positionLocked: fromWand,
                 skipScroll: true,
                 onReady: function (newLayer) {
-                    if (inheritPrep) {
+                    if (fromWand || inheritPrep) {
                         ensureColorSlots(newLayer, function () {
                             syncTools();
                             showStatus(
                                 fromWand
-                                    ? 'נוצר אלמנט נעול — אפשר לשנות צבעים (בלי הזזה).'
+                                    ? 'נוצר מילוי נעול — אפשר לשנות את הצבע (בלי הזזה).'
                                     : 'נוצר אלמנט — אפשר לשנות צבעים ולגרור למקום הרצוי.',
                                 false
                             );
@@ -3695,9 +3722,6 @@
                     }
                     // כמו בפרינט ממוקד אחרי «העלם רקע» — מפעיל צבעי מוטיבים
                     knockOutLayerBackground(newLayer, { manual: true });
-                    if (fromWand) {
-                        showStatus('נוצר אלמנט נעול — אפשר לשנות צבעים (בלי הזזה).', false);
-                    }
                 }
             });
         });
