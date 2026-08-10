@@ -478,12 +478,106 @@
         var layers = [];
         var activeId = null;
         var layerSeq = 0;
+        var editHistory = [];
+        var MAX_EDIT_HISTORY = 30;
 
         function activeLayer() {
             for (var i = 0; i < layers.length; i++) {
                 if (layers[i].id === activeId) return layers[i];
             }
             return null;
+        }
+
+        function findLayerById(id) {
+            for (var i = 0; i < layers.length; i++) {
+                if (layers[i].id === id) return layers[i];
+            }
+            return null;
+        }
+
+        function cloneColorSlots(slots) {
+            if (!slots) return null;
+            return slots.map(function (s) {
+                return {
+                    id: s.id,
+                    sourceHex: s.sourceHex,
+                    currentHex: s.currentHex,
+                    label: s.label,
+                    lab: s.lab,
+                    avgL: s.avgL
+                };
+            });
+        }
+
+        function snapshotLayerBitmap(layer) {
+            if (!layer) return null;
+            return {
+                type: 'layerBitmap',
+                layerId: layer.id,
+                current: layer.current,
+                working: layer.working,
+                recolorSource: layer.recolorSource,
+                blend: layer.blend,
+                patternPrepared: !!layer.patternPrepared,
+                preKnockoutUrl: layer.preKnockoutUrl || null,
+                plateLab: layer.plateLab || null,
+                colorSlots: cloneColorSlots(layer.colorSlots),
+                activeColorSlot: layer.activeColorSlot == null ? 0 : layer.activeColorSlot
+            };
+        }
+
+        function pushDesignUndo(entry) {
+            if (!entry) return;
+            editHistory.push(entry);
+            if (editHistory.length > MAX_EDIT_HISTORY) editHistory.shift();
+        }
+
+        function refreshFillBucketPreview(layer) {
+            if (
+                fillBucketImg &&
+                fillBucketActive &&
+                layer &&
+                fillBucketLayerId === layer.id &&
+                layer.current
+            ) {
+                fillBucketImg.src = layer.current;
+            }
+        }
+
+        function undoDesignEdit() {
+            if (!editHistory.length) {
+                showStatus('אין מה לבטל.', true);
+                return;
+            }
+            var entry = editHistory.pop();
+            if (entry.type === 'addLayer') {
+                removeLayer(entry.layerId);
+                showStatus('בוטל — השכבה שהתווספה הוסרה.', false);
+                return;
+            }
+            if (entry.type === 'layerBitmap') {
+                var layer = findLayerById(entry.layerId);
+                if (!layer) {
+                    showStatus('אין מה לבטל.', true);
+                    return;
+                }
+                layer.working = entry.working;
+                layer.recolorSource = entry.recolorSource;
+                layer.blend = entry.blend;
+                layer.patternPrepared = !!entry.patternPrepared;
+                layer.preKnockoutUrl = entry.preKnockoutUrl || null;
+                layer.plateLab = entry.plateLab || null;
+                layer.colorSlots = cloneColorSlots(entry.colorSlots);
+                layer.activeColorSlot = entry.activeColorSlot == null ? 0 : entry.activeColorSlot;
+                setLayerImage(layer, entry.current, function () {
+                    refreshFillBucketPreview(layer);
+                    renderColorSlotsUI(layer);
+                    syncTools();
+                    showStatus('בוטל מהלך עיצוב אחרון.', false);
+                }, { keepRecolorSource: true });
+                return;
+            }
+            showStatus('אין מה לבטל.', true);
         }
 
         var DEFAULT_UPLOAD_HINT = 'לחצי לבחירת קבצים (PNG / JPG / SVG / PDF) או גררי לכאן — אחרי כל קובץ תבחרי אם זו שכבת אול אובר או הדפס ממוקד.';
@@ -1149,13 +1243,18 @@
                 if (slots && slots.length > 1) {
                     var idx = clamp(layer.activeColorSlot || 0, 0, slots.length - 1);
                     layer.activeColorSlot = idx;
+                    var prevMulti = snapshotLayerBitmap(layer);
                     slots[idx].currentHex = hex;
                     showStatus('משנה צבע...', false);
                     recolorInkBySlots(layer.recolorSource, slots, function (url, blend) {
                         if (!url) {
+                            if (prevMulti && prevMulti.colorSlots) {
+                                layer.colorSlots = cloneColorSlots(prevMulti.colorSlots);
+                            }
                             showStatus('שגיאה בצביעת הפאטרן', true);
                             return;
                         }
+                        pushDesignUndo(prevMulti);
                         layer.working = url;
                         // Locked fill layers stay normal so light colors remain visible.
                         if (blend && !layer.positionLocked) layer.blend = blend;
@@ -1166,13 +1265,18 @@
                     });
                     return;
                 }
+                var prevSingle = snapshotLayerBitmap(layer);
                 if (slots && slots[0]) slots[0].currentHex = hex;
                 showStatus('משנה צבע...', false);
                 recolorInkToHex(layer.recolorSource, hex, function (url, blend) {
                     if (!url) {
+                        if (prevSingle && prevSingle.colorSlots) {
+                            layer.colorSlots = cloneColorSlots(prevSingle.colorSlots);
+                        }
                         showStatus('שגיאה בצביעת הפאטרן', true);
                         return;
                     }
+                    pushDesignUndo(prevSingle);
                     layer.working = url;
                     if (blend && !layer.positionLocked) layer.blend = blend;
                     markSwatchActive(hex);
@@ -1369,19 +1473,30 @@
                 var ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
                 var imageData = ctx.getImageData(0, 0, natW, natH);
-                var result = floodSelectEnclosedHole(
-                    imageData, natW, natH, sx, sy, FILL_ALPHA_THRESHOLD
-                );
+                var seedX = clamp(Math.round(sx), 0, natW - 1);
+                var seedY = clamp(Math.round(sy), 0, natH - 1);
+                var seedA = imageData.data[(seedY * natW + seedX) * 4 + 3];
+                var recoloring = seedA >= FILL_ALPHA_THRESHOLD;
+                var result = recoloring
+                    ? floodSelectSimilarOpaque(
+                        imageData, natW, natH, seedX, seedY, 36, FILL_ALPHA_THRESHOLD
+                    )
+                    : floodSelectEnclosedHole(
+                        imageData, natW, natH, seedX, seedY, FILL_ALPHA_THRESHOLD
+                    );
                 if (!result || result.error) {
                     if (result && result.error === 'opaque') {
                         showStatus('לחצי בתוך האזור השקוף (לא על הקו השחור).', true);
                     } else if (result && result.error === 'open') {
                         showStatus('זה הרקע הפתוח — לחצי בתוך צורה סגורה (למשל פנים הזנב).', true);
+                    } else if (recoloring) {
+                        showStatus('לחצי בתוך אזור צבוע או שקוף סגור כדי לשנות צבע.', true);
                     } else {
                         showStatus('לא נמצא אזור סגור למילוי.', true);
                     }
                     return;
                 }
+                pushDesignUndo(snapshotLayerBitmap(layer));
                 var d = imageData.data;
                 var mask = result.mask;
                 for (var p = 0; p < mask.length; p++) {
@@ -1399,12 +1514,15 @@
                 layer.patternPrepared = true;
                 layer.blend = 'normal';
                 setLayerImage(layer, url, function () {
-                    if (fillBucketImg && fillBucketActive) {
-                        fillBucketImg.src = url;
-                    }
+                    refreshFillBucketPreview(layer);
                     ensureColorSlots(layer, function () {
                         syncTools();
-                        showStatus('האזור מולא — אפשר למלא עוד או ללחוץ סיום.', false);
+                        showStatus(
+                            recoloring
+                                ? 'הצבע עודכן — אפשר למלא עוד או ללחוץ סיום.'
+                                : 'האזור מולא — אפשר למלא עוד או ללחוץ סיום.',
+                            false
+                        );
                     });
                 }, { keepRecolorSource: true });
             };
@@ -1532,6 +1650,7 @@
                 if (L.patEl && L.patEl.parentNode) L.patEl.parentNode.removeChild(L.patEl);
             }
             activeId = null;
+            editHistory.length = 0;
             renderLayersPanel();
             updateButtons();
         }
@@ -2624,6 +2743,7 @@
                 if (!layer || !layer.patternPrepared) return;
                 var source = layer.recolorSource || layer.working || layer.original;
                 if (!source) return;
+                pushDesignUndo(snapshotLayerBitmap(layer));
                 if (layer.colorSlots) {
                     layer.colorSlots.forEach(function (slot) {
                         slot.currentHex = slot.sourceHex;
@@ -3158,6 +3278,7 @@
 
             var sourceUrl = layer.working || layer.current;
             if (!sourceUrl) return;
+            var undoSnap = snapshotLayerBitmap(layer);
             if (manual) {
                 layer.preKnockoutUrl = sourceUrl;
             }
@@ -3183,6 +3304,7 @@
                 var H = canvas.height;
                 var imageData = ctx.getImageData(0, 0, W, H);
                 if (borderMostlyTransparent(imageData, W, H)) {
+                    pushDesignUndo(undoSnap);
                     layer.blend = chooseBlendFromImageData(imageData);
                     layer.recolorSource = sourceUrl;
                     layer.colorSlots = null;
@@ -3219,6 +3341,7 @@
                     );
                     return;
                 }
+                pushDesignUndo(undoSnap);
                 ctx.putImageData(imageData, 0, 0);
                 var resultUrl = canvas.toDataURL('image/png');
                 layer.blend = chooseBlendFromImageData(imageData);
@@ -3256,6 +3379,7 @@
             if (!layer || layer.mode !== 'focused') return;
             var source = layer.preKnockoutUrl || layer.original;
             if (!source) return;
+            pushDesignUndo(snapshotLayerBitmap(layer));
             layer.patternPrepared = false;
             layer.preKnockoutUrl = null;
             layer.plateLab = null;
@@ -3454,6 +3578,71 @@
             }
             if (hitBorder) {
                 return { error: 'open' };
+            }
+            if (count < 4) {
+                return { error: 'tiny' };
+            }
+            return {
+                mask: mask,
+                W: W,
+                H: H,
+                minX: minX,
+                minY: minY,
+                maxX: maxX,
+                maxY: maxY,
+                count: count
+            };
+        }
+
+        /** Flood contiguous opaque pixels similar to the seed (recolor filled regions). */
+        function floodSelectSimilarOpaque(imageData, W, H, seedX, seedY, colorTol, alphaThr) {
+            var d = imageData.data;
+            var thr = alphaThr == null ? FILL_ALPHA_THRESHOLD : alphaThr;
+            var tol = colorTol == null ? 36 : colorTol;
+            var tol2 = tol * tol;
+            seedX = clamp(Math.round(seedX), 0, W - 1);
+            seedY = clamp(Math.round(seedY), 0, H - 1);
+            var seedP = seedY * W + seedX;
+            var s4 = seedP * 4;
+            if (d[s4 + 3] < thr) {
+                return { error: 'transparent' };
+            }
+            var sr = d[s4];
+            var sg = d[s4 + 1];
+            var sb = d[s4 + 2];
+            var mask = new Uint8Array(W * H);
+            var queue = [seedP];
+            var minX = seedX;
+            var minY = seedY;
+            var maxX = seedX;
+            var maxY = seedY;
+            var count = 0;
+
+            function matches(p) {
+                var i4 = p * 4;
+                if (d[i4 + 3] < thr) return false;
+                var dr = d[i4] - sr;
+                var dg = d[i4 + 1] - sg;
+                var db = d[i4 + 2] - sb;
+                return (dr * dr + dg * dg + db * db) <= tol2;
+            }
+
+            while (queue.length) {
+                var p = queue.pop();
+                if (mask[p]) continue;
+                if (!matches(p)) continue;
+                mask[p] = 1;
+                count += 1;
+                var px = p % W;
+                var py = (p - px) / W;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+                if (px > 0) queue.push(p - 1);
+                if (px < W - 1) queue.push(p + 1);
+                if (py > 0) queue.push(p - W);
+                if (py < H - 1) queue.push(p + W);
             }
             if (count < 4) {
                 return { error: 'tiny' };
@@ -3777,6 +3966,7 @@
                 plateLab: inheritPrep ? (layer.plateLab || null) : null,
                 skipScroll: true,
                 onReady: function (newLayer) {
+                    pushDesignUndo({ type: 'addLayer', layerId: newLayer.id });
                     if (inheritPrep) {
                         ensureColorSlots(newLayer, function () {
                             syncTools();
@@ -4598,6 +4788,18 @@
 
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') closeAllSheets();
+                var key = e.key || '';
+                var isUndo = (key === 'z' || key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey;
+                if (!isUndo) return;
+                var t = e.target;
+                if (t) {
+                    var tag = (t.tagName || '').toLowerCase();
+                    if (tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable) {
+                        return;
+                    }
+                }
+                e.preventDefault();
+                undoDesignEdit();
             });
 
             // Close sheets after primary save/download actions on mobile
