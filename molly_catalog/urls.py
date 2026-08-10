@@ -29,6 +29,16 @@ urlpatterns = [
     ),
     path("mockups/<int:mockup_id>/", views.mockup_detail, name="mockup_detail"),
     path(
+        "mockups/<int:mockup_id>/share/",
+        views.mockup_share,
+        name="mockup_share",
+    ),
+    path(
+        "mockups/<int:mockup_id>/share/image/",
+        views.mockup_share_image,
+        name="mockup_share_image",
+    ),
+    path(
         "mockups/<int:mockup_id>/layers/<int:layer_id>/image/",
         views.mockup_layer_image,
         name="mockup_layer_image",

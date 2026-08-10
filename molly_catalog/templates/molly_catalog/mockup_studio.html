@@ -139,6 +139,7 @@
                     <div class="molly-mockup-actions" id="mockup-actions">
                         <button type="button" class="molly-button" id="mockup-save-btn" disabled title="שומרת על ההדמיה הנוכחית">שמור שינויים</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-save-as-btn" disabled title="שומרת כהדמיה חדשה בגלריה">שמירה בשם</button>
+                        <button type="button" class="molly-button molly-button-secondary" id="mockup-share-wa-btn" disabled hidden title="שיתוף קישור להדמיה בוואטסאפ">שיתוף בוואטסאפ</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-download-btn" disabled>הורדה למחשב</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-print-1to1-btn" disabled title="הדפסת הפרינט בגודל אמיתי להשוואה מול הבגד">הדפסה 1:1</button>
                     </div>
@@ -204,6 +205,7 @@
                         <span>{{ m.created|date:"d/m/Y H:i" }}{% if m.product_name %} · {{ m.product_name }}{% endif %}</span>
                     </div>
                     <div class="molly-mockup-gallery-actions">
+                        <a class="molly-mockup-gallery-btn whatsapp" href="{% url 'molly_catalog:mockup_share' m.id %}" data-share-url="{% url 'molly_catalog:mockup_share' m.id %}" data-share-name="{{ m.display_name }}" data-whatsapp-share>וואטסאפ</a>
                         <a class="molly-mockup-gallery-btn" href="{% url 'molly_catalog:mockup_result_image' m.id %}?download=1">הורדה</a>
                         <button type="button" class="molly-mockup-gallery-btn danger" data-delete-url="{% url 'molly_catalog:mockup_delete' m.id %}">מחיקה</button>
                     </div>
@@ -338,12 +340,31 @@
         var restoreBgBtn = document.getElementById('mockup-restore-bg-btn');
         var saveBtn = document.getElementById('mockup-save-btn');
         var saveAsBtn = document.getElementById('mockup-save-as-btn');
+        var shareWaBtn = document.getElementById('mockup-share-wa-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
         var print1to1Btn = document.getElementById('mockup-print-1to1-btn');
         var print1to1Hint = document.getElementById('mockup-print-1to1-hint');
         var statusEl = document.getElementById('mockup-status');
         var gallery = document.getElementById('mockup-gallery');
         var galleryEmpty = document.getElementById('mockup-gallery-empty');
+
+        function mockupSharePath(mockupId) {
+            return '/molly/mockups/' + mockupId + '/share/';
+        }
+
+        function mockupShareAbsoluteUrl(mockupId) {
+            return window.location.origin + mockupSharePath(mockupId);
+        }
+
+        function openWhatsAppMockupShare(mockupId, name) {
+            if (!mockupId) return;
+            var text = (name || 'הדמיה') + '\n' + mockupShareAbsoluteUrl(mockupId);
+            window.open(
+                'https://wa.me/?text=' + encodeURIComponent(text),
+                '_blank',
+                'noopener,noreferrer'
+            );
+        }
 
         if (!stage) {
             bindGalleryDeletes(document);
@@ -2171,6 +2192,11 @@
                 saveAsBtn.hidden = !editing;
             }
             downloadBtn.disabled = !ready;
+            if (shareWaBtn) {
+                var canShare = !!state.editingMockupId;
+                shareWaBtn.hidden = !canShare;
+                shareWaBtn.disabled = !canShare;
+            }
             var canPrint = ready && !!state.realWidthCm && !!activeLayer();
             if (print1to1Btn) {
                 print1to1Btn.disabled = !canPrint;
@@ -3667,6 +3693,8 @@
                 + (data.result_url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
             var downloadUrl = data.download_url
                 || ('/molly/mockups/' + data.mockup_id + '/result/?download=1');
+            var shareUrl = data.share_url || mockupSharePath(data.mockup_id);
+            var shareName = data.name || data.product_name || 'הדמיה';
             return (
                 '<button type="button" class="molly-mockup-gallery-open">' +
                     '<img src="' + resultSrc + '" alt="">' +
@@ -3676,6 +3704,10 @@
                     + (data.product_name ? (' · ' + data.product_name) : '')
                     + '</span></div>' +
                 '<div class="molly-mockup-gallery-actions">' +
+                    '<a class="molly-mockup-gallery-btn whatsapp" href="' + shareUrl
+                        + '" data-share-url="' + shareUrl
+                        + '" data-share-name="' + shareName.replace(/"/g, '&quot;')
+                        + '" data-whatsapp-share>וואטסאפ</a>' +
                     '<a class="molly-mockup-gallery-btn" href="' + downloadUrl + '">הורדה</a>' +
                     '<button type="button" class="molly-mockup-gallery-btn danger" data-delete-url="' + data.delete_url + '">מחיקה</button>' +
                 '</div>'
@@ -3696,6 +3728,7 @@
                 existing.querySelector('strong').textContent = data.name || data.product_name || 'הדמיה';
                 bindGalleryDeletes(existing);
                 bindGalleryOpens(existing);
+                bindGalleryWhatsApp(existing);
                 gallery.prepend(existing);
                 return;
             }
@@ -3714,6 +3747,7 @@
             gallery.prepend(card);
             bindGalleryDeletes(card);
             bindGalleryOpens(card);
+            bindGalleryWhatsApp(card);
         }
 
         function bindGalleryDeletes(root) {
@@ -3766,8 +3800,49 @@
             });
         }
 
+        function bindGalleryWhatsApp(root) {
+            root.querySelectorAll('[data-whatsapp-share]').forEach(function (btn) {
+                if (btn.dataset.waBound) return;
+                btn.dataset.waBound = '1';
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var card = btn.closest('.molly-mockup-gallery-card');
+                    var id = card && card.dataset.mockupId;
+                    var name = btn.getAttribute('data-share-name')
+                        || (card && card.querySelector('strong') && card.querySelector('strong').textContent)
+                        || 'הדמיה';
+                    if (id) openWhatsAppMockupShare(id, name);
+                });
+            });
+        }
+
         bindGalleryDeletes(document);
         bindGalleryOpens(document);
+        bindGalleryWhatsApp(document);
+
+        if (shareWaBtn) {
+            shareWaBtn.addEventListener('click', function () {
+                if (!state.editingMockupId) return;
+                openWhatsAppMockupShare(
+                    state.editingMockupId,
+                    state.editingMockupName || 'הדמיה'
+                );
+            });
+        }
+
+        // Deep-link: /molly/mockups/?open=<id>
+        (function openMockupFromQuery() {
+            try {
+                var params = new URLSearchParams(window.location.search || '');
+                var openId = params.get('open');
+                if (!openId) return;
+                loadMockupFromUrl(mockupSharePath(openId).replace('/share/', '/'));
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState({}, '', '/molly/mockups/');
+                }
+            } catch (err) { /* ignore */ }
+        })();
 
         // --- Mobile editor shell: bottom bar + sheets, DOM park ≤900px ---
         (function setupMobileEditorShell() {

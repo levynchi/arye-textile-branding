@@ -1,8 +1,8 @@
 """Views for the Molly catalog.
 
-Everything is gated behind a Molly catalog session login. There is no public
-browsing and no fallback to Django staff/superuser – the catalog is fully
-private. Prices are never shown or computed anywhere.
+Most pages are gated behind a Molly catalog session login. Mockup share pages
+(`/mockups/<id>/share/`) are public view-only. There is no fallback to Django
+staff/superuser. Prices are never shown or computed anywhere.
 """
 
 import logging
@@ -70,13 +70,28 @@ def get_current_molly_user(request):
         return None
 
 
+def _safe_molly_next(next_url):
+    """Allow only relative /molly/ paths as post-login redirects."""
+    if not next_url:
+        return "molly_catalog:home"
+    next_url = str(next_url).strip()
+    if next_url.startswith("/molly/") and "://" not in next_url and "\\" not in next_url:
+        return next_url
+    return "molly_catalog:home"
+
+
 def require_molly_login(view_func):
     """Decorator: redirect unauthenticated users to the Molly login page."""
 
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not get_current_molly_user(request):
-            return redirect(f"/molly/login/?next={request.path}")
+            from urllib.parse import quote
+
+            next_target = request.get_full_path()
+            return redirect(
+                reverse("molly_catalog:login") + "?next=" + quote(next_target, safe="")
+            )
         return view_func(request, *args, **kwargs)
 
     return wrapper
@@ -139,7 +154,9 @@ def login_view(request):
                     pass
                 user.update_activity()
                 messages.success(request, f"ברוכה הבאה, {user.display_name}!")
-                next_url = request.GET.get("next") or request.POST.get("next") or "molly_catalog:home"
+                next_url = _safe_molly_next(
+                    request.GET.get("next") or request.POST.get("next")
+                )
                 return redirect(next_url)
 
             messages.error(request, "שם משתמש או סיסמא שגויים")
@@ -1001,6 +1018,72 @@ def _serve_mockup_owned_image(request, mockup_id, image_field):
     return response
 
 
+def _serve_mockup_result_bytes(mockup, *, public=False, download=False):
+    """Return HttpResponse with mockup result image bytes."""
+    import mimetypes
+
+    from django.http import HttpResponse
+
+    if not mockup.result_image:
+        raise Http404()
+    with mockup.result_image.open("rb") as f:
+        content = f.read()
+    content_type = mimetypes.guess_type(mockup.result_image.name)[0] or "image/png"
+    response = HttpResponse(content, content_type=content_type)
+    if public:
+        response["Cache-Control"] = "public, max-age=600"
+    else:
+        response["Cache-Control"] = "private, max-age=300"
+    if download:
+        response["Content-Disposition"] = (
+            f'attachment; filename="mockup-{mockup.pk}.png"'
+        )
+    return response
+
+
+@require_GET
+def mockup_share(request, mockup_id):
+    """Public view-only page for a specific mockup (no login required)."""
+    mockup = get_object_or_404(MollyMockup, pk=mockup_id)
+    if not mockup.result_image:
+        raise Http404()
+
+    from urllib.parse import quote
+
+    user = get_current_molly_user(request)
+    can_edit = bool(user and mockup.user_id == user.id)
+    edit_path = reverse("molly_catalog:mockups") + f"?open={mockup.id}"
+    if user:
+        edit_href = edit_path
+    else:
+        edit_href = reverse("molly_catalog:login") + "?next=" + quote(edit_path, safe="")
+
+    image_path = reverse(
+        "molly_catalog:mockup_share_image", kwargs={"mockup_id": mockup.id}
+    )
+    share_path = reverse("molly_catalog:mockup_share", kwargs={"mockup_id": mockup.id})
+
+    context = {
+        **_nav_context(),
+        "mockup": mockup,
+        "can_edit": can_edit,
+        "edit_href": edit_href,
+        "image_url": image_path,
+        "absolute_image_url": request.build_absolute_uri(image_path),
+        "absolute_share_url": request.build_absolute_uri(share_path),
+        "cart_count": _cart_count(request) if user else 0,
+        "is_logged_in": bool(user),
+    }
+    return render(request, "molly_catalog/mockup_share.html", context)
+
+
+@require_GET
+def mockup_share_image(request, mockup_id):
+    """Public result image for share pages / WhatsApp preview (no login)."""
+    mockup = get_object_or_404(MollyMockup, pk=mockup_id)
+    return _serve_mockup_result_bytes(mockup, public=True)
+
+
 @require_GET
 @require_molly_login
 def mockup_detail(request, mockup_id):
@@ -1091,13 +1174,9 @@ def mockup_result_image(request, mockup_id):
     """Serve saved result image same-origin (download / preview without Spaces navigation)."""
     user = get_current_molly_user(request)
     mockup = get_object_or_404(MollyMockup, pk=mockup_id, user=user)
-    if not mockup.result_image:
-        raise Http404()
-    response = _serve_mockup_owned_image(request, mockup_id, mockup.result_image)
-    if request.GET.get("download"):
-        filename = f"mockup-{mockup_id}.png"
-        response["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return response
+    return _serve_mockup_result_bytes(
+        mockup, public=False, download=bool(request.GET.get("download"))
+    )
 
 
 @require_POST
@@ -1196,6 +1275,9 @@ def mockup_save(request):
         ) + "?download=1",
         "load_url": reverse(
             "molly_catalog:mockup_detail", kwargs={"mockup_id": mockup.id}
+        ),
+        "share_url": reverse(
+            "molly_catalog:mockup_share", kwargs={"mockup_id": mockup.id}
         ),
         "name": mockup.display_name,
         "product_name": mockup.product_name,

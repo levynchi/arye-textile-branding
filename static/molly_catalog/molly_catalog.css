@@ -2162,6 +2162,7 @@ body.molly-body {
 
 .molly-mockup-gallery-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 10px 12px 12px;
 }
@@ -2191,9 +2192,69 @@ body.molly-body {
     color: #b02a2a;
 }
 
+.molly-mockup-gallery-btn.whatsapp {
+    border-color: #25d366;
+    color: #128c7e;
+}
+
+.molly-mockup-gallery-btn.whatsapp:hover {
+    background: #e8f8ef;
+}
+
 .molly-mockup-empty {
     color: var(--molly-text-soft);
     margin: 8px 0 0;
+}
+
+/* Public share page */
+.molly-mockup-share-main {
+    max-width: 720px;
+}
+
+.molly-mockup-share-card {
+    background: var(--molly-card-bg);
+    border-radius: var(--molly-radius);
+    box-shadow: var(--molly-shadow);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.molly-mockup-share-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 16px 16px;
+}
+
+.molly-mockup-share-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.molly-mockup-share-actions .molly-button {
+    width: 100%;
+    text-align: center;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+@media (min-width: 641px) {
+    .molly-mockup-share-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .molly-mockup-share-actions .molly-button {
+        width: auto;
+        flex: 1 1 160px;
+    }
 }
 
 /* ---------- Mockup mobile shell (bottom bar + sheets) ---------- */
