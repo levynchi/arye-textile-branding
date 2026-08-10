@@ -1801,6 +1801,16 @@ body.molly-body {
     cursor: default;
 }
 
+.molly-mockup-tool-btn.active {
+    background: var(--molly-accent-dark);
+    border-color: var(--molly-accent-dark);
+    color: #fff;
+}
+
+body.molly-fill-bucket-on .molly-mockup-stage .molly-mockup-layer {
+    cursor: cell;
+}
+
 /* Crop modal */
 
 .molly-crop-overlay {
@@ -1894,7 +1904,6 @@ body.molly-body {
 }
 
 .molly-crop-area.is-lasso .molly-crop-rect,
-.molly-crop-area.is-wand .molly-crop-rect,
 .molly-crop-rect.is-lasso-hidden {
     display: none !important;
     pointer-events: none !important;
