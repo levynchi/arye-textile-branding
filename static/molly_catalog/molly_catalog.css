@@ -1279,6 +1279,68 @@ body.molly-body {
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
 }
 
+.molly-pdf-page-modal {
+    max-width: min(92vw, 560px);
+    width: 100%;
+    max-height: min(92vh, 780px);
+    overflow-y: auto;
+}
+
+.molly-pdf-page-filename {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--molly-text);
+    word-break: break-word;
+}
+
+.molly-pdf-page-filename[hidden] {
+    display: none !important;
+}
+
+.molly-pdf-page-preview-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 180px;
+    padding: 10px;
+    background: #f7f5f2;
+    border: 1px solid var(--molly-border);
+    border-radius: 10px;
+}
+
+.molly-pdf-page-preview {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    max-height: min(48vh, 360px);
+    height: auto;
+    object-fit: contain;
+    background: #fff;
+}
+
+.molly-pdf-page-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+}
+
+.molly-pdf-page-label {
+    flex: 1 1 auto;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--molly-text);
+}
+
+.molly-pdf-page-nav .molly-button {
+    flex: 0 0 auto;
+    min-width: 88px;
+}
+
 .molly-layer-mode-modal {
     max-width: min(92vw, 560px);
     width: 100%;

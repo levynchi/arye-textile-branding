@@ -258,6 +258,27 @@
         </div>
     </div>
 
+    <!-- PDF page picker (multi-page PDFs) -->
+    <div class="molly-crop-overlay" id="pdf-page-overlay" hidden>
+        <div class="molly-crop-modal molly-pdf-page-modal">
+            <div class="molly-crop-title" id="pdf-page-title">בחרי עמוד מה־PDF</div>
+            <p class="molly-mockup-hint" id="pdf-page-hint">דפדפי בין העמודים ובחרי איזה עמוד להעלות כשכבה.</p>
+            <p class="molly-pdf-page-filename" id="pdf-page-filename" hidden></p>
+            <div class="molly-pdf-page-preview-wrap">
+                <img class="molly-pdf-page-preview" id="pdf-page-preview" src="" alt="תצוגה מקדימה של עמוד PDF">
+            </div>
+            <div class="molly-pdf-page-nav">
+                <button type="button" class="molly-button molly-button-secondary" id="pdf-page-prev-btn">הקודם</button>
+                <span class="molly-pdf-page-label" id="pdf-page-label">עמוד 1 מתוך 1</span>
+                <button type="button" class="molly-button molly-button-secondary" id="pdf-page-next-btn">הבא</button>
+            </div>
+            <div class="molly-crop-actions">
+                <button type="button" class="molly-button" id="pdf-page-confirm-btn">המשך</button>
+                <button type="button" class="molly-button molly-button-secondary" id="pdf-page-cancel-btn">ביטול</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Layer mode picker (asked for every uploaded file) -->
     <div class="molly-crop-overlay" id="layer-mode-overlay" hidden>
         <div class="molly-crop-modal molly-layer-mode-modal">
@@ -292,8 +313,8 @@
         var SAVE_URL = "{% url 'molly_catalog:mockup_save' %}";
         var csrf = (document.querySelector('#mockup-csrf [name=csrfmiddlewaretoken]') || {}).value || '';
         var PDF_WORKER_SRC = "{% static 'molly_catalog/vendor/pdf.worker.min.js' %}";
-        var PDF_MAX_PAGES = 8;
         var PDF_RENDER_SCALE = 2.5;
+        var PDF_PREVIEW_SCALE = 1.2;
 
         if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
@@ -429,6 +450,18 @@
         var layerModeFocusedBtn = document.getElementById('layer-mode-focused');
         var layerModeCancelBtn = document.getElementById('layer-mode-cancel-btn');
 
+        var pdfPageOverlay = document.getElementById('pdf-page-overlay');
+        var pdfPageFilename = document.getElementById('pdf-page-filename');
+        var pdfPagePreview = document.getElementById('pdf-page-preview');
+        var pdfPageLabel = document.getElementById('pdf-page-label');
+        var pdfPagePrevBtn = document.getElementById('pdf-page-prev-btn');
+        var pdfPageNextBtn = document.getElementById('pdf-page-next-btn');
+        var pdfPageConfirmBtn = document.getElementById('pdf-page-confirm-btn');
+        var pdfPageCancelBtn = document.getElementById('pdf-page-cancel-btn');
+        var pendingPdfQueue = [];
+        var pdfPickState = null;
+        var pdfPreviewToken = 0;
+
         // --- Step 1: product selection ---
         var productCards = document.querySelectorAll('.molly-mockup-product-card');
         productCards.forEach(function (card) {
@@ -561,46 +594,181 @@
             return window.pdfjsLib || null;
         }
 
-        function pdfFileToDataUrls(file) {
+        function pdfErrorMessage(err, fileName) {
+            var name = fileName || 'PDF';
+            if (err && err.name === 'PasswordException') {
+                return 'ה־PDF ' + name + ' מוגן בסיסמה.';
+            }
+            if (err && err.message === 'pdfjs-missing') {
+                return 'ספריית ה־PDF לא נטענה. רענני את הדף ונסי שוב.';
+            }
+            if (err && (err.name === 'InvalidPDFException' || err.name === 'MissingPDFException')) {
+                return 'הקובץ ' + name + ' אינו PDF תקין.';
+            }
+            return 'שגיאה בטעינת ה־PDF ' + name;
+        }
+
+        function openPdfDocument(file) {
             var pdfjs = getPdfLib();
             if (!pdfjs || typeof pdfjs.getDocument !== 'function') {
                 return Promise.reject(new Error('pdfjs-missing'));
             }
             return file.arrayBuffer().then(function (buffer) {
-                var loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
-                return loadingTask.promise.then(function (pdf) {
-                    var total = pdf.numPages || 0;
-                    var pageCount = Math.min(total, PDF_MAX_PAGES);
-                    var pages = [];
-                    var chain = Promise.resolve();
-                    for (var i = 1; i <= pageCount; i++) {
-                        (function (pageNum) {
-                            chain = chain.then(function () {
-                                return pdf.getPage(pageNum).then(function (page) {
-                                    var viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
-                                    var canvas = document.createElement('canvas');
-                                    canvas.width = Math.max(1, Math.floor(viewport.width));
-                                    canvas.height = Math.max(1, Math.floor(viewport.height));
-                                    var ctx = canvas.getContext('2d');
-                                    return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
-                                        var label = file.name || 'PDF';
-                                        if (total > 1) {
-                                            label = label + ' — עמוד ' + pageNum;
-                                        }
-                                        pages.push({
-                                            dataUrl: canvas.toDataURL('image/png'),
-                                            name: label
-                                        });
-                                    });
-                                });
-                            });
-                        })(i);
-                    }
-                    return chain.then(function () {
-                        return { pages: pages, total: total, loaded: pageCount };
-                    });
+                return pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+            });
+        }
+
+        function renderPdfPageToDataUrl(pdf, pageNum, scale) {
+            return pdf.getPage(pageNum).then(function (page) {
+                var viewport = page.getViewport({ scale: scale });
+                var canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.floor(viewport.width));
+                canvas.height = Math.max(1, Math.floor(viewport.height));
+                var ctx = canvas.getContext('2d');
+                return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+                    return canvas.toDataURL('image/png');
                 });
             });
+        }
+
+        function closePdfPagePicker() {
+            pdfPreviewToken += 1;
+            if (pdfPickState && pdfPickState.pdf && typeof pdfPickState.pdf.destroy === 'function') {
+                try { pdfPickState.pdf.destroy(); } catch (e) { /* ignore */ }
+            }
+            pdfPickState = null;
+            if (pdfPageOverlay) pdfPageOverlay.hidden = true;
+            if (pdfPagePreview) {
+                pdfPagePreview.removeAttribute('src');
+                pdfPagePreview.alt = '';
+            }
+            if (pdfPageFilename) {
+                pdfPageFilename.hidden = true;
+                pdfPageFilename.textContent = '';
+            }
+        }
+
+        function updatePdfPageNav() {
+            if (!pdfPickState) return;
+            var page = pdfPickState.pageNum;
+            var total = pdfPickState.total;
+            if (pdfPageLabel) {
+                pdfPageLabel.textContent = 'עמוד ' + page + ' מתוך ' + total;
+            }
+            if (pdfPagePrevBtn) pdfPagePrevBtn.disabled = page <= 1 || !!pdfPickState.busy;
+            if (pdfPageNextBtn) pdfPageNextBtn.disabled = page >= total || !!pdfPickState.busy;
+            if (pdfPageConfirmBtn) pdfPageConfirmBtn.disabled = !!pdfPickState.busy;
+        }
+
+        function showPdfPagePreview(pageNum) {
+            if (!pdfPickState || !pdfPickState.pdf) return Promise.resolve();
+            pdfPickState.pageNum = pageNum;
+            updatePdfPageNav();
+            var token = ++pdfPreviewToken;
+            pdfPickState.busy = true;
+            updatePdfPageNav();
+            return renderPdfPageToDataUrl(pdfPickState.pdf, pageNum, PDF_PREVIEW_SCALE).then(function (dataUrl) {
+                if (token !== pdfPreviewToken || !pdfPickState) return;
+                if (pdfPagePreview) {
+                    pdfPagePreview.src = dataUrl;
+                    pdfPagePreview.alt = (pdfPickState.fileName || 'PDF') + ' — עמוד ' + pageNum;
+                }
+                pdfPickState.busy = false;
+                updatePdfPageNav();
+            }).catch(function (err) {
+                if (token !== pdfPreviewToken) return;
+                if (pdfPickState) pdfPickState.busy = false;
+                updatePdfPageNav();
+                showStatus(pdfErrorMessage(err, pdfPickState && pdfPickState.fileName), true);
+            });
+        }
+
+        function pdfPageItemName(fileName, pageNum, total) {
+            var label = fileName || 'PDF';
+            if (total > 1) label = label + ' — עמוד ' + pageNum;
+            return label;
+        }
+
+        function enqueuePdfPageAndContinue(dataUrl, name) {
+            pendingModeQueue.push({ dataUrl: dataUrl, name: name });
+            closePdfPagePicker();
+            processNextPdfPick();
+        }
+
+        function processNextPdfPick() {
+            if (pdfPickState) return;
+            if (!pendingPdfQueue.length) {
+                processNextModePick();
+                return;
+            }
+            var file = pendingPdfQueue.shift();
+            showStatus('טוענת PDF: ' + file.name + '...', false);
+            openPdfDocument(file).then(function (pdf) {
+                var total = pdf.numPages || 0;
+                if (total < 1) {
+                    if (typeof pdf.destroy === 'function') {
+                        try { pdf.destroy(); } catch (e) { /* ignore */ }
+                    }
+                    showStatus('ה־PDF ' + file.name + ' לא מכיל עמודים.', true);
+                    processNextPdfPick();
+                    return;
+                }
+                if (total === 1) {
+                    return renderPdfPageToDataUrl(pdf, 1, PDF_RENDER_SCALE).then(function (dataUrl) {
+                        if (typeof pdf.destroy === 'function') {
+                            try { pdf.destroy(); } catch (e) { /* ignore */ }
+                        }
+                        pendingModeQueue.push({
+                            dataUrl: dataUrl,
+                            name: pdfPageItemName(file.name, 1, 1)
+                        });
+                        processNextPdfPick();
+                    });
+                }
+                pdfPickState = {
+                    pdf: pdf,
+                    fileName: file.name || 'PDF',
+                    pageNum: 1,
+                    total: total,
+                    busy: false
+                };
+                if (pdfPageFilename) {
+                    pdfPageFilename.textContent = pdfPickState.fileName;
+                    pdfPageFilename.hidden = false;
+                }
+                if (pdfPageOverlay) pdfPageOverlay.hidden = false;
+                return showPdfPagePreview(1);
+            }).catch(function (err) {
+                showStatus(pdfErrorMessage(err, file.name), true);
+                processNextPdfPick();
+            });
+        }
+
+        function confirmPdfPagePick() {
+            if (!pdfPickState || !pdfPickState.pdf || pdfPickState.busy) return;
+            var stateSnap = pdfPickState;
+            var pageNum = stateSnap.pageNum;
+            var total = stateSnap.total;
+            var fileName = stateSnap.fileName;
+            stateSnap.busy = true;
+            updatePdfPageNav();
+            showStatus('מכינה את עמוד ' + pageNum + '...', false);
+            renderPdfPageToDataUrl(stateSnap.pdf, pageNum, PDF_RENDER_SCALE).then(function (dataUrl) {
+                enqueuePdfPageAndContinue(dataUrl, pdfPageItemName(fileName, pageNum, total));
+            }).catch(function (err) {
+                if (pdfPickState) pdfPickState.busy = false;
+                updatePdfPageNav();
+                showStatus(pdfErrorMessage(err, fileName), true);
+            });
+        }
+
+        function cancelPdfPagePicker() {
+            closePdfPagePicker();
+            pendingPdfQueue = [];
+            if (!pendingModeQueue.length && !pendingModeItem) {
+                showStatus('העלאת ה־PDF בוטלה.', false);
+            }
+            processNextModePick();
         }
 
         function addFiles(fileList) {
@@ -623,38 +791,13 @@
 
             function finishOne() {
                 remaining -= 1;
-                if (remaining === 0) processNextModePick();
+                if (remaining === 0) processNextPdfPick();
             }
 
             accepted.forEach(function (file) {
                 if (isPdfFile(file)) {
-                    showStatus('טוענת PDF: ' + file.name + '...', false);
-                    pdfFileToDataUrls(file).then(function (result) {
-                        result.pages.forEach(function (item) {
-                            pendingModeQueue.push(item);
-                        });
-                        if (result.total > result.loaded) {
-                            showStatus(
-                                'נטענו ' + result.loaded + ' מתוך ' + result.total +
-                                ' עמודים מ־' + file.name + ' (מקסימום ' + PDF_MAX_PAGES + ').',
-                                false
-                            );
-                        } else if (result.loaded > 1) {
-                            showStatus('נטענו ' + result.loaded + ' עמודים מ־' + file.name + '.', false);
-                        }
-                        finishOne();
-                    }).catch(function (err) {
-                        var msg = 'שגיאה בטעינת ה־PDF ' + file.name;
-                        if (err && err.name === 'PasswordException') {
-                            msg = 'ה־PDF ' + file.name + ' מוגן בסיסמה.';
-                        } else if (err && err.message === 'pdfjs-missing') {
-                            msg = 'ספריית ה־PDF לא נטענה. רענני את הדף ונסי שוב.';
-                        } else if (err && (err.name === 'InvalidPDFException' || err.name === 'MissingPDFException')) {
-                            msg = 'הקובץ ' + file.name + ' אינו PDF תקין.';
-                        }
-                        showStatus(msg, true);
-                        finishOne();
-                    });
+                    pendingPdfQueue.push(file);
+                    finishOne();
                     return;
                 }
 
@@ -668,6 +811,30 @@
                     finishOne();
                 };
                 reader.readAsDataURL(file);
+            });
+        }
+
+        if (pdfPagePrevBtn) {
+            pdfPagePrevBtn.addEventListener('click', function () {
+                if (!pdfPickState || pdfPickState.busy || pdfPickState.pageNum <= 1) return;
+                showPdfPagePreview(pdfPickState.pageNum - 1);
+            });
+        }
+        if (pdfPageNextBtn) {
+            pdfPageNextBtn.addEventListener('click', function () {
+                if (!pdfPickState || pdfPickState.busy || pdfPickState.pageNum >= pdfPickState.total) return;
+                showPdfPagePreview(pdfPickState.pageNum + 1);
+            });
+        }
+        if (pdfPageConfirmBtn) {
+            pdfPageConfirmBtn.addEventListener('click', confirmPdfPagePick);
+        }
+        if (pdfPageCancelBtn) {
+            pdfPageCancelBtn.addEventListener('click', cancelPdfPagePicker);
+        }
+        if (pdfPageOverlay) {
+            pdfPageOverlay.addEventListener('click', function (e) {
+                if (e.target === pdfPageOverlay) cancelPdfPagePicker();
             });
         }
 
