@@ -2206,54 +2206,152 @@ body.molly-body {
     margin: 8px 0 0;
 }
 
-/* Public share page */
-.molly-mockup-share-main {
-    max-width: 720px;
-}
-
-.molly-mockup-share-card {
-    background: var(--molly-card-bg);
-    border-radius: var(--molly-radius);
-    box-shadow: var(--molly-shadow);
-    padding: 16px;
+/* Public share page — mobile-first landing for WhatsApp links */
+body.molly-share-body {
+    min-height: 100dvh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    background: #f3f1ee;
 }
 
-.molly-mockup-share-image {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-radius: 8px;
-    background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 16px 16px;
-}
-
-.molly-mockup-share-actions {
+.molly-share-top {
+    position: sticky;
+    top: 0;
+    z-index: 40;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.molly-mockup-share-actions .molly-button {
-    width: 100%;
-    text-align: center;
-    min-height: 48px;
-    display: inline-flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0));
+    background: linear-gradient(135deg, var(--molly-accent) 0%, var(--molly-accent-dark) 100%);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+}
+
+.molly-share-brand {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--molly-text);
     text-decoration: none;
 }
 
-@media (min-width: 641px) {
-    .molly-mockup-share-actions {
-        flex-direction: row;
-        flex-wrap: wrap;
+.molly-share-top-link {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--molly-text);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+}
+
+.molly-share-main {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 12px 12px 0;
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0));
+}
+
+.molly-share-hero {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: var(--molly-shadow);
+    overflow: hidden;
+}
+
+.molly-share-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: min(70dvh, 70vh);
+    object-fit: contain;
+    background: #fff;
+}
+
+.molly-share-meta {
+    padding: 14px 4px 8px;
+}
+
+.molly-share-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--molly-text);
+}
+
+.molly-share-subtitle {
+    margin: 6px 0 0;
+    color: var(--molly-text-soft);
+    font-size: 0.95rem;
+}
+
+.molly-share-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0));
+    background: rgba(255, 255, 255, 0.96);
+    border-top: 1px solid var(--molly-border);
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.molly-share-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 100% !important;
+    min-height: 48px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 2px solid var(--molly-primary);
+    background: #fff;
+    color: var(--molly-primary-dark);
+    font-family: var(--molly-font);
+    font-size: 1.05rem;
+    font-weight: 800;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+
+.molly-share-btn.primary {
+    background: var(--molly-primary-dark);
+    border-color: var(--molly-primary-dark);
+    color: #fff;
+}
+
+.molly-share-note {
+    margin: 0;
+    text-align: center;
+    color: var(--molly-text-soft);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 4px 0;
+}
+
+@media (min-width: 720px) {
+    .molly-share-main {
+        padding: 20px 20px 160px;
     }
 
-    .molly-mockup-share-actions .molly-button {
-        width: auto;
-        flex: 1 1 160px;
+    .molly-share-title {
+        font-size: 1.7rem;
+    }
+
+    .molly-share-bar {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: min(720px, calc(100% - 32px));
+        border-radius: 16px 16px 0 0;
     }
 }
 

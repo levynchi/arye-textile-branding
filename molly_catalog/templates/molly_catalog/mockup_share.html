@@ -4,58 +4,68 @@
 <head>
     {% include 'molly_catalog/partials/base_head.html' %}
     <title>{{ mockup.display_name }} &mdash; הדמיה</title>
+    <meta property="og:site_name" content="קטלוג מולי">
     <meta property="og:type" content="website">
+    <meta property="og:locale" content="he_IL">
     <meta property="og:title" content="{{ mockup.display_name }}">
     <meta property="og:description" content="הדמיה מקטלוג מולי{% if mockup.product_name %} · {{ mockup.product_name }}{% endif %}">
-    <meta property="og:image" content="{{ absolute_image_url }}">
     <meta property="og:url" content="{{ absolute_share_url }}">
+    <meta property="og:image" content="{{ absolute_image_url }}">
+    <meta property="og:image:secure_url" content="{{ absolute_image_url }}">
+    <meta property="og:image:type" content="image/png">
+    {% if og_image_width %}<meta property="og:image:width" content="{{ og_image_width }}">{% endif %}
+    {% if og_image_height %}<meta property="og:image:height" content="{{ og_image_height }}">{% endif %}
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ mockup.display_name }}">
+    <meta name="twitter:description" content="הדמיה מקטלוג מולי{% if mockup.product_name %} · {{ mockup.product_name }}{% endif %}">
     <meta name="twitter:image" content="{{ absolute_image_url }}">
 </head>
-<body class="molly-body">
-    {% include 'molly_catalog/partials/header.html' %}
-
-    <main class="molly-main molly-mockup-share-main">
-        <div class="molly-breadcrumbs">
-            {% if is_logged_in %}
-            <a href="{% url 'molly_catalog:home' %}">דף הבית</a>
-            <span class="sep">›</span>
-            <a href="{% url 'molly_catalog:mockups' %}">הדמיות</a>
-            <span class="sep">›</span>
-            {% endif %}
-            <span>{{ mockup.display_name }}</span>
-        </div>
-
-        <h1 class="molly-page-title">{{ mockup.display_name }}</h1>
-        {% if mockup.product_name %}
-        <p class="molly-page-subtitle">{{ mockup.product_name }}</p>
+<body class="molly-body molly-share-body">
+    <header class="molly-share-top">
+        <a class="molly-share-brand" href="{% if is_logged_in %}{% url 'molly_catalog:mockups' %}{% else %}{% url 'molly_catalog:login' %}{% endif %}">
+            קטלוג מולי
+        </a>
+        {% if is_logged_in %}
+        <a class="molly-share-top-link" href="{% url 'molly_catalog:mockups' %}">ההדמיות שלי</a>
+        {% else %}
+        <a class="molly-share-top-link" href="{% url 'molly_catalog:login' %}">התחברות</a>
         {% endif %}
+    </header>
 
-        <section class="molly-mockup-share-card">
+    <main class="molly-share-main">
+        <div class="molly-share-hero">
             <img
-                class="molly-mockup-share-image"
+                class="molly-share-image"
                 src="{{ image_url }}"
                 alt="{{ mockup.display_name }}"
+                width="{% if og_image_width %}{{ og_image_width }}{% else %}1200{% endif %}"
+                height="{% if og_image_height %}{{ og_image_height }}{% else %}1200{% endif %}"
             >
-            <div class="molly-mockup-share-actions">
-                {% if can_edit %}
-                <a class="molly-button" href="{{ edit_href }}">עריכת ההדמיה</a>
-                {% elif is_logged_in %}
-                <p class="molly-mockup-hint">הדמיה זו שייכת למשתמשת אחרת — ניתן לצפות בלבד.</p>
-                {% else %}
-                <a class="molly-button" href="{{ edit_href }}">התחברות לעריכה</a>
-                {% endif %}
-                <a
-                    class="molly-button molly-button-secondary"
-                    href="https://wa.me/?text={{ mockup.display_name|urlencode }}%0A{{ absolute_share_url|urlencode }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >שיתוף בוואטסאפ</a>
-                <a class="molly-button molly-button-secondary" href="{{ image_url }}" download="mockup-{{ mockup.id }}.png">הורדת תמונה</a>
-            </div>
-        </section>
+        </div>
+
+        <div class="molly-share-meta">
+            <h1 class="molly-share-title">{{ mockup.display_name }}</h1>
+            {% if mockup.product_name %}
+            <p class="molly-share-subtitle">{{ mockup.product_name }}</p>
+            {% endif %}
+        </div>
     </main>
 
-    {% include 'molly_catalog/partials/footer.html' %}
+    <div class="molly-share-bar">
+        {% if can_edit %}
+        <a class="molly-share-btn primary" href="{{ edit_href }}">עריכת ההדמיה</a>
+        {% elif is_logged_in %}
+        <p class="molly-share-note">הדמיה זו שייכת למשתמשת אחרת — צפייה בלבד.</p>
+        {% else %}
+        <a class="molly-share-btn primary" href="{{ edit_href }}">התחברות לעריכה</a>
+        {% endif %}
+        <a
+            class="molly-share-btn"
+            href="https://wa.me/?text={{ mockup.display_name|urlencode }}%0A{{ absolute_share_url|urlencode }}"
+            target="_blank"
+            rel="noopener noreferrer"
+        >שיתוף בוואטסאפ</a>
+        <a class="molly-share-btn" href="{{ image_url }}" download="mockup-{{ mockup.id }}.png">הורדת תמונה</a>
+    </div>
 </body>
 </html>

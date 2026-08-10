@@ -1063,6 +1063,17 @@ def mockup_share(request, mockup_id):
     )
     share_path = reverse("molly_catalog:mockup_share", kwargs={"mockup_id": mockup.id})
 
+    og_w = None
+    og_h = None
+    try:
+        from PIL import Image as PilImage
+
+        with mockup.result_image.open("rb") as f:
+            with PilImage.open(f) as im:
+                og_w, og_h = im.size
+    except Exception:
+        pass
+
     context = {
         **_nav_context(),
         "mockup": mockup,
@@ -1071,6 +1082,8 @@ def mockup_share(request, mockup_id):
         "image_url": image_path,
         "absolute_image_url": request.build_absolute_uri(image_path),
         "absolute_share_url": request.build_absolute_uri(share_path),
+        "og_image_width": og_w,
+        "og_image_height": og_h,
         "cart_count": _cart_count(request) if user else 0,
         "is_logged_in": bool(user),
     }
