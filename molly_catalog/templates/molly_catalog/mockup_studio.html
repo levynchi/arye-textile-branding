@@ -3540,10 +3540,15 @@
         var lassoPoints = []; // display coords relative to cropImg
         var lassoDrawing = false;
 
+        function isFocusedLayerMode(mode) {
+            // Match syncTools: anything that is not allover is a focused print.
+            return mode !== 'allover';
+        }
+
         function setCropHintForShape() {
             if (!cropHint) return;
             cropHint.hidden = false;
-            var focusedCut = cropSourceMode === 'focused';
+            var focusedCut = isFocusedLayerMode(cropSourceMode);
             if (cropShape === 'lasso') {
                 cropHint.textContent = focusedCut
                     ? 'ציירי קו חופשי סביב האלמנט — הוא ייחתך מהשכבה המקורית ויהפוך לשכבה נפרדת. אפשר לנקות ולצייר שוב.'
@@ -3791,16 +3796,19 @@
             // תמיד יוצרים אלמנט בודד — לא פאטרן אול-אובר מהחיתוך
             cropMode = 'extract';
             cropSourceLayerId = layer.id;
-            cropSourceMode = layer.mode || null;
+            cropSourceMode = layer.mode === 'allover' ? 'allover' : 'focused';
+            if (layer.mode !== 'allover' && layer.mode !== 'focused') {
+                layer.mode = 'focused';
+            }
             cropShape = 'rect';
             clearLasso();
             if (cropTitle) {
-                cropTitle.textContent = cropSourceMode === 'focused'
+                cropTitle.textContent = isFocusedLayerMode(cropSourceMode)
                     ? 'חיתוך אלמנט מהפרינט'
                     : 'חיתוך אלמנט בודד';
             }
             if (cropApplyBtn) {
-                cropApplyBtn.textContent = cropSourceMode === 'focused'
+                cropApplyBtn.textContent = isFocusedLayerMode(cropSourceMode)
                     ? 'גזור לשכבה חדשה'
                     : 'צור אלמנט על הבגד';
             }
@@ -4028,13 +4036,13 @@
         }
 
         /** Punch the crop selection out of a focused source layer (transparent hole). */
-        function eraseCropFromLayer(layer, erase, done) {
-            if (!layer || !erase || !layer.current) {
+        function eraseCropFromLayer(layer, erase, done, sourceImg) {
+            if (!layer || !erase) {
                 if (done) done(false);
                 return;
             }
-            var img = new Image();
-            img.onload = function () {
+
+            function applyErase(img) {
                 var W = img.naturalWidth || img.width;
                 var H = img.naturalHeight || img.height;
                 if (!W || !H) {
@@ -4046,36 +4054,50 @@
                 canvas.height = H;
                 var ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
+                // destination-out is more reliable than clearRect for punching
+                // alpha holes in some browsers after drawImage of opaque PDFs.
+                ctx.save();
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.fillStyle = '#000';
                 if (erase.type === 'rect') {
-                    ctx.clearRect(erase.x, erase.y, erase.w, erase.h);
+                    ctx.fillRect(erase.x, erase.y, erase.w, erase.h);
                 } else if (erase.type === 'lasso' && erase.points && erase.points.length >= 3) {
-                    ctx.save();
                     ctx.beginPath();
                     ctx.moveTo(erase.points[0].x, erase.points[0].y);
                     for (var i = 1; i < erase.points.length; i++) {
                         ctx.lineTo(erase.points[i].x, erase.points[i].y);
                     }
                     ctx.closePath();
-                    ctx.clip();
-                    var minX = erase.minX != null ? erase.minX : 0;
-                    var minY = erase.minY != null ? erase.minY : 0;
-                    var maxX = erase.maxX != null ? erase.maxX : W;
-                    var maxY = erase.maxY != null ? erase.maxY : H;
-                    ctx.clearRect(minX, minY, Math.max(1, maxX - minX), Math.max(1, maxY - minY));
-                    ctx.restore();
+                    ctx.fill();
                 } else {
+                    ctx.restore();
                     if (done) done(false);
                     return;
                 }
+                ctx.restore();
                 var url = canvas.toDataURL('image/png');
                 layer.working = url;
                 if (layer.patternPrepared) {
                     layer.recolorSource = url;
                 }
+                // Color slots still describe ink hues; bitmap is already final.
                 setLayerImage(layer, url, function () {
+                    invalidateDensityCache(layer);
+                    applyTransform(layer);
                     if (done) done(true);
                 }, { keepRecolorSource: true });
-            };
+            }
+
+            if (sourceImg && sourceImg.naturalWidth) {
+                applyErase(sourceImg);
+                return;
+            }
+            if (!layer.current) {
+                if (done) done(false);
+                return;
+            }
+            var img = new Image();
+            img.onload = function () { applyErase(img); };
             img.onerror = function () {
                 if (done) done(false);
             };
@@ -4136,6 +4158,17 @@
                 showStatus('לא ניתן ליצור אלמנט מהבחירה הנוכחית.', true);
                 return;
             }
+            // Prefer mode from when the modal opened (same rule as syncTools).
+            var isFocusedCut = isFocusedLayerMode(cropSourceMode || layer.mode);
+            if (isFocusedCut && layer.mode === 'allover') {
+                // Should not happen; keep source intact.
+                isFocusedCut = false;
+            }
+            if (isFocusedCut && layer.mode !== 'focused') {
+                layer.mode = 'focused';
+            }
+            // Keep a reference to the crop bitmap before closing the modal.
+            var eraseSourceImg = cropImg;
             cropOverlay.hidden = true;
             clearLasso();
             cropShape = 'rect';
@@ -4145,7 +4178,6 @@
             var baseName = layer.name || 'אלמנט';
             var place = extractLayerSizeAndPos(layer, cropInfo);
             var inheritPrep = !!layer.patternPrepared;
-            var isFocusedCut = layer.mode === 'focused';
             var sourceSnap = isFocusedCut ? snapshotLayerBitmap(layer) : null;
 
             function addExtractedLayer() {
@@ -4188,9 +4220,13 @@
             }
 
             if (isFocusedCut && cropInfo.erase) {
-                eraseCropFromLayer(layer, cropInfo.erase, function () {
+                eraseCropFromLayer(layer, cropInfo.erase, function (ok) {
+                    if (!ok) {
+                        showStatus('לא הצלחתי למחוק את האזור מהשכבה המקורית. נסי שוב.', true);
+                        return;
+                    }
                     addExtractedLayer();
-                });
+                }, eraseSourceImg);
             } else {
                 addExtractedLayer();
             }
