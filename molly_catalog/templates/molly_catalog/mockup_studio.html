@@ -2456,6 +2456,32 @@
             });
         }
 
+        /** Nudge selected layer on one axis (arrow keys). dx/dy in garment fractions. */
+        function nudgeActiveLayer(dx, dy) {
+            var layer = activeLayer();
+            if (!layer || !layer.visible) return false;
+            if (layer.mode === 'allover') {
+                layer.offsetX = (layer.offsetX || 0) + dx;
+                layer.offsetY = (layer.offsetY || 0) + dy;
+                applyTransform(layer);
+                return true;
+            }
+            if (layer.positionLocked) return false;
+            layer.x = clamp((layer.x == null ? 0.5 : layer.x) + dx, 0, 1);
+            layer.y = clamp((layer.y == null ? 0.45 : layer.y) + dy, 0, 1);
+            applyTransform(layer);
+            return true;
+        }
+
+        function studioOverlayOpen() {
+            function open(el) { return !!(el && !el.hidden); }
+            return open(fillBucketOverlay)
+                || open(cropOverlay)
+                || open(nameOverlay)
+                || open(layerModeOverlay)
+                || open(pdfPageOverlay);
+        }
+
         scaleSlider.addEventListener('input', function () {
             var layer = activeLayer();
             if (!layer) return;
@@ -5038,13 +5064,7 @@
 
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') closeAllSheets();
-                // Use e.code (physical KeyZ) so Ctrl+Z works on Hebrew layout too
-                // (e.key becomes ז / etc. when the OS keyboard is Hebrew).
-                var isUndo = (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z')
-                    && (e.ctrlKey || e.metaKey)
-                    && !e.shiftKey
-                    && !e.altKey;
-                if (!isUndo) return;
+
                 var t = e.target;
                 if (t) {
                     var tag = (t.tagName || '').toLowerCase();
@@ -5052,8 +5072,33 @@
                         return;
                     }
                 }
-                e.preventDefault();
-                undoDesignEdit();
+
+                // Use e.code (physical KeyZ) so Ctrl+Z works on Hebrew layout too
+                // (e.key becomes ז / etc. when the OS keyboard is Hebrew).
+                var isUndo = (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z')
+                    && (e.ctrlKey || e.metaKey)
+                    && !e.shiftKey
+                    && !e.altKey;
+                if (isUndo) {
+                    e.preventDefault();
+                    undoDesignEdit();
+                    return;
+                }
+
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+                if (studioOverlayOpen()) return;
+                var code = e.code || '';
+                var step = e.shiftKey ? 0.02 : 0.005;
+                var dx = 0;
+                var dy = 0;
+                if (code === 'ArrowLeft') dx = -step;
+                else if (code === 'ArrowRight') dx = step;
+                else if (code === 'ArrowUp') dy = -step;
+                else if (code === 'ArrowDown') dy = step;
+                else return;
+                if (nudgeActiveLayer(dx, dy)) {
+                    e.preventDefault();
+                }
             });
 
             // Close sheets after primary save/download actions on mobile
