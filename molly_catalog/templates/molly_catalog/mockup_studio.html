@@ -3186,8 +3186,8 @@
             var inkLab = null;
             for (var i = 1; i < ranked.length && i < 16; i++) {
                 // Skip near-empty buckets but keep scanning — sparse motifs
-                // can sit below anti-alias peaks that are almost the plate color.
-                if (ranked[i].count / hist.total < 0.001) continue;
+                // (tiny line art on a full PDF page) can be well under 0.1%.
+                if (ranked[i].count / hist.total < 0.00025) continue;
                 var candidate = keyToRgb(ranked[i].key);
                 var candLab = rgbToLab(candidate.r, candidate.g, candidate.b);
                 if (labDist2(bgLab, candLab) >= 80) {
@@ -3241,6 +3241,32 @@
             }
         }
 
+        // For near-white PDF/print plates: remove only plate-similar pixels.
+        // Keeps black line art AND light accent fills (moon/star/logo) that a
+        // two-cluster midline would erase as "closer to white than to ink".
+        function eraseNearPlateLab(imageData, palette, maxDist) {
+            var d = imageData.data;
+            var bgLab = palette.bgLab;
+            var hard = maxDist == null ? 14 : maxDist;
+            var soft = hard * 2.2;
+            var hard2 = hard * hard;
+            var soft2 = soft * soft;
+            for (var i = 0; i < d.length; i += 4) {
+                if (d[i + 3] === 0) continue;
+                var lab = rgbToLab(d[i], d[i + 1], d[i + 2]);
+                var dist2 = labDist2(lab, bgLab);
+                if (dist2 <= hard2) {
+                    d[i + 3] = 0;
+                } else if (dist2 >= soft2) {
+                    d[i + 3] = 255;
+                } else {
+                    var dist = Math.sqrt(dist2);
+                    var t = (dist - hard) / (soft - hard);
+                    d[i + 3] = Math.round(255 * clamp(t, 0, 1));
+                }
+            }
+        }
+
         // Average luminance of remaining opaque pixels (0-255).
         // Light ink (white rabbits) needs normal blend; dark ink needs multiply.
         function remainingInkLuminance(imageData) {
@@ -3262,8 +3288,55 @@
         function knockOutPatternPlate(imageData, W, H) {
             var palette = detectTwoColorPalette(imageData, W, H);
             if (!palette) return null;
-            eraseByTwoClusterLab(imageData, palette);
+            // Bright dominant plates (typical print PDF on white) keep multi-color
+            // accents; darker garment-style plates still use two-cluster erase.
+            if (palette.bgLum >= 220 && palette.strength >= 0.8) {
+                eraseNearPlateLab(imageData, palette, 16);
+            } else {
+                eraseByTwoClusterLab(imageData, palette);
+            }
             return palette;
+        }
+
+        /**
+         * Crop to opaque content, ignoring a thin outer border (crop marks on
+         * print PDFs). Returns a tighter canvas or the original if not helpful.
+         */
+        function trimOpaqueContentCanvas(sourceCanvas, imageData, borderFrac) {
+            var W = sourceCanvas.width;
+            var H = sourceCanvas.height;
+            var d = imageData.data;
+            var mx = Math.max(2, Math.floor(W * (borderFrac == null ? 0.04 : borderFrac)));
+            var my = Math.max(2, Math.floor(H * (borderFrac == null ? 0.04 : borderFrac)));
+            var minX = W;
+            var minY = H;
+            var maxX = -1;
+            var maxY = -1;
+            for (var y = my; y < H - my; y++) {
+                for (var x = mx; x < W - mx; x++) {
+                    if (d[(y * W + x) * 4 + 3] < 24) continue;
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+            if (maxX < minX || maxY < minY) return null;
+            var pad = Math.max(8, Math.round(Math.min(W, H) * 0.02));
+            minX = Math.max(0, minX - pad);
+            minY = Math.max(0, minY - pad);
+            maxX = Math.min(W - 1, maxX + pad);
+            maxY = Math.min(H - 1, maxY + pad);
+            var tw = maxX - minX + 1;
+            var th = maxY - minY + 1;
+            // Only trim when we remove a meaningful amount of empty margin.
+            if (tw * th > W * H * 0.85) return null;
+            if (tw < 8 || th < 8) return null;
+            var out = document.createElement('canvas');
+            out.width = tw;
+            out.height = th;
+            out.getContext('2d').drawImage(sourceCanvas, minX, minY, tw, th, 0, 0, tw, th);
+            return out;
         }
 
         /**
@@ -3331,8 +3404,8 @@
                 }
                 layer.plateLab = palette.bgLab;
                 var kept = opaqueFraction(imageData);
-                // Sparse motifs (leaves on white) can be ~0.5–1% of the tile.
-                if (kept < 0.004 || kept > 0.92) {
+                // Tiny line-art on a full white PDF page can be ~0.2–0.4% ink.
+                if (kept < 0.001 || kept > 0.92) {
                     layer.plateLab = null;
                     failPrep(
                         manual
@@ -3343,8 +3416,18 @@
                 }
                 pushDesignUndo(undoSnap);
                 ctx.putImageData(imageData, 0, 0);
-                var resultUrl = canvas.toDataURL('image/png');
-                layer.blend = chooseBlendFromImageData(imageData);
+                var outCanvas = canvas;
+                // Focused prints on large white pages: tighten to the motif
+                // (ignores corner crop-marks in the outer border strip).
+                if (manual || layer.mode === 'focused') {
+                    var trimmed = trimOpaqueContentCanvas(canvas, imageData, 0.04);
+                    if (trimmed) outCanvas = trimmed;
+                }
+                var resultUrl = outCanvas.toDataURL('image/png');
+                var resultImageData = outCanvas === canvas
+                    ? imageData
+                    : outCanvas.getContext('2d').getImageData(0, 0, outCanvas.width, outCanvas.height);
+                layer.blend = chooseBlendFromImageData(resultImageData);
                 layer.working = resultUrl;
                 layer.recolorSource = resultUrl;
                 layer.colorSlots = null;
