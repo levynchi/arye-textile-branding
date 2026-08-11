@@ -555,6 +555,34 @@
                 showStatus('בוטל — השכבה שהתווספה הוסרה.', false);
                 return;
             }
+            if (entry.type === 'cutExtract') {
+                var cutLayer = entry.sourceSnap
+                    ? findLayerById(entry.sourceSnap.layerId)
+                    : null;
+                if (entry.newLayerId != null) {
+                    removeLayer(entry.newLayerId);
+                }
+                if (cutLayer && entry.sourceSnap) {
+                    var snap = entry.sourceSnap;
+                    cutLayer.working = snap.working;
+                    cutLayer.recolorSource = snap.recolorSource;
+                    cutLayer.blend = snap.blend;
+                    cutLayer.patternPrepared = !!snap.patternPrepared;
+                    cutLayer.preKnockoutUrl = snap.preKnockoutUrl || null;
+                    cutLayer.plateLab = snap.plateLab || null;
+                    cutLayer.colorSlots = cloneColorSlots(snap.colorSlots);
+                    cutLayer.activeColorSlot = snap.activeColorSlot == null ? 0 : snap.activeColorSlot;
+                    setLayerImage(cutLayer, snap.current, function () {
+                        refreshFillBucketPreview(cutLayer);
+                        renderColorSlotsUI(cutLayer);
+                        syncTools();
+                        showStatus('בוטל חיתוך האלמנט.', false);
+                    }, { keepRecolorSource: true });
+                } else {
+                    showStatus('בוטל חיתוך האלמנט.', false);
+                }
+                return;
+            }
             if (entry.type === 'layerBitmap') {
                 var layer = findLayerById(entry.layerId);
                 if (!layer) {
@@ -1360,8 +1388,8 @@
             if (toolsCropHint) {
                 toolsCropHint.textContent = focused
                     ? (prepared
-                        ? 'אפשר לשנות צבעי מוטיבים, למלא חורים בדלי, או לחתוך אלמנט לשכבה נפרדת.'
-                        : 'העלם רקע להסרת הרקע מהפרינט, או חתוך אלמנט לשכבה נפרדת.')
+                        ? 'אפשר לשנות צבעי מוטיבים, למלא חורים בדלי, או לגזור אלמנט מהפרינט לשכבה נפרדת (נעלם מהמקור).'
+                        : 'העלם רקע להסרת הרקע מהפרינט, או גזרי אלמנט מהפרינט לשכבה נפרדת (נעלם מהמקור).')
                     : 'חתוך אלמנט → שכבה בודדת על הבגד (לא פאטרן).';
             }
             var spacing = layer.density == null ? 1 : layer.density;
@@ -3508,16 +3536,22 @@
         var cropMode = 'extract'; // תמיד אלמנט בודד (שכבה ממוקדת)
         var cropShape = 'rect'; // 'rect' | 'lasso'
         var cropSourceLayerId = null;
+        var cropSourceMode = null; // mode of layer that opened the crop modal
         var lassoPoints = []; // display coords relative to cropImg
         var lassoDrawing = false;
 
         function setCropHintForShape() {
             if (!cropHint) return;
             cropHint.hidden = false;
+            var focusedCut = cropSourceMode === 'focused';
             if (cropShape === 'lasso') {
-                cropHint.textContent = 'ציירי קו חופשי סביב האלמנט — שחרור העכבר סוגר את הצורה. אפשר לנקות ולצייר שוב.';
+                cropHint.textContent = focusedCut
+                    ? 'ציירי קו חופשי סביב האלמנט — הוא ייחתך מהשכבה המקורית ויהפוך לשכבה נפרדת. אפשר לנקות ולצייר שוב.'
+                    : 'ציירי קו חופשי סביב האלמנט — שחרור העכבר סוגר את הצורה. אפשר לנקות ולצייר שוב.';
             } else {
-                cropHint.textContent = 'סמני אלמנט אחד — הוא יהפוך לשכבה נפרדת על הבגד (לא פאטרן חוזר). אחר כך אפשר לשכפל ולמקם כל עותק בנפרד.';
+                cropHint.textContent = focusedCut
+                    ? 'סמני אזור מהפרינט הממוקד — הוא ייחתך מהשכבה המקורית ויהפוך לשכבה נפרדת על הבגד. אחר כך אפשר לשכפל ולמקם כל עותק בנפרד.'
+                    : 'סמני אלמנט אחד — הוא יהפוך לשכבה נפרדת על הבגד (לא פאטרן חוזר). אחר כך אפשר לשכפל ולמקם כל עותק בנפרד.';
             }
         }
 
@@ -3757,10 +3791,19 @@
             // תמיד יוצרים אלמנט בודד — לא פאטרן אול-אובר מהחיתוך
             cropMode = 'extract';
             cropSourceLayerId = layer.id;
+            cropSourceMode = layer.mode || null;
             cropShape = 'rect';
             clearLasso();
-            if (cropTitle) cropTitle.textContent = 'חיתוך אלמנט בודד';
-            if (cropApplyBtn) cropApplyBtn.textContent = 'צור אלמנט על הבגד';
+            if (cropTitle) {
+                cropTitle.textContent = cropSourceMode === 'focused'
+                    ? 'חיתוך אלמנט מהפרינט'
+                    : 'חיתוך אלמנט בודד';
+            }
+            if (cropApplyBtn) {
+                cropApplyBtn.textContent = cropSourceMode === 'focused'
+                    ? 'גזור לשכבה חדשה'
+                    : 'צור אלמנט על הבגד';
+            }
             syncCropShapeUi();
             cropImg.onload = function () {
                 cropImg.onload = null;
@@ -3912,7 +3955,8 @@
                 fracW: clamp(crop.w / dispW, 0.01, 1),
                 fracH: clamp(crop.h / dispH, 0.01, 1),
                 centerX: clamp((crop.x + crop.w / 2) / dispW, 0, 1),
-                centerY: clamp((crop.y + crop.h / 2) / dispH, 0, 1)
+                centerY: clamp((crop.y + crop.h / 2) / dispH, 0, 1),
+                erase: { type: 'rect', x: sx, y: sy, w: sw, h: sh }
             };
         }
 
@@ -3966,13 +4010,76 @@
                 fracW: clamp(boxW / dispW, 0.01, 1),
                 fracH: clamp(boxH / dispH, 0.01, 1),
                 centerX: clamp((dispMinX + boxW / 2) / dispW, 0, 1),
-                centerY: clamp((dispMinY + boxH / 2) / dispH, 0, 1)
+                centerY: clamp((dispMinY + boxH / 2) / dispH, 0, 1),
+                erase: {
+                    type: 'lasso',
+                    points: natPts,
+                    minX: minX,
+                    minY: minY,
+                    maxX: maxX,
+                    maxY: maxY
+                }
             };
         }
 
         function getCroppedDataUrl() {
             if (cropShape === 'lasso') return getLassoCroppedDataUrl();
             return getRectCroppedDataUrl();
+        }
+
+        /** Punch the crop selection out of a focused source layer (transparent hole). */
+        function eraseCropFromLayer(layer, erase, done) {
+            if (!layer || !erase || !layer.current) {
+                if (done) done(false);
+                return;
+            }
+            var img = new Image();
+            img.onload = function () {
+                var W = img.naturalWidth || img.width;
+                var H = img.naturalHeight || img.height;
+                if (!W || !H) {
+                    if (done) done(false);
+                    return;
+                }
+                var canvas = document.createElement('canvas');
+                canvas.width = W;
+                canvas.height = H;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                if (erase.type === 'rect') {
+                    ctx.clearRect(erase.x, erase.y, erase.w, erase.h);
+                } else if (erase.type === 'lasso' && erase.points && erase.points.length >= 3) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(erase.points[0].x, erase.points[0].y);
+                    for (var i = 1; i < erase.points.length; i++) {
+                        ctx.lineTo(erase.points[i].x, erase.points[i].y);
+                    }
+                    ctx.closePath();
+                    ctx.clip();
+                    var minX = erase.minX != null ? erase.minX : 0;
+                    var minY = erase.minY != null ? erase.minY : 0;
+                    var maxX = erase.maxX != null ? erase.maxX : W;
+                    var maxY = erase.maxY != null ? erase.maxY : H;
+                    ctx.clearRect(minX, minY, Math.max(1, maxX - minX), Math.max(1, maxY - minY));
+                    ctx.restore();
+                } else {
+                    if (done) done(false);
+                    return;
+                }
+                var url = canvas.toDataURL('image/png');
+                layer.working = url;
+                if (layer.patternPrepared) {
+                    layer.recolorSource = url;
+                }
+                setLayerImage(layer, url, function () {
+                    if (done) done(true);
+                }, { keepRecolorSource: true });
+            };
+            img.onerror = function () {
+                if (done) done(false);
+            };
+            img.src = layer.current;
         }
 
         function extractLayerSizeAndPos(sourceLayer, cropInfo) {
@@ -4034,36 +4141,59 @@
             cropShape = 'rect';
 
             // תמיד אלמנט בודד (שכבה ממוקדת) — גודל כמו על הבגד, בלי הגדלה ל-35%
-            // אם המקור כבר מוכן לצביעה — שומרים את זה; אחרת מכינים אוטומטית כמו «העלם רקע».
+            // בפרינט ממוקד: חיתוך אמיתי — האזור נמחק מהמקור. באול-אובר: העתקה בלבד.
             var baseName = layer.name || 'אלמנט';
             var place = extractLayerSizeAndPos(layer, cropInfo);
             var inheritPrep = !!layer.patternPrepared;
-            addLayerFromDataUrl(cropInfo.url, 'אלמנט מ-' + baseName, {
-                mode: 'focused',
-                x: place.x,
-                y: place.y,
-                width: place.width,
-                blend: layer.blend || 'multiply',
-                patternPrepared: inheritPrep,
-                recolorSource: inheritPrep ? cropInfo.url : null,
-                plateLab: inheritPrep ? (layer.plateLab || null) : null,
-                skipScroll: true,
-                onReady: function (newLayer) {
-                    pushDesignUndo({ type: 'addLayer', layerId: newLayer.id });
-                    if (inheritPrep) {
-                        ensureColorSlots(newLayer, function () {
-                            syncTools();
-                            showStatus(
-                                'נוצר אלמנט — אפשר לשנות צבעים ולגרור למקום הרצוי.',
-                                false
-                            );
-                        });
-                        return;
+            var isFocusedCut = layer.mode === 'focused';
+            var sourceSnap = isFocusedCut ? snapshotLayerBitmap(layer) : null;
+
+            function addExtractedLayer() {
+                addLayerFromDataUrl(cropInfo.url, 'אלמנט מ-' + baseName, {
+                    mode: 'focused',
+                    x: place.x,
+                    y: place.y,
+                    width: place.width,
+                    blend: layer.blend || 'multiply',
+                    patternPrepared: inheritPrep,
+                    recolorSource: inheritPrep ? cropInfo.url : null,
+                    plateLab: inheritPrep ? (layer.plateLab || null) : null,
+                    skipScroll: true,
+                    onReady: function (newLayer) {
+                        if (isFocusedCut && sourceSnap) {
+                            pushDesignUndo({
+                                type: 'cutExtract',
+                                sourceSnap: sourceSnap,
+                                newLayerId: newLayer.id
+                            });
+                        } else {
+                            pushDesignUndo({ type: 'addLayer', layerId: newLayer.id });
+                        }
+                        if (inheritPrep) {
+                            ensureColorSlots(newLayer, function () {
+                                syncTools();
+                                showStatus(
+                                    isFocusedCut
+                                        ? 'האלמנט נגזר מהשכבה המקורית — אפשר לצבוע ולגרור למקום הרצוי.'
+                                        : 'נוצר אלמנט — אפשר לשנות צבעים ולגרור למקום הרצוי.',
+                                    false
+                                );
+                            });
+                            return;
+                        }
+                        // כמו בפרינט ממוקד אחרי «העלם רקע» — מפעיל צבעי מוטיבים
+                        knockOutLayerBackground(newLayer, { manual: true });
                     }
-                    // כמו בפרינט ממוקד אחרי «העלם רקע» — מפעיל צבעי מוטיבים
-                    knockOutLayerBackground(newLayer, { manual: true });
-                }
-            });
+                });
+            }
+
+            if (isFocusedCut && cropInfo.erase) {
+                eraseCropFromLayer(layer, cropInfo.erase, function () {
+                    addExtractedLayer();
+                });
+            } else {
+                addExtractedLayer();
+            }
         });
 
         cropCancelBtn.addEventListener('click', function () {
@@ -4072,6 +4202,7 @@
             cropShape = 'rect';
             clearLasso();
             cropSourceLayerId = null;
+            cropSourceMode = null;
         });
 
         // --- Compose the final image at the base image's natural resolution ---
