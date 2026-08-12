@@ -143,6 +143,8 @@
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-save-as-btn" disabled title="שומרת כהדמיה חדשה בגלריה">שמירה בשם</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-share-wa-btn" disabled hidden title="שיתוף קישור להדמיה בוואטסאפ">שיתוף בוואטסאפ</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-download-btn" disabled>הורדה למחשב</button>
+                        <button type="button" class="molly-button molly-button-secondary" id="mockup-production-btn" disabled title="PDF לייצור של השכבה הנבחרת, חתוך לאלמנט">קובץ לייצור</button>
+                        <button type="button" class="molly-button molly-button-secondary" id="mockup-production-all-btn" disabled title="PDF לייצור של כל שכבות הממוקד כמו בהדמיה">כל השכבות לייצור</button>
                         <button type="button" class="molly-button molly-button-secondary" id="mockup-print-1to1-btn" disabled title="הדפסת הפרינט בגודל אמיתי להשוואה מול הבגד">הדפסה 1:1</button>
                     </div>
                     </div>
@@ -417,6 +419,8 @@
         var saveAsBtn = document.getElementById('mockup-save-as-btn');
         var shareWaBtn = document.getElementById('mockup-share-wa-btn');
         var downloadBtn = document.getElementById('mockup-download-btn');
+        var productionBtn = document.getElementById('mockup-production-btn');
+        var productionAllBtn = document.getElementById('mockup-production-all-btn');
         var print1to1Btn = document.getElementById('mockup-print-1to1-btn');
         var print1to1Hint = document.getElementById('mockup-print-1to1-hint');
         var statusEl = document.getElementById('mockup-status');
@@ -2928,7 +2932,20 @@
                 shareWaBtn.hidden = !canShare;
                 shareWaBtn.disabled = !canShare;
             }
-            var canPrint = ready && !!state.realWidthCm && !!activeLayer();
+            var active = activeLayer();
+            var canProductionOne = !!(
+                ready && active && active.visible && active.mode !== 'allover'
+                && active.el && active.el.naturalWidth
+            );
+            var focusedVisibleCount = 0;
+            for (var fi = 0; fi < layers.length; fi++) {
+                if (layers[fi].visible && layers[fi].mode !== 'allover' && layers[fi].el && layers[fi].el.naturalWidth) {
+                    focusedVisibleCount++;
+                }
+            }
+            if (productionBtn) productionBtn.disabled = !canProductionOne;
+            if (productionAllBtn) productionAllBtn.disabled = !(ready && focusedVisibleCount > 0);
+            var canPrint = ready && !!state.realWidthCm && !!active;
             if (print1to1Btn) {
                 print1to1Btn.disabled = !canPrint;
                 print1to1Btn.title = state.realWidthCm
@@ -4352,6 +4369,209 @@
             return 'הדמיה-' + (state.productName || 'מוצר').replace(/[\\/:*?"<>|]/g, '') + '.png';
         }
 
+        function productionSafeName(base) {
+            return String(base || 'פרינט').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim() || 'פרינט';
+        }
+
+        function listVisibleFocusedLayers() {
+            var out = [];
+            for (var i = 0; i < layers.length; i++) {
+                var L = layers[i];
+                if (!L.visible || L.mode === 'allover') continue;
+                if (!L.el || !L.el.naturalWidth) continue;
+                out.push(L);
+            }
+            return out;
+        }
+
+        /** Always crop to opaque content (for production). Returns source if empty/tiny. */
+        function trimProductionCanvas(sourceCanvas) {
+            if (!sourceCanvas || !sourceCanvas.width) return sourceCanvas;
+            var W = sourceCanvas.width;
+            var H = sourceCanvas.height;
+            var ctx = sourceCanvas.getContext('2d');
+            var d = ctx.getImageData(0, 0, W, H).data;
+            var minX = W;
+            var minY = H;
+            var maxX = -1;
+            var maxY = -1;
+            for (var y = 0; y < H; y++) {
+                for (var x = 0; x < W; x++) {
+                    if (d[(y * W + x) * 4 + 3] < 24) continue;
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+            if (maxX < minX || maxY < minY) return sourceCanvas;
+            var pad = Math.max(4, Math.round(Math.min(W, H) * 0.015));
+            minX = Math.max(0, minX - pad);
+            minY = Math.max(0, minY - pad);
+            maxX = Math.min(W - 1, maxX + pad);
+            maxY = Math.min(H - 1, maxY + pad);
+            var tw = maxX - minX + 1;
+            var th = maxY - minY + 1;
+            if (tw >= W - 2 && th >= H - 2) return sourceCanvas;
+            if (tw < 4 || th < 4) return sourceCanvas;
+            var out = document.createElement('canvas');
+            out.width = tw;
+            out.height = th;
+            out.getContext('2d').drawImage(sourceCanvas, minX, minY, tw, th, 0, 0, tw, th);
+            return out;
+        }
+
+        function pxToMmAtPrintDpi(px) {
+            return (px / PRINT_DPI) * 25.4;
+        }
+
+        function saveCanvasAsProductionPdf(canvas, mmW, mmH, fileName) {
+            var JsPDF = getJsPdfCtor();
+            if (!JsPDF) {
+                showStatus('ספריית ה־PDF לא נטענה. רענני את הדף ונסי שוב.', true);
+                return false;
+            }
+            mmW = Math.max(5, mmW);
+            mmH = Math.max(5, mmH);
+            // Cap extreme custom pages (browser / jsPDF sanity).
+            var maxMm = 1200;
+            if (mmW > maxMm || mmH > maxMm) {
+                var s = maxMm / Math.max(mmW, mmH);
+                mmW *= s;
+                mmH *= s;
+            }
+            var pdf = new JsPDF({
+                unit: 'mm',
+                format: [mmW, mmH],
+                orientation: mmW >= mmH ? 'landscape' : 'portrait',
+                compress: true
+            });
+            // Ensure page matches art (jsPDF may swap on orientation).
+            var pageW = pdf.internal.pageSize.getWidth();
+            var pageH = pdf.internal.pageSize.getHeight();
+            var data = canvas.toDataURL('image/png');
+            pdf.addImage(data, 'PNG', 0, 0, pageW, pageH);
+            pdf.save(fileName);
+            return true;
+        }
+
+        function buildTransparentFocusedLayerCanvas(layer) {
+            var size = getLayerPhysicalSizeCm(layer);
+            var canvas = document.createElement('canvas');
+            var ctx = canvas.getContext('2d');
+            if (size && size.kind === 'motif') {
+                var pxW = Math.max(8, Math.round(size.wCm / 2.54 * PRINT_DPI));
+                var pxH = Math.max(8, Math.round(size.hCm / 2.54 * PRINT_DPI));
+                var maxSide = 5000;
+                if (pxW > maxSide || pxH > maxSide) {
+                    var sc = maxSide / Math.max(pxW, pxH);
+                    pxW = Math.max(8, Math.round(pxW * sc));
+                    pxH = Math.max(8, Math.round(pxH * sc));
+                }
+                canvas.width = pxW;
+                canvas.height = pxH;
+                ctx.clearRect(0, 0, pxW, pxH);
+                ctx.drawImage(layer.el, 0, 0, pxW, pxH);
+                return { canvas: canvas, fullWcm: size.wCm, fullHcm: size.hCm };
+            }
+            var nw = layer.el.naturalWidth || 1;
+            var nh = layer.el.naturalHeight || 1;
+            canvas.width = nw;
+            canvas.height = nh;
+            ctx.clearRect(0, 0, nw, nh);
+            ctx.drawImage(layer.el, 0, 0);
+            return {
+                canvas: canvas,
+                fullWcm: null,
+                fullHcm: null
+            };
+        }
+
+        function exportFocusedProductionPdf() {
+            var layer = activeLayer();
+            if (!layer || layer.mode === 'allover' || !layer.visible) {
+                showStatus('בחרי שכבת פרינט ממוקד לייצור.', true);
+                return;
+            }
+            if (!layer.el || !layer.el.naturalWidth) {
+                showStatus('השכבה עדיין לא מוכנה לייצוא.', true);
+                return;
+            }
+            showStatus('מכינה קובץ לייצור...', false);
+            var built = buildTransparentFocusedLayerCanvas(layer);
+            var beforeW = built.canvas.width;
+            var beforeH = built.canvas.height;
+            var trimmed = trimProductionCanvas(built.canvas);
+            var mmW;
+            var mmH;
+            if (built.fullWcm && built.fullHcm && beforeW > 0 && beforeH > 0) {
+                mmW = (trimmed.width / beforeW) * built.fullWcm * 10;
+                mmH = (trimmed.height / beforeH) * built.fullHcm * 10;
+            } else {
+                mmW = pxToMmAtPrintDpi(trimmed.width);
+                mmH = pxToMmAtPrintDpi(trimmed.height);
+            }
+            var ok = saveCanvasAsProductionPdf(
+                trimmed,
+                mmW,
+                mmH,
+                'ייצור-' + productionSafeName(layer.name) + '.pdf'
+            );
+            if (ok) {
+                showStatus('קובץ הייצור מוכן (PDF חתוך לאלמנט, בלי רקע בגד).', false);
+            }
+        }
+
+        function exportAllFocusedProductionPdf() {
+            var focused = listVisibleFocusedLayers();
+            if (!focused.length) {
+                showStatus('אין שכבות ממוקדות גלויות לייצור.', true);
+                return;
+            }
+            var W = baseImg.naturalWidth || 0;
+            var H = baseImg.naturalHeight || 0;
+            if (!W || !H) {
+                showStatus('תמונת הבגד עדיין לא מוכנה לייצוא.', true);
+                return;
+            }
+            showStatus('מכינה קובץ לייצור מכל השכבות...', false);
+            var canvas = document.createElement('canvas');
+            canvas.width = W;
+            canvas.height = H;
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, W, H);
+            focused.forEach(function (layer) {
+                var ratio = layer.el.naturalHeight / (layer.el.naturalWidth || 1);
+                var w = (layer.width == null ? 0.35 : layer.width) * W;
+                var h = w * ratio;
+                var x = (layer.x == null ? 0.5 : layer.x) * W - w / 2;
+                var y = (layer.y == null ? 0.45 : layer.y) * H - h / 2;
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(layer.el, x, y, w, h);
+            });
+            var trimmed = trimProductionCanvas(canvas);
+            var mmW;
+            var mmH;
+            var realW = state.realWidthCm;
+            if (realW && realW > 0) {
+                var realH = realW * (H / W);
+                mmW = (trimmed.width / W) * realW * 10;
+                mmH = (trimmed.height / H) * realH * 10;
+            } else {
+                mmW = pxToMmAtPrintDpi(trimmed.width);
+                mmH = pxToMmAtPrintDpi(trimmed.height);
+            }
+            var ok = saveCanvasAsProductionPdf(
+                trimmed,
+                mmW,
+                mmH,
+                'ייצור-כל-השכבות-' + productionSafeName(state.productName || 'מוצר') + '.pdf'
+            );
+            if (ok) {
+                showStatus('קובץ הייצור מכל השכבות מוכן (PDF כמו בהדמיה, בלי בגד).', false);
+            }
+        }
+
         downloadBtn.addEventListener('click', function () {
             composeCanvas().toBlob(function (blob) {
                 if (!blob) return;
@@ -4364,6 +4584,17 @@
                 setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
             }, 'image/png');
         });
+
+        if (productionBtn) {
+            productionBtn.addEventListener('click', function () {
+                exportFocusedProductionPdf();
+            });
+        }
+        if (productionAllBtn) {
+            productionAllBtn.addEventListener('click', function () {
+                exportAllFocusedProductionPdf();
+            });
+        }
 
         function getJsPdfCtor() {
             if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
@@ -5102,7 +5333,7 @@
             });
 
             // Close sheets after primary save/download actions on mobile
-            [saveBtn, saveAsBtn, downloadBtn, print1to1Btn].forEach(function (btn) {
+            [saveBtn, saveAsBtn, downloadBtn, productionBtn, productionAllBtn, print1to1Btn].forEach(function (btn) {
                 if (!btn) return;
                 btn.addEventListener('click', function () {
                     if (isMobileEditor()) closeAllSheets();
