@@ -4,11 +4,13 @@ import json
 import tempfile
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import (
     WhiteCatalogUser,
+    WhiteCategory,
     WhiteColor,
     WhiteColorVariant,
     WhiteFabricType,
@@ -17,6 +19,7 @@ from .models import (
     WhiteSizeType,
     WhiteSubcategory,
 )
+from .views import _product_gallery_images
 
 
 class WhiteCatalogAdminBridgeTests(TestCase):
@@ -292,4 +295,53 @@ class ClothingThreesOnlyTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["ok"])
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class MergePrintedTetraPagesTests(TestCase):
+    def setUp(self):
+        self.category = WhiteCategory.objects.create(
+            name="חיתולי בד / טטרה",
+            slug="baby_diapers",
+        )
+        self.keep = WhiteSubcategory.objects.create(
+            name="מארז 3 חיתולי טטרה - מודפס",
+            slug="muslin_baby_diapers",
+            category=self.category,
+            is_orderable=True,
+        )
+
+    def test_legacy_hebrew_slug_redirects_to_muslin_page(self):
+        response = self.client.get(
+            reverse(
+                "white_catalog:subcategory_detail",
+                kwargs={
+                    "category_slug": "baby_diapers",
+                    "subcategory_slug": "מארז-חיתולי-טטרה-מודפס-3",
+                },
+            )
+        )
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(
+            response.url,
+            reverse(
+                "white_catalog:subcategory_detail",
+                kwargs={
+                    "category_slug": "baby_diapers",
+                    "subcategory_slug": "muslin_baby_diapers",
+                },
+            ),
+        )
+
+    def test_gallery_includes_product_and_print_images_without_duplicates(self):
+        self.keep.image.save("main.jpg", ContentFile(b"main"), save=True)
+        color = WhiteColor.objects.create(name="ינשופים כחול")
+        variant = WhiteColorVariant.objects.create(product=self.keep, color=color)
+        variant.image.save("print.jpg", ContentFile(b"print"), save=True)
+        gallery = _product_gallery_images(self.keep)
+        urls = [item["url"] for item in gallery]
+        self.assertEqual(len(urls), 2)
+        self.assertEqual(len(set(urls)), 2)
+        self.assertTrue(any("main" in url for url in urls))
+        self.assertTrue(any("print" in url for url in urls))
 

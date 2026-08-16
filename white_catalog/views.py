@@ -532,6 +532,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
         "category": category,
         "subcategory": subcategory,
         "subcategory_images": subcategory.images.all(),
+        "gallery_images": _product_gallery_images(subcategory),
         "catalog_user": catalog_user,
         "show_variant_ordering": show_variant_ordering,
         "show_color_ordering": show_color_ordering,
@@ -547,8 +548,44 @@ def _subcategory_detail_context(request, subcategory, category=None):
     }
 
 
+LEGACY_PRODUCT_SLUGS = {
+    "מארז-חיתולי-טטרה-מודפס-3": ("baby_diapers", "muslin_baby_diapers"),
+}
+
+
+def _product_gallery_images(subcategory):
+    """Main image + gallery + print/color photos, unique by URL."""
+    images = []
+    seen = set()
+
+    def add(url, alt):
+        if not url or url in seen:
+            return
+        seen.add(url)
+        images.append({"url": url, "alt": alt})
+
+    if subcategory.image:
+        add(subcategory.image.url, subcategory.name)
+    for img in subcategory.images.all():
+        add(img.image.url, img.alt_text or subcategory.name)
+    for cv in (subcategory.color_variants
+               .filter(is_active=True)
+               .select_related("color")):
+        if cv.image:
+            add(cv.image.url, cv.color.name)
+    return images
+
+
 def subcategory_detail(request, category_slug, subcategory_slug):
     """Subcategory detail page with image gallery."""
+    legacy = LEGACY_PRODUCT_SLUGS.get(subcategory_slug)
+    if legacy:
+        return redirect(
+            "white_catalog:subcategory_detail",
+            category_slug=legacy[0],
+            subcategory_slug=legacy[1],
+            permanent=True,
+        )
     category = get_object_or_404(WhiteCategory, slug=category_slug)
     subcategory = get_object_or_404(WhiteSubcategory, category=category, slug=subcategory_slug)
     return render(request, "white_catalog/subcategory_detail.html",
