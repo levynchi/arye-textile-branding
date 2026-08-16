@@ -419,30 +419,6 @@ def _subcategory_detail_context(request, subcategory, category=None):
         catalog_user and subcategory.is_orderable
         and not subcategory.has_order_variants and not subcategory.has_color_variants
     )
-    # #region agent log
-    try:
-        import json as _json, time as _time
-        with open(r'c:\optitex excell\debug-ae5f9f.log', 'a', encoding='utf-8') as _f:
-            _f.write(_json.dumps({
-                'sessionId': 'ae5f9f', 'hypothesisId': 'H-A,H-B,H-C',
-                'location': 'views.py:_subcategory_detail_context',
-                'message': 'sheet product display flags',
-                'data': {
-                    'slug': getattr(subcategory, 'slug', ''),
-                    'name': getattr(subcategory, 'name', ''),
-                    'logged_in': bool(catalog_user),
-                    'is_orderable': bool(subcategory.is_orderable),
-                    'has_color_variants': bool(subcategory.has_color_variants),
-                    'has_order_variants': bool(subcategory.has_order_variants),
-                    'show_color_ordering': show_color_ordering,
-                    'show_variant_ordering': show_variant_ordering,
-                    'color_variant_count': subcategory.color_variants.filter(is_active=True).count() if hasattr(subcategory, 'color_variants') else None,
-                },
-                'timestamp': int(_time.time() * 1000),
-            }, ensure_ascii=False) + '\n')
-    except Exception:
-        pass
-    # #endregion
 
     # Build variants JSON grouped by fabric_type for the ordering widget
     variants_data = []
