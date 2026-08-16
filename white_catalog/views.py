@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 from functools import wraps
@@ -553,26 +554,53 @@ LEGACY_PRODUCT_SLUGS = {
 }
 
 
+def _image_fingerprint(file_field):
+    """Identify the same photo even when stored as different files/encodings."""
+    if not file_field:
+        return None
+    try:
+        file_field.open("rb")
+        data = file_field.read()
+        file_field.close()
+    except Exception:
+        return getattr(file_field, "url", None) or getattr(file_field, "name", None)
+    if not data:
+        return getattr(file_field, "url", None) or getattr(file_field, "name", None)
+    try:
+        from PIL import Image
+        img = Image.open(BytesIO(data)).convert("L").resize((12, 12))
+        pixels = list(img.getdata())
+        avg = sum(pixels) / len(pixels) if pixels else 0
+        return "".join("1" if pixel >= avg else "0" for pixel in pixels)
+    except Exception:
+        return hashlib.md5(data).hexdigest()
+
+
 def _product_gallery_images(subcategory):
-    """Main image + gallery + print/color photos, unique by URL."""
+    """Main image + gallery + print/color photos, unique by image content."""
     images = []
     seen = set()
 
-    def add(url, alt):
-        if not url or url in seen:
+    def add(file_field, alt):
+        if not file_field:
             return
-        seen.add(url)
+        url = getattr(file_field, "url", "") or ""
+        if not url:
+            return
+        key = _image_fingerprint(file_field) or url
+        if key in seen:
+            return
+        seen.add(key)
         images.append({"url": url, "alt": alt})
 
     if subcategory.image:
-        add(subcategory.image.url, subcategory.name)
+        add(subcategory.image, subcategory.name)
     for img in subcategory.images.all():
-        add(img.image.url, img.alt_text or subcategory.name)
+        add(img.image, img.alt_text or subcategory.name)
     for cv in (subcategory.color_variants
                .filter(is_active=True)
                .select_related("color")):
-        if cv.image:
-            add(cv.image.url, cv.color.name)
+        add(cv.image, cv.color.name)
     return images
 
 

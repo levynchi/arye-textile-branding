@@ -18,6 +18,7 @@ from .models import (
     WhiteProductVariant,
     WhiteSizeType,
     WhiteSubcategory,
+    WhiteSubcategoryImage,
 )
 from .views import _product_gallery_images
 
@@ -344,4 +345,35 @@ class MergePrintedTetraPagesTests(TestCase):
         self.assertEqual(len(set(urls)), 2)
         self.assertTrue(any("main" in url for url in urls))
         self.assertTrue(any("print" in url for url in urls))
+
+    def test_gallery_hides_same_photo_stored_as_different_files(self):
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.new("RGB", (80, 80), (200, 160, 140)).save(buf, "JPEG", quality=90)
+        photo = buf.getvalue()
+        extra = WhiteSubcategoryImage.objects.create(subcategory=self.keep, order=1)
+        extra.image.save("gallery.jpg", ContentFile(photo), save=True)
+        color = WhiteColor.objects.create(name="אוהלים וכוכבים ורוד")
+        variant = WhiteColorVariant.objects.create(product=self.keep, color=color)
+        variant.image.save("variant.jpg", ContentFile(photo), save=True)
+        gallery = _product_gallery_images(self.keep)
+        self.assertEqual(len(gallery), 1)
+
+    def test_gallery_hides_reencoded_copy_of_the_same_photo(self):
+        from PIL import Image
+
+        src = Image.new("RGB", (120, 80), (40, 90, 140))
+        src.paste((220, 180, 160), (20, 10, 70, 60))
+        high = io.BytesIO()
+        low = io.BytesIO()
+        src.save(high, "JPEG", quality=92)
+        src.resize((1400, 933)).save(low, "JPEG", quality=88)
+        extra = WhiteSubcategoryImage.objects.create(subcategory=self.keep, order=1)
+        extra.image.save("orig.jpg", ContentFile(high.getvalue()), save=True)
+        color = WhiteColor.objects.create(name="סוסים וזיגזגים כחול")
+        variant = WhiteColorVariant.objects.create(product=self.keep, color=color)
+        variant.image.save("export.jpg", ContentFile(low.getvalue()), save=True)
+        gallery = _product_gallery_images(self.keep)
+        self.assertEqual(len(gallery), 1)
 
