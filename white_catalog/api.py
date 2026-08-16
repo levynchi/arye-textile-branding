@@ -50,6 +50,7 @@ def export_meta(request):
 			'category': p.category.name if p.category_id else '',
 			'has_order_variants': p.has_order_variants,
 			'has_color_variants': p.has_color_variants,
+			'is_orderable': p.is_orderable,
 		}
 		for p in WhiteSubcategory.objects.select_related('category').order_by('order', 'name')
 	]
@@ -305,8 +306,33 @@ def import_variants(request):
 			product.has_order_variants = False
 			flag_updates.append('has_order_variants')
 			warnings.append('מצב "גרסאות + מארזים" כובה כדי שמניפת הצבעים תוצג')
+		if not product.is_orderable:
+			product.is_orderable = True
+			flag_updates.append('is_orderable')
+			warnings.append('המוצר סומן אוטומטית כזמין להזמנה')
 		if flag_updates:
 			product.save(update_fields=flag_updates)
+		# #region agent log
+		try:
+			import time as _time
+			with open(r'c:\optitex excell\debug-ae5f9f.log', 'a', encoding='utf-8') as _f:
+				_f.write(json.dumps({
+					'sessionId': 'ae5f9f', 'hypothesisId': 'H-C', 'runId': 'post-fix',
+					'location': 'api.py:import_variants',
+					'message': 'color import product flags',
+					'data': {
+						'product_id': product.id,
+						'name': product.name,
+						'is_orderable': product.is_orderable,
+						'has_color_variants': product.has_color_variants,
+						'has_order_variants': product.has_order_variants,
+						'color_count': product.color_variants.filter(is_active=True).count(),
+					},
+					'timestamp': int(_time.time() * 1000),
+				}, ensure_ascii=False) + '\n')
+		except Exception:
+			pass
+		# #endregion
 	if (created or updated) and not color_rows_seen and not product.has_order_variants:
 		if product.has_color_variants:
 			warnings.append(

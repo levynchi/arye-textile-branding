@@ -95,6 +95,7 @@ class ImportColorVariantsTests(TestCase):
         # המוצר סומן אוטומטית להזמנה לפי מניפת צבעים
         self.product.refresh_from_db()
         self.assertTrue(self.product.has_color_variants)
+        self.assertTrue(self.product.is_orderable)
         # לא נוצרו וריאנטים לפי מידה מהשורות האלה
         self.assertEqual(WhiteProductVariant.objects.count(), 0)
 
