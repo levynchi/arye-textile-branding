@@ -761,11 +761,12 @@
                                         document.getElementById('orderTableWrap').style.display = 'none';
                                         return;
                                     }
-                                    packWrap.style.display = 'block';
                                     if (packTypes.length === 1) {
+                                        packWrap.style.display = 'none';
                                         packSelect.value = packTypes[0].pack_id;
                                         packSelect.dispatchEvent(new Event('change', { bubbles: true }));
                                     } else {
+                                        packWrap.style.display = 'block';
                                         document.getElementById('orderTableWrap').style.display = 'none';
                                     }
                                 };

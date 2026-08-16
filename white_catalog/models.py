@@ -208,8 +208,8 @@ class WhiteCatalogUser(models.Model):
 		"מסלול מוצרים",
 		max_length=10,
 		choices=PACK_ROUTE_CHOICES,
-		default=ROUTE_BOTH,
-		help_text="אילו צורות אריזה המשתמש יראה בקטלוג"
+		default=ROUTE_THREES,
+		help_text="ביגוד מוזמן בשלישיות בלבד. חמישיות לא בשימוש."
 	)
 	is_active = models.BooleanField("פעיל", default=True, help_text="האם המשתמש יכול להתחבר")
 	last_login = models.DateTimeField("כניסה אחרונה", null=True, blank=True)
@@ -235,13 +235,12 @@ class WhiteCatalogUser(models.Model):
 		return check_password(raw_password, self.password_hash)
 
 	def get_allowed_pack_types(self):
-		"""Return active pack types this user is allowed to see, based on their route."""
-		qs = WhitePackType.objects.filter(is_active=True)
-		if self.pack_route == self.ROUTE_THREES:
-			return qs.filter(quantity=3)
-		if self.pack_route == self.ROUTE_FIVES:
-			return qs.filter(quantity=5)
-		return qs
+		"""Return pack types allowed for new clothing orders.
+
+		Clothing is sold in threes only — fives are never offered, regardless
+		of the user's stored pack_route.
+		"""
+		return WhitePackType.objects.filter(is_active=True, quantity=3)
 
 	def update_activity(self):
 		"""Update the last activity timestamp."""

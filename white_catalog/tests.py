@@ -12,6 +12,7 @@ from .models import (
     WhiteColor,
     WhiteColorVariant,
     WhiteFabricType,
+    WhitePackType,
     WhiteProductVariant,
     WhiteSizeType,
     WhiteSubcategory,
@@ -223,4 +224,69 @@ class ImportColorVariantsTests(TestCase):
         self.product.refresh_from_db()
         self.assertTrue(self.product.has_order_variants)
         self.assertFalse(self.product.has_color_variants)
+
+
+class ClothingThreesOnlyTests(TestCase):
+    """ביגוד מוזמן בשלישיות בלבד — חמישיות לא מוצעות ולא מתקבלות."""
+
+    def setUp(self):
+        self.threes = WhitePackType.objects.create(name="שלישיות", quantity=3, is_active=True)
+        self.fives = WhitePackType.objects.create(name="חמישיות", quantity=5, is_active=True)
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="בדיקה",
+            contact_name="בודק",
+            contact_phone="050",
+            username="tester",
+            pack_route=WhiteCatalogUser.ROUTE_FIVES,
+        )
+        self.user.set_password("pass")
+        self.user.save()
+        session = self.client.session
+        session["white_catalog_user_id"] = self.user.id
+        session["white_catalog_username"] = self.user.username
+        session.save()
+
+        self.product = WhiteSubcategory.objects.create(
+            name="בגד גוף",
+            is_orderable=True,
+            has_order_variants=True,
+        )
+        fabric = WhiteFabricType.objects.create(name="טריקו")
+        size = WhiteSizeType.objects.create(name="0-3")
+        self.variant = WhiteProductVariant.objects.create(
+            product=self.product,
+            fabric_type=fabric,
+            size_type=size,
+            unit_price="12.00",
+            barcode="111",
+        )
+        self.variant.pack_types.set([self.threes, self.fives])
+
+    def test_allowed_pack_types_are_threes_even_if_user_route_is_fives(self):
+        ids = list(self.user.get_allowed_pack_types().values_list("id", flat=True))
+        self.assertEqual(ids, [self.threes.id])
+
+    def test_cart_add_rejects_fives(self):
+        response = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "pack_type_id": str(self.fives.id),
+                f"qty_{self.variant.id}": "2",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("שלישיות", response.json()["error"])
+
+    def test_cart_add_accepts_threes(self):
+        response = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "pack_type_id": str(self.threes.id),
+                f"qty_{self.variant.id}": "2",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
 

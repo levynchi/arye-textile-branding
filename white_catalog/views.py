@@ -800,6 +800,12 @@ def cart_add(request):
         messages.error(request, "נא לבחור סוג אריזה")
         return redirect(request.POST.get("next") or "white_catalog:cart")
 
+    if pack_type.quantity != 3:
+        if want_json:
+            return JsonResponse({"ok": False, "error": "ביגוד מוזמן בשלישיות בלבד"}, status=400)
+        messages.error(request, "ביגוד מוזמן בשלישיות בלבד")
+        return redirect(request.POST.get("next") or "white_catalog:cart")
+
     # Enforce the user's pack route — they may only order allowed pack forms.
     allowed_pack_ids = set(user.get_allowed_pack_types().values_list("id", flat=True))
     if pack_type.pk not in allowed_pack_ids:
@@ -956,6 +962,11 @@ def cart_update(request):
             return redirect("white_catalog:cart")
 
         # Enforce the user's pack route and the variant's pack forms.
+        if pack_type.quantity != 3:
+            if is_ajax:
+                return JsonResponse({"status": "error", "error": "ביגוד מוזמן בשלישיות בלבד"}, status=400)
+            messages.error(request, "ביגוד מוזמן בשלישיות בלבד")
+            return redirect("white_catalog:cart")
         allowed_pack_ids = set(user.get_allowed_pack_types().values_list("id", flat=True))
         variant_pack_ids = set(variant.pack_types.values_list("id", flat=True))
         if pack_type.pk not in allowed_pack_ids or (variant_pack_ids and pack_type.pk not in variant_pack_ids):

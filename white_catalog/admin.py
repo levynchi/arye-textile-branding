@@ -218,7 +218,7 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 		}),
 		("מסלול מוצרים", {
 			"fields": ("pack_route",),
-			"description": "אילו צורות אריזה (שלישיות / חמישיות) המשתמש יראה בקטלוג"
+			"description": "ביגוד מוזמן בשלישיות בלבד. חמישיות לא בשימוש."
 		}),
 		("פעילות", {
 			"fields": ("last_login", "last_activity_at", "activity_count"),
