@@ -131,6 +131,9 @@ class ImportColorVariantsTests(TestCase):
         color = WhiteColor.objects.get(name="תכלת")
         self.assertTrue(color.swatch_image)
         self.assertTrue(color.swatch_image.name.endswith(".jpg"))
+        self.product.refresh_from_db()
+        self.assertTrue(self.product.image)
+        self.assertTrue(self.product.image.name.endswith(".jpg"))
 
     def test_color_import_switches_product_from_order_variants_to_color_mode(self):
         self.product.has_order_variants = True

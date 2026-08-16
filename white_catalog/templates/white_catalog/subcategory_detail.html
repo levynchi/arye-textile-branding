@@ -391,6 +391,7 @@
             transition: filter 0.15s;
         }
         .color-chip-swatch:hover { filter: brightness(0.94); }
+        .color-fan-photos .color-chip-swatch { height: 120px; }
         .color-chip-name {
             font-weight: 700;
             font-size: 0.9rem;
@@ -427,6 +428,7 @@
             .color-fan { gap: 10px; }
             .color-chip { width: calc((100% - 20px) / 3); min-width: 92px; }
             .color-chip-swatch { height: 70px; }
+            .color-fan-photos .color-chip-swatch { height: 96px; }
         }
     </style>
 </head>
@@ -979,11 +981,11 @@
                                     <input type="hidden" name="product_id" value="{{ subcategory.id }}">
 
                                     {% if color_variants_data %}
-                                        <label class="variant-label">בחר צבעים מהמניפה והזן כמות לכל צבע:</label>
-                                        <div class="color-fan" id="colorFan">
+                                        <label class="variant-label">{% if color_variants_have_images %}בחר הדפס והזן כמות:{% else %}בחר צבעים מהמניפה והזן כמות לכל צבע:{% endif %}</label>
+                                        <div class="color-fan{% if color_variants_have_images %} color-fan-photos{% endif %}" id="colorFan">
                                             {% for cv in color_variants_data %}
                                             <div class="color-chip{% if cv.cart_quantity %} has-qty{% endif %}" data-color-variant-id="{{ cv.id }}">
-                                                <button type="button" class="color-chip-swatch" aria-label="בחר צבע {{ cv.color_name }}"
+                                                <button type="button" class="color-chip-swatch" aria-label="{% if color_variants_have_images %}בחר הדפס{% else %}בחר צבע{% endif %} {{ cv.color_name }}"
                                                     {% if cv.swatch_url %}style="background-image:url('{{ cv.swatch_url }}');"{% elif cv.hex_color %}style="background-color: {{ cv.hex_color }};"{% endif %}></button>
                                                 <div class="color-chip-name">{{ cv.color_name }}</div>
                                                 {% if cv.barcode %}

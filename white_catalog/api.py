@@ -131,6 +131,14 @@ def _import_color_row(product, row, color_name, price, barcode):
 
 	variant.save()
 
+	# אם למוצר אין תמונה ראשית — לוקחים את תמונת הווריאנט הראשון עם תמונה
+	if image_b64 and not product.image:
+		product.image.save(
+			f'{safe_name}.{ext}',
+			ContentFile(data),
+			save=True,
+		)
+
 	# ברקוד שנתפס בעבר בטעות על וריאנט מידה של אותו מוצר - משוחרר לטובת הצבע
 	if barcode:
 		stale = WhiteProductVariant.objects.filter(product=product, barcode=barcode).first()

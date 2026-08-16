@@ -539,6 +539,9 @@ def _subcategory_detail_context(request, subcategory, category=None):
         "variants_data": variants_data,
         "pack_types_data": pack_types_data,
         "color_variants_data": color_variants_data,
+        "color_variants_have_images": any(
+            (cv.get("image_url") or cv.get("swatch_url")) for cv in color_variants_data
+        ),
         "simple_cart_quantity": simple_cart_quantity,
         "cart_count": _cart_count(request),
     }
