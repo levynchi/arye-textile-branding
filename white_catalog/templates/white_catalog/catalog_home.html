@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>קטלוג מוצרים - אריה טקסטיל 2025</title>
     {% load static %}
+    {% load white_catalog_extras %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400&family=Assistant:wght@400;700;800&display=swap" rel="stylesheet">
@@ -164,7 +165,7 @@
                                         {% if price_range %}
                                             <p class="catalog-card-price">₪{{ price_range.0 }} - ₪{{ price_range.1 }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
                                         {% elif subcategory.unit_price %}
-                                            <p class="catalog-card-price">₪{{ subcategory.unit_price }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
+                                            <p class="catalog-card-price">₪{{ subcategory.unit_price|listed_price:catalog_user }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
                                         {% endif %}
                                     {% endwith %}
                                 {% endif %}

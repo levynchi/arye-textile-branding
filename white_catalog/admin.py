@@ -9,6 +9,7 @@ from .models import (
     WhiteProductVariant, WhiteVariantPackPrice,
     WhiteColor, WhiteColorVariant,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
+    WhitePriceList,
 )
 
 
@@ -158,7 +159,7 @@ class WhiteCatalogUserForm(forms.ModelForm):
 	
 	class Meta:
 		model = WhiteCatalogUser
-		fields = ('company_name', 'contact_name', 'contact_phone', 'username', 'pack_route', 'is_active')
+		fields = ('company_name', 'contact_name', 'contact_phone', 'username', 'pack_route', 'price_list', 'is_active')
 	
 	def save(self, commit=True):
 		user = super().save(commit=False)
@@ -178,9 +179,9 @@ class WhiteCatalogUserForm(forms.ModelForm):
 class WhiteCatalogUserAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteCatalogUser model."""
 	form = WhiteCatalogUserForm
-	list_display = ("company_name", "username", "contact_name", "contact_phone", "pack_route", "is_active", "last_login_display", "last_activity_display", "created")
+	list_display = ("company_name", "username", "contact_name", "contact_phone", "pack_route", "price_list", "is_active", "last_login_display", "last_activity_display", "created")
 	list_editable = ("is_active",)
-	list_filter = ("pack_route", "is_active", "created", "last_login", "last_activity_at")
+	list_filter = ("pack_route", "price_list", "is_active", "created", "last_login", "last_activity_at")
 	search_fields = ("company_name", "username", "contact_name", "contact_phone")
 	readonly_fields = ("created", "updated", "last_login", "last_activity_at", "activity_count")
 	inlines = [WhiteCatalogUserActivityInline]
@@ -220,6 +221,10 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 			"fields": ("pack_route",),
 			"description": "ביגוד מוזמן בשלישיות בלבד. חמישיות לא בשימוש."
 		}),
+		("מחירון", {
+			"fields": ("price_list",),
+			"description": "המחירון שלפיו הלקוח רואה ומזמין מחירים באתר. ריק = מחירון הקטלוג המלא."
+		}),
 		("פעילות", {
 			"fields": ("last_login", "last_activity_at", "activity_count"),
 			"classes": ("wide",)
@@ -229,6 +234,14 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 			"classes": ("collapse",)
 		}),
 	)
+
+
+@admin.register(WhitePriceList)
+class WhitePriceListAdmin(admin.ModelAdmin):
+	list_display = ("name", "slug", "percent_of_list", "is_default", "order")
+	list_editable = ("percent_of_list", "is_default", "order")
+	prepopulated_fields = {"slug": ("name",)}
+	search_fields = ("name", "slug")
 
 
 @admin.register(WhiteCatalogUserActivity)

@@ -19,6 +19,7 @@ from .models import (
     WhiteFabricType, WhiteProductVariant, WhiteVariantPackPrice, WhitePackType,
     WhiteColorVariant,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
+    apply_price_list,
 )
 from .middleware import get_client_ip
 
@@ -93,7 +94,7 @@ def get_current_catalog_user(request):
             return admin_catalog_user
         return None
     try:
-        return WhiteCatalogUser.objects.get(pk=user_id, is_active=True)
+        return WhiteCatalogUser.objects.select_related("price_list").get(pk=user_id, is_active=True)
     except WhiteCatalogUser.DoesNotExist:
         admin_catalog_user = _sync_admin_to_catalog_user(getattr(request, "user", None))
         if admin_catalog_user:
@@ -338,6 +339,7 @@ def catalog_home(request):
         "standalone_subcategories": standalone_subcategories,
         "homepage_subcategories": list(category_homepage_subcategories) + list(standalone_subcategories),
         "all_categories": WhiteCategory.objects.all(),
+        "catalog_user": get_current_catalog_user(request),
         "cart_count": _cart_count(request),
     }
     return render(request, "white_catalog/catalog_home.html", context)
@@ -403,6 +405,7 @@ def category_detail(request, category_slug):
         **_nav_context(),
         "category": category,
         "subcategories": category.subcategories.all(),
+        "catalog_user": get_current_catalog_user(request),
         "cart_count": _cart_count(request),
     }
     return render(request, "white_catalog/category_detail.html", context)
@@ -478,7 +481,10 @@ def _subcategory_detail_context(request, subcategory, category=None):
                     "name": variant.fabric_type.name,
                     "sizes": [],
                 }
-            effective_price = variant.unit_price if variant.unit_price is not None else subcategory.unit_price
+            effective_price = apply_price_list(
+                variant.unit_price if variant.unit_price is not None else subcategory.unit_price,
+                catalog_user,
+            )
             fabric_map[fid]["sizes"].append({
                 "variant_id": variant.id,
                 "size_name": variant.size_type.name,
@@ -505,7 +511,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
         for cv in (subcategory.color_variants
                    .filter(is_active=True, color__is_active=True)
                    .select_related("color")):
-            effective_price = cv.get_effective_price()
+            effective_price = apply_price_list(cv.get_effective_price(), catalog_user)
             color_variants_data.append({
                 "id": cv.id,
                 "color_name": cv.color.name,
@@ -545,6 +551,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
             (cv.get("image_url") or cv.get("swatch_url")) for cv in color_variants_data
         ),
         "simple_cart_quantity": simple_cart_quantity,
+        "display_unit_price": apply_price_list(subcategory.unit_price, catalog_user),
         "cart_count": _cart_count(request),
     }
 
@@ -741,7 +748,8 @@ def cart_add(request):
         if quantity < 0:
             quantity = 0
 
-        if product.unit_price is None:
+        listed_price = apply_price_list(product.unit_price, user)
+        if listed_price is None:
             if want_json:
                 return JsonResponse({"ok": False, "error": "מחיר לא זמין"}, status=400)
             messages.error(request, "מחיר לא זמין")
@@ -764,14 +772,14 @@ def cart_add(request):
                 existing_item.delete()
         elif existing_item:
             existing_item.quantity = quantity
-            existing_item.price_at_add = product.unit_price
+            existing_item.price_at_add = listed_price
             existing_item.save(update_fields=["quantity", "price_at_add", "updated"])
         else:
             WhiteCartItem.objects.create(
                 cart=cart,
                 product=product,
                 quantity=quantity,
-                price_at_add=product.unit_price,
+                price_at_add=listed_price,
             )
 
         if want_json:
@@ -820,7 +828,7 @@ def cart_add(request):
             if not color_variant.product.is_orderable or not color_variant.product.has_color_variants:
                 continue
 
-            effective_price = color_variant.get_effective_price()
+            effective_price = apply_price_list(color_variant.get_effective_price(), user)
             if effective_price is None:
                 continue
 
@@ -911,11 +919,14 @@ def cart_add(request):
         if variant_pack_ids and pack_type.pk not in variant_pack_ids:
             continue
 
-        effective_price = variant.unit_price if variant.unit_price is not None else variant.product.unit_price
+        effective_price = apply_price_list(
+            variant.unit_price if variant.unit_price is not None else variant.product.unit_price,
+            user,
+        )
         if effective_price is None:
             continue
 
-        # Price per pack = unit_price × units in pack
+        # Price per pack = listed unit_price × units in pack
         price_per_pack = effective_price * pack_type.quantity
 
         if quantity == 0:
@@ -1144,11 +1155,14 @@ def cart_update(request):
         else:
             if not item:
                 if product:
-                    effective_price = product.unit_price
+                    effective_price = apply_price_list(product.unit_price, user)
                 elif color_variant:
-                    effective_price = color_variant.get_effective_price()
+                    effective_price = apply_price_list(color_variant.get_effective_price(), user)
                 else:
-                    effective_price = variant.unit_price if variant.unit_price is not None else variant.product.unit_price
+                    effective_price = apply_price_list(
+                        variant.unit_price if variant.unit_price is not None else variant.product.unit_price,
+                        user,
+                    )
                 if effective_price is None:
                     if is_ajax:
                         return JsonResponse({"status": "error", "error": "מחיר לא זמין"}, status=400)
@@ -1417,8 +1431,9 @@ def export_products_excel(request):
                 # Empty pack_types on a variant means it is sold in all pack forms.
                 variant_pack_ids = {pt.pk for pt in variant.pack_types.all()}
                 pack_price_map = {pp.pack_type_id: pp.price for pp in variant.pack_prices.all()}
-                effective_unit = (
-                    variant.unit_price if variant.unit_price is not None else product.unit_price
+                effective_unit = apply_price_list(
+                    variant.unit_price if variant.unit_price is not None else product.unit_price,
+                    user,
                 )
 
                 pack_cells = []
@@ -1427,9 +1442,13 @@ def export_products_excel(request):
                     if variant_pack_ids and pack.pk not in variant_pack_ids:
                         pack_cells.append(None)
                         continue
-                    price = pack_price_map.get(pack.pk)
-                    if price is None and effective_unit is not None:
+                    raw_pack = pack_price_map.get(pack.pk)
+                    if raw_pack is not None:
+                        price = apply_price_list(raw_pack, user)
+                    elif effective_unit is not None:
                         price = effective_unit * pack.quantity
+                    else:
+                        price = None
                     pack_cells.append(price)
                     available_in_any_pack = True
 
@@ -1467,7 +1486,7 @@ def export_products_excel(request):
                     "",
                     "",
                     color_variant.color.name,
-                    color_variant.get_effective_price(),
+                    apply_price_list(color_variant.get_effective_price(), user),
                     *[None] * len(allowed_packs),
                     product.online_price,
                     description,
@@ -1482,7 +1501,7 @@ def export_products_excel(request):
                 "",
                 "",
                 "",
-                product.unit_price,
+                apply_price_list(product.unit_price, user),
                 *[None] * len(allowed_packs),
                 product.online_price,
                 description,

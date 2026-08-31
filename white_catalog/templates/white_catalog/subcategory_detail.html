@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ subcategory.name }}{% if category %} - {{ category.name }}{% endif %} - קטלוג אריה טקסטיל</title>
     {% load static %}
+    {% load white_catalog_extras %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Suez+One&family=Nunito:wght@400&family=Assistant:wght@400;700;800&family=Heebo:wght@400&display=swap" rel="stylesheet">
@@ -1251,8 +1252,8 @@
                                             <div>
                                                 <div class="simple-order-label">מחיר ל{{ subcategory.simple_price_label_display }}</div>
                                                 <div class="simple-order-price">
-                                                    {% if subcategory.unit_price %}
-                                                        ₪{{ subcategory.unit_price }}
+                                                    {% if display_unit_price %}
+                                                        ₪{{ display_unit_price }}
                                                     {% else %}
                                                         לא זמין
                                                     {% endif %}
@@ -1297,7 +1298,7 @@
                                 const orderToast = document.getElementById('orderToast');
                                 const orderToastText = document.getElementById('orderToastText');
                                 const totalSummary = document.getElementById('simpleTotalSummary');
-                                const unitPrice = parseFloat('{{ subcategory.unit_price|default_if_none:"" }}');
+                                const unitPrice = parseFloat('{{ display_unit_price|default_if_none:"" }}');
                                 const productDisplayName = '{{ subcategory.name|escapejs }}';
                                 const simpleProductId = parseInt('{{ subcategory.id }}', 10);
                                 let orderToastTimer = null;
@@ -1446,7 +1447,7 @@
                                             {% for size_price in subcategory.size_prices.all %}
                                             <tr>
                                                 <td class="size-col">{{ size_price.size_name }}</td>
-                                                <td class="price-col">₪{{ size_price.price }}</td>
+                                                <td class="price-col">₪{{ size_price.price|listed_price:catalog_user }}</td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -1457,7 +1458,7 @@
                                     {% if subcategory.unit_price %}
                                         <div class="product-price">
                                             <span class="price-label">מחיר סיטונאי:</span>
-                                            <span class="price-value">₪{{ subcategory.unit_price }}</span>
+                                            <span class="price-value">₪{{ subcategory.unit_price|listed_price:catalog_user }}</span>
                                             <span class="price-vat-note">(לא כולל מע"מ)</span>
                                         </div>
                                     {% endif %}

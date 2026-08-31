@@ -3,22 +3,28 @@ import io
 import json
 import tempfile
 
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import (
+    WhiteCart,
+    WhiteCartItem,
     WhiteCatalogUser,
     WhiteCategory,
     WhiteColor,
     WhiteColorVariant,
     WhiteFabricType,
     WhitePackType,
+    WhitePriceList,
     WhiteProductVariant,
     WhiteSizeType,
     WhiteSubcategory,
     WhiteSubcategoryImage,
+    apply_price_list,
 )
 from .views import _product_gallery_images
 
@@ -376,4 +382,119 @@ class MergePrintedTetraPagesTests(TestCase):
         variant.image.save("export.jpg", ContentFile(low.getvalue()), save=True)
         gallery = _product_gallery_images(self.keep)
         self.assertEqual(len(gallery), 1)
+
+
+class ApplyPriceListTests(TestCase):
+    def test_catalog_keeps_list_price(self):
+        catalog = WhitePriceList.objects.get(slug="catalog")
+        user = WhiteCatalogUser(
+            company_name="א",
+            contact_name="ב",
+            contact_phone="1",
+            username="c1",
+            price_list=catalog,
+        )
+        self.assertEqual(apply_price_list(Decimal("13.00"), user), Decimal("13.00"))
+
+    def test_medium_and_large_match_bodysuit_tiers(self):
+        medium = WhitePriceList.objects.get(slug="medium")
+        large = WhitePriceList.objects.get(slug="large")
+        user_m = WhiteCatalogUser(
+            company_name="א", contact_name="ב", contact_phone="1", username="m", price_list=medium
+        )
+        user_l = WhiteCatalogUser(
+            company_name="א", contact_name="ב", contact_phone="1", username="l", price_list=large
+        )
+        self.assertEqual(apply_price_list(Decimal("13.00"), user_m), Decimal("12.50"))
+        self.assertEqual(apply_price_list(Decimal("13.00"), user_l), Decimal("12.00"))
+
+    def test_none_price_stays_none(self):
+        self.assertIsNone(apply_price_list(None, None))
+
+
+class CustomerPriceListTests(TestCase):
+    def setUp(self):
+        self.threes = WhitePackType.objects.create(name="שלישיות", quantity=3, is_active=True)
+        self.catalog_list = WhitePriceList.objects.get(slug="catalog")
+        self.large_list = WhitePriceList.objects.get(slug="large")
+        self.product = WhiteSubcategory.objects.create(
+            name="בגד גוף שרוול ארוך",
+            slug="Baby_long_bodysuit_test",
+            is_orderable=True,
+            has_order_variants=True,
+            unit_price=Decimal("13.00"),
+        )
+        fabric = WhiteFabricType.objects.create(name="פלנל")
+        size = WhiteSizeType.objects.create(name="0-3")
+        self.variant = WhiteProductVariant.objects.create(
+            product=self.product,
+            fabric_type=fabric,
+            size_type=size,
+            unit_price=Decimal("13.00"),
+            barcode="7297555020987",
+        )
+        self.variant.pack_types.set([self.threes])
+
+    def _login(self, username, price_list):
+        user = WhiteCatalogUser.objects.create(
+            company_name="בדיקה",
+            contact_name="בודק",
+            contact_phone="050",
+            username=username,
+            price_list=price_list,
+        )
+        user.set_password("pass")
+        user.save()
+        session = self.client.session
+        session["white_catalog_user_id"] = user.id
+        session["white_catalog_username"] = user.username
+        session.save()
+        return user
+
+    def test_catalog_customer_sees_13_and_cart_pack_is_39(self):
+        user = self._login("shop", self.catalog_list)
+        url = reverse(
+            "white_catalog:standalone_subcategory_detail",
+            kwargs={"subcategory_slug": self.product.slug},
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        sizes = response.context["variants_data"][0]["sizes"]
+        self.assertEqual(sizes[0]["unit_price"], "13.00")
+
+        add = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "pack_type_id": str(self.threes.id),
+                f"qty_{self.variant.id}": "1",
+            },
+        )
+        self.assertEqual(add.status_code, 200)
+        item = WhiteCartItem.objects.get(cart__user=user, variant=self.variant)
+        self.assertEqual(item.price_at_add, Decimal("39.00"))
+
+    def test_large_customer_sees_12_and_cart_pack_is_36(self):
+        user = self._login("big", self.large_list)
+        url = reverse(
+            "white_catalog:standalone_subcategory_detail",
+            kwargs={"subcategory_slug": self.product.slug},
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        sizes = response.context["variants_data"][0]["sizes"]
+        self.assertEqual(sizes[0]["unit_price"], "12.00")
+
+        add = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "pack_type_id": str(self.threes.id),
+                f"qty_{self.variant.id}": "2",
+            },
+        )
+        self.assertEqual(add.status_code, 200)
+        item = WhiteCartItem.objects.get(cart__user=user, variant=self.variant)
+        self.assertEqual(item.price_at_add, Decimal("36.00"))
+        self.assertEqual(item.quantity, 2)
 
