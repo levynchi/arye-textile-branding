@@ -2,8 +2,10 @@
 
 Design notes
 ------------
-- No prices anywhere. Molly only sees products and variants and places orders;
-  pricing/fulfillment happens out of band.
+- Wholesale prices live on MollyProduct (admin-only). Molly never sees prices
+  in the catalog, cart, or her own order history.
+- At checkout, unit_price / line_total are snapshotted onto each order item so
+  later catalog price changes do not rewrite past orders.
 - Variants are built from three orthogonal attributes: background color × print
   design × fabric type. The MollyVariant rows are the actual SKUs.
 - A staff "admin action" can bulk-generate the cross-product of selected
@@ -13,11 +15,24 @@ Design notes
 
 import os
 import uuid
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 from django.contrib.auth.hashers import make_password, check_password
+
+
+_TWO_PLACES = Decimal("0.01")
+
+
+def quantize_money(value):
+    """Round a money amount to 2 decimal places, or return None."""
+    if value is None or value == "":
+        return None
+    if not isinstance(value, Decimal):
+        value = Decimal(str(value))
+    return value.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +285,14 @@ class MollyProduct(models.Model):
         "יש לו ואריאנטים",
         default=True,
         help_text="אם מסומן, מולי תבחר צבע/הדפס/בד. אחרת זה מוצר בודד.",
+    )
+    sale_price = models.DecimalField(
+        "מחיר סיטונאי (לא כולל מע\"מ)",
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="מחיר ליחידה בשקלים — לא כולל מע\"מ. מוצג באדמין בלבד; מולי לא רואה.",
     )
     available_label_colors = models.ManyToManyField(
         MollyLabelColor,
@@ -588,7 +611,7 @@ class MollyMockupLayer(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# Cart & orders – no money fields anywhere
+# Cart & orders – Molly never sees prices; staff prices live on the product
 # ---------------------------------------------------------------------------
 
 class MollyCart(models.Model):
@@ -693,7 +716,7 @@ class MollyCartItem(models.Model):
 
 
 class MollyOrder(models.Model):
-    """A submitted order. No total_amount – Arye computes pricing offline."""
+    """A submitted order. Totals come from snapshotted item prices."""
 
     STATUS_PENDING = "pending"
     STATUS_PROCESSING = "processing"
@@ -750,6 +773,12 @@ class MollyOrder(models.Model):
     def get_total_quantity(self):
         return sum(item.quantity for item in self.items.all())
 
+    def get_total_amount(self):
+        """Sum of priced lines (nulls ignored). None if no line has a price."""
+        from django.db.models import Sum
+
+        return self.items.aggregate(total=Sum("line_total"))["total"]
+
 
 class MollyOrderItem(models.Model):
     """Immutable line item snapshot from a submitted order."""
@@ -780,6 +809,21 @@ class MollyOrderItem(models.Model):
     label_color_name = models.CharField("צבע תווית", max_length=80, blank=True)
     variant_sku = models.CharField("מק\"ט", max_length=80, blank=True)
     quantity = models.PositiveIntegerField("כמות")
+    unit_price = models.DecimalField(
+        "מחיר ליחידה (לא כולל מע\"מ)",
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="מחיר שנסגר בזמן ההזמנה. מולי לא רואה.",
+    )
+    line_total = models.DecimalField(
+        "סה\"כ שורה (לא כולל מע\"מ)",
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+    )
     created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -804,3 +848,20 @@ class MollyOrderItem(models.Model):
             self.print_design_name,
         ) if b]
         return " | ".join(bits) if bits else "ללא ואריאנט"
+
+    def apply_unit_price(self, unit_price):
+        """Set unit_price and recompute line_total from quantity."""
+        self.unit_price = quantize_money(unit_price)
+        if self.unit_price is None:
+            self.line_total = None
+        else:
+            self.line_total = quantize_money(self.unit_price * self.quantity)
+
+    def apply_catalog_price(self, overwrite=False):
+        """Copy the linked product's sale_price onto this line. Returns True if changed."""
+        if self.unit_price is not None and not overwrite:
+            return False
+        if not self.product_id or self.product.sale_price is None:
+            return False
+        self.apply_unit_price(self.product.sale_price)
+        return True

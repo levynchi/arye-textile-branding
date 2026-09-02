@@ -2,7 +2,8 @@
 
 Most pages are gated behind a Molly catalog session login. Mockup share pages
 (`/mockups/<id>/share/`) are public view-only. There is no fallback to Django
-staff/superuser. Prices are never shown or computed anywhere.
+staff/superuser. Catalog prices exist for staff invoicing but are never shown
+to Molly.
 """
 
 import logging
@@ -758,7 +759,7 @@ def checkout(request):
     for item in cart.items.all():
         v = item.variant
         effective_label = item.effective_label_color()
-        MollyOrderItem.objects.create(
+        order_item = MollyOrderItem(
             order=order,
             product=item.product,
             variant=v,
@@ -770,6 +771,8 @@ def checkout(request):
             variant_sku=v.sku if v else "",
             quantity=item.quantity,
         )
+        order_item.apply_unit_price(item.product.sale_price)
+        order_item.save()
 
     cart.status = MollyCart.STATUS_SUBMITTED
     cart.save(update_fields=["status", "updated"])

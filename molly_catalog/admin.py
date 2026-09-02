@@ -10,6 +10,7 @@ one click (skipping combinations that already exist thanks to the
 
 from django import forms
 from django.contrib import admin, messages
+from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404, render
 from django.urls import path
 from django.utils.html import format_html, mark_safe
@@ -171,8 +172,11 @@ class GenerateVariantMatrixForm(forms.Form):
 
 @admin.register(MollyProduct)
 class MollyProductAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "category", "is_orderable", "has_variants", "variant_count", "order", "updated")
-    list_editable = ("order",)
+    list_display = (
+        "name", "slug", "category", "is_orderable", "has_variants",
+        "sale_price", "variant_count", "order", "updated",
+    )
+    list_editable = ("sale_price", "order")
     list_filter = ("category", "is_orderable", "has_variants")
     search_fields = ("name", "slug", "description", "category__name")
     prepopulated_fields = {"slug": ("name",)}
@@ -183,7 +187,10 @@ class MollyProductAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            "fields": ("category", "name", "slug", "main_image", "order", "is_orderable", "has_variants"),
+            "fields": (
+                "category", "name", "slug", "main_image", "order",
+                "is_orderable", "has_variants", "sale_price",
+            ),
         }),
         ("תיאורים", {
             "fields": ("description", "marketing_description", "information"),
@@ -520,6 +527,8 @@ class MollyOrderItemInline(admin.TabularInline):
         "label_color_name",
         "variant_sku",
         "quantity",
+        "unit_price",
+        "line_total",
     )
     fields = (
         "product_name",
@@ -529,6 +538,8 @@ class MollyOrderItemInline(admin.TabularInline):
         "label_color_name",
         "variant_sku",
         "quantity",
+        "unit_price",
+        "line_total",
     )
     can_delete = False
 
@@ -538,26 +549,85 @@ class MollyOrderItemInline(admin.TabularInline):
 
 @admin.register(MollyOrder)
 class MollyOrderAdmin(admin.ModelAdmin):
-    list_display = ("order_number", "user", "status", "item_count", "created", "updated")
+    list_display = (
+        "order_number", "user", "status", "item_count",
+        "total_amount_display", "created", "updated",
+    )
     list_editable = ("status",)
     list_filter = ("status", "created")
     search_fields = ("order_number", "user__display_name", "user__username")
-    readonly_fields = ("order_number", "user", "cart", "created", "updated")
+    readonly_fields = (
+        "order_number", "user", "cart", "total_amount_display", "created", "updated",
+    )
     inlines = [MollyOrderItemInline]
+    actions = ("fill_prices_from_catalog",)
     change_form_template = "admin/molly_catalog/mollyorder_change_form.html"
 
     fieldsets = (
         ("פרטי הזמנה", {
-            "fields": ("order_number", "user", "status", "created", "updated"),
+            "fields": (
+                "order_number", "user", "status", "total_amount_display",
+                "created", "updated",
+            ),
         }),
         ("הערות", {
             "fields": ("notes", "admin_notes"),
         }),
     )
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(
+            _item_count=Count("items"),
+            _total_amount=Sum("items__line_total"),
+        )
+
     def item_count(self, obj):
-        return obj.items.count()
+        return getattr(obj, "_item_count", obj.items.count())
     item_count.short_description = "פריטים"
+    item_count.admin_order_field = "_item_count"
+
+    def total_amount_display(self, obj):
+        total = getattr(obj, "_total_amount", None)
+        if total is None and not hasattr(obj, "_total_amount"):
+            total = obj.get_total_amount()
+        if total is None:
+            return "—"
+        return f"₪{total:,.2f}"
+    total_amount_display.short_description = 'סה"כ ₪'
+    total_amount_display.admin_order_field = "_total_amount"
+
+    @admin.action(description="מלא מחירים מהקטלוג")
+    def fill_prices_from_catalog(self, request, queryset):
+        updated_items = 0
+        skipped_priced = 0
+        skipped_no_product = 0
+        skipped_no_price = 0
+        for order in queryset.prefetch_related("items__product"):
+            for item in order.items.all():
+                if item.unit_price is not None:
+                    skipped_priced += 1
+                    continue
+                if not item.product_id:
+                    skipped_no_product += 1
+                    continue
+                if item.product.sale_price is None:
+                    skipped_no_price += 1
+                    continue
+                if item.apply_catalog_price():
+                    item.save(update_fields=["unit_price", "line_total"])
+                    updated_items += 1
+        level = messages.SUCCESS if updated_items else messages.WARNING
+        self.message_user(
+            request,
+            (
+                f"עודכנו {updated_items} שורות. "
+                f"דולגו: {skipped_priced} עם מחיר קיים, "
+                f"{skipped_no_price} בלי מחיר במוצר, "
+                f"{skipped_no_product} בלי מוצר מקושר."
+            ),
+            level,
+        )
 
     def get_urls(self):
         urls = super().get_urls()
@@ -575,4 +645,11 @@ class MollyOrderAdmin(admin.ModelAdmin):
             MollyOrder.objects.prefetch_related("items").select_related("user"),
             pk=object_id,
         )
-        return render(request, "admin/molly_catalog/order_print.html", {"order": order})
+        return render(
+            request,
+            "admin/molly_catalog/order_print.html",
+            {
+                "order": order,
+                "total_amount": order.get_total_amount(),
+            },
+        )

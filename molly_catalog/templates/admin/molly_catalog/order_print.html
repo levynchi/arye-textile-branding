@@ -86,6 +86,7 @@
         }
         th { background: #eee; font-weight: 700; }
         td.qty, th.qty { text-align: center; font-weight: 700; white-space: nowrap; }
+        td.money, th.money { text-align: left; white-space: nowrap; }
         tr { page-break-inside: avoid; }
         .total-row td { font-weight: 800; background: #f4f4f4; }
         @media print {
@@ -119,6 +120,7 @@
             <div><span>טלפון:</span> <strong>{{ order.user.contact_phone|default:"—" }}</strong></div>
             <div><span>תאריך הזמנה:</span> <strong>{{ order.created|date:"d/m/Y H:i" }}</strong></div>
             <div><span>סה"כ יחידות:</span> <strong>{{ order.get_total_quantity }}</strong> ({{ order.items.count }} פריטים)</div>
+            <div><span>סה"כ מחיר (לא כולל מע"מ):</span> <strong>{% if total_amount != None %}₪{{ total_amount|floatformat:2 }}{% else %}—{% endif %}</strong></div>
         </div>
 
         {% if order.notes %}
@@ -140,6 +142,8 @@
                     <th>תווית</th>
                     <th>מק"ט</th>
                     <th class="qty">כמות</th>
+                    <th class="money">מחיר ליחידה</th>
+                    <th class="money">סה"כ</th>
                 </tr>
             </thead>
             <tbody>
@@ -153,11 +157,15 @@
                         <td>{{ item.label_color_name|default:"—" }}</td>
                         <td>{{ item.variant_sku|default:"—" }}</td>
                         <td class="qty">{{ item.quantity }}</td>
+                        <td class="money">{% if item.unit_price is not None %}₪{{ item.unit_price|floatformat:2 }}{% else %}—{% endif %}</td>
+                        <td class="money">{% if item.line_total is not None %}₪{{ item.line_total|floatformat:2 }}{% else %}—{% endif %}</td>
                     </tr>
                 {% endfor %}
                 <tr class="total-row">
-                    <td colspan="7">סה"כ יחידות</td>
+                    <td colspan="7">סה"כ</td>
                     <td class="qty">{{ order.get_total_quantity }}</td>
+                    <td class="money"></td>
+                    <td class="money">{% if total_amount != None %}₪{{ total_amount|floatformat:2 }}{% else %}—{% endif %}</td>
                 </tr>
             </tbody>
         </table>
