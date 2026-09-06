@@ -222,7 +222,7 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 		}),
 		("מחיר", {
 			"fields": ("price_percent",),
-			"description": "אחוז ממחיר הקטלוג. 100 = מחיר מלא. 96.15 ≈ 12.50 כשהרשימה 13. 92.31 ≈ 12.00."
+			"description": "אחוז הנחה ממחיר הקטלוג. 0 = מחיר מלא. 10 = 10% הנחה (13 ₪ הופך ל־11.70).",
 		}),
 		("פעילות", {
 			"fields": ("last_login", "last_activity_at", "activity_count"),

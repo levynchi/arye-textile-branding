@@ -1,5 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 from django.contrib.auth.hashers import make_password, check_password
@@ -10,17 +11,17 @@ _HUNDRED = Decimal("100")
 
 
 def apply_price_list(unit_price, user):
-	"""Return unit_price adjusted by the customer's price percent.
+	"""Return unit_price after the customer's discount percent.
 
-	100 is the stored wholesale price. Missing user or percent leaves the
+	0 is the stored wholesale price. Missing user or percent leaves the
 	price unchanged (still quantized to 2 decimal places).
 	"""
 	if unit_price is None:
 		return None
 	price = unit_price if isinstance(unit_price, Decimal) else Decimal(str(unit_price))
-	percent = getattr(user, "price_percent", None) if user is not None else None
-	if percent is not None and percent != _HUNDRED:
-		price = price * percent / _HUNDRED
+	discount = getattr(user, "price_percent", None) if user is not None else None
+	if discount is not None and discount != 0:
+		price = price * (_HUNDRED - discount) / _HUNDRED
 	return price.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
@@ -232,11 +233,12 @@ class WhiteCatalogUser(models.Model):
 		help_text="ביגוד מוזמן בשלישיות בלבד. חמישיות לא בשימוש."
 	)
 	price_percent = models.DecimalField(
-		"אחוז ממחיר הקטלוג",
+		"אחוז הנחה ממחיר הקטלוג",
 		max_digits=6,
 		decimal_places=2,
-		default=Decimal("100.00"),
-		help_text="100 = מחיר הקטלוג המלא. 96.15 ≈ 12.50 כשהרשימה 13. 92.31 ≈ 12.00.",
+		default=Decimal("0.00"),
+		validators=[MinValueValidator(Decimal("0.00")), MaxValueValidator(Decimal("100.00"))],
+		help_text="0 = מחיר מלא. 10 = 10% הנחה (13 ₪ הופך ל־11.70).",
 	)
 	is_active = models.BooleanField("פעיל", default=True, help_text="האם המשתמש יכול להתחבר")
 	last_login = models.DateTimeField("כניסה אחרונה", null=True, blank=True)

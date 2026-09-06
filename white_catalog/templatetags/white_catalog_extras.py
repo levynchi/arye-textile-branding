@@ -7,5 +7,5 @@ register = template.Library()
 
 @register.filter
 def listed_price(price, user):
-	"""Apply the customer's price percent to a catalog unit/pack price."""
+	"""Apply the customer's discount percent to a catalog unit/pack price."""
 	return apply_price_list(price, user)

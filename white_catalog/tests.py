@@ -390,26 +390,26 @@ class ApplyPriceListTests(TestCase):
             contact_name="ב",
             contact_phone="1",
             username="c1",
-            price_percent=Decimal("100.00"),
+            price_percent=Decimal("0.00"),
         )
         self.assertEqual(apply_price_list(Decimal("13.00"), user), Decimal("13.00"))
 
-    def test_medium_and_large_match_bodysuit_tiers(self):
-        user_m = WhiteCatalogUser(
+    def test_ten_percent_discount_and_bodysuit_tiers(self):
+        user_10 = WhiteCatalogUser(
             company_name="א",
             contact_name="ב",
             contact_phone="1",
-            username="m",
-            price_percent=Decimal("96.15"),
+            username="d10",
+            price_percent=Decimal("10.00"),
         )
         user_l = WhiteCatalogUser(
             company_name="א",
             contact_name="ב",
             contact_phone="1",
             username="l",
-            price_percent=Decimal("92.31"),
+            price_percent=Decimal("7.69"),
         )
-        self.assertEqual(apply_price_list(Decimal("13.00"), user_m), Decimal("12.50"))
+        self.assertEqual(apply_price_list(Decimal("13.00"), user_10), Decimal("11.70"))
         self.assertEqual(apply_price_list(Decimal("13.00"), user_l), Decimal("12.00"))
 
     def test_none_price_stays_none(self):
@@ -454,7 +454,7 @@ class CustomerPriceListTests(TestCase):
         return user
 
     def test_catalog_customer_sees_13_and_cart_pack_is_39(self):
-        user = self._login("shop", Decimal("100.00"))
+        user = self._login("shop", Decimal("0.00"))
         url = reverse(
             "white_catalog:standalone_subcategory_detail",
             kwargs={"subcategory_slug": self.product.slug},
@@ -476,8 +476,8 @@ class CustomerPriceListTests(TestCase):
         item = WhiteCartItem.objects.get(cart__user=user, variant=self.variant)
         self.assertEqual(item.price_at_add, Decimal("39.00"))
 
-    def test_large_customer_sees_12_and_cart_pack_is_36(self):
-        user = self._login("big", Decimal("92.31"))
+    def test_ten_percent_customer_sees_11_70_and_cart_pack_is_35_10(self):
+        user = self._login("disc10", Decimal("10.00"))
         url = reverse(
             "white_catalog:standalone_subcategory_detail",
             kwargs={"subcategory_slug": self.product.slug},
@@ -485,7 +485,7 @@ class CustomerPriceListTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         sizes = response.context["variants_data"][0]["sizes"]
-        self.assertEqual(sizes[0]["unit_price"], "12.00")
+        self.assertEqual(sizes[0]["unit_price"], "11.70")
 
         add = self.client.post(
             reverse("white_catalog:cart_add"),
@@ -497,6 +497,6 @@ class CustomerPriceListTests(TestCase):
         )
         self.assertEqual(add.status_code, 200)
         item = WhiteCartItem.objects.get(cart__user=user, variant=self.variant)
-        self.assertEqual(item.price_at_add, Decimal("36.00"))
+        self.assertEqual(item.price_at_add, Decimal("35.10"))
         self.assertEqual(item.quantity, 2)
 
