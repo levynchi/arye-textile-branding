@@ -19,7 +19,6 @@ from .models import (
     WhiteColorVariant,
     WhiteFabricType,
     WhitePackType,
-    WhitePriceList,
     WhiteProductVariant,
     WhiteSizeType,
     WhiteSubcategory,
@@ -386,24 +385,29 @@ class MergePrintedTetraPagesTests(TestCase):
 
 class ApplyPriceListTests(TestCase):
     def test_catalog_keeps_list_price(self):
-        catalog = WhitePriceList.objects.get(slug="catalog")
         user = WhiteCatalogUser(
             company_name="א",
             contact_name="ב",
             contact_phone="1",
             username="c1",
-            price_list=catalog,
+            price_percent=Decimal("100.00"),
         )
         self.assertEqual(apply_price_list(Decimal("13.00"), user), Decimal("13.00"))
 
     def test_medium_and_large_match_bodysuit_tiers(self):
-        medium = WhitePriceList.objects.get(slug="medium")
-        large = WhitePriceList.objects.get(slug="large")
         user_m = WhiteCatalogUser(
-            company_name="א", contact_name="ב", contact_phone="1", username="m", price_list=medium
+            company_name="א",
+            contact_name="ב",
+            contact_phone="1",
+            username="m",
+            price_percent=Decimal("96.15"),
         )
         user_l = WhiteCatalogUser(
-            company_name="א", contact_name="ב", contact_phone="1", username="l", price_list=large
+            company_name="א",
+            contact_name="ב",
+            contact_phone="1",
+            username="l",
+            price_percent=Decimal("92.31"),
         )
         self.assertEqual(apply_price_list(Decimal("13.00"), user_m), Decimal("12.50"))
         self.assertEqual(apply_price_list(Decimal("13.00"), user_l), Decimal("12.00"))
@@ -415,8 +419,6 @@ class ApplyPriceListTests(TestCase):
 class CustomerPriceListTests(TestCase):
     def setUp(self):
         self.threes = WhitePackType.objects.create(name="שלישיות", quantity=3, is_active=True)
-        self.catalog_list = WhitePriceList.objects.get(slug="catalog")
-        self.large_list = WhitePriceList.objects.get(slug="large")
         self.product = WhiteSubcategory.objects.create(
             name="בגד גוף שרוול ארוך",
             slug="Baby_long_bodysuit_test",
@@ -435,13 +437,13 @@ class CustomerPriceListTests(TestCase):
         )
         self.variant.pack_types.set([self.threes])
 
-    def _login(self, username, price_list):
+    def _login(self, username, price_percent):
         user = WhiteCatalogUser.objects.create(
             company_name="בדיקה",
             contact_name="בודק",
             contact_phone="050",
             username=username,
-            price_list=price_list,
+            price_percent=price_percent,
         )
         user.set_password("pass")
         user.save()
@@ -452,7 +454,7 @@ class CustomerPriceListTests(TestCase):
         return user
 
     def test_catalog_customer_sees_13_and_cart_pack_is_39(self):
-        user = self._login("shop", self.catalog_list)
+        user = self._login("shop", Decimal("100.00"))
         url = reverse(
             "white_catalog:standalone_subcategory_detail",
             kwargs={"subcategory_slug": self.product.slug},
@@ -475,7 +477,7 @@ class CustomerPriceListTests(TestCase):
         self.assertEqual(item.price_at_add, Decimal("39.00"))
 
     def test_large_customer_sees_12_and_cart_pack_is_36(self):
-        user = self._login("big", self.large_list)
+        user = self._login("big", Decimal("92.31"))
         url = reverse(
             "white_catalog:standalone_subcategory_detail",
             kwargs={"subcategory_slug": self.product.slug},

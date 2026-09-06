@@ -10,16 +10,15 @@ _HUNDRED = Decimal("100")
 
 
 def apply_price_list(unit_price, user):
-	"""Return unit_price adjusted by the customer's price list.
+	"""Return unit_price adjusted by the customer's price percent.
 
-	Catalog list is 100% of the stored wholesale price. Missing user or list
-	leaves the price unchanged (still quantized to 2 decimal places).
+	100 is the stored wholesale price. Missing user or percent leaves the
+	price unchanged (still quantized to 2 decimal places).
 	"""
 	if unit_price is None:
 		return None
 	price = unit_price if isinstance(unit_price, Decimal) else Decimal(str(unit_price))
-	price_list = getattr(user, "price_list", None) if user is not None else None
-	percent = getattr(price_list, "percent_of_list", None) if price_list is not None else None
+	percent = getattr(user, "price_percent", None) if user is not None else None
 	if percent is not None and percent != _HUNDRED:
 		price = price * percent / _HUNDRED
 	return price.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
@@ -209,38 +208,6 @@ class WhiteSubcategoryPrice(models.Model):
 		return f"{self.subcategory.name} - {self.size_name}: ₪{self.price}"
 
 
-class WhitePriceList(models.Model):
-	"""Named wholesale price list: a percent of the catalog unit price."""
-	name = models.CharField("שם מחירון", max_length=100)
-	slug = models.SlugField("Slug", max_length=50, unique=True)
-	percent_of_list = models.DecimalField(
-		"אחוז ממחיר הקטלוג",
-		max_digits=6,
-		decimal_places=2,
-		help_text="100 = מחיר הקטלוג המלא. 92.31 = סיטונאי גדול (12 ₪ כשהרשימה 13).",
-	)
-	is_default = models.BooleanField("ברירת מחדל", default=False)
-	order = models.PositiveIntegerField("סדר תצוגה", default=0)
-
-	class Meta:
-		app_label = "white_catalog"
-		ordering = ("order", "name")
-		verbose_name = "מחירון"
-		verbose_name_plural = "מחירונים"
-
-	def __str__(self):
-		return self.name
-
-	def save(self, *args, **kwargs):
-		super().save(*args, **kwargs)
-		if self.is_default:
-			type(self).objects.filter(is_default=True).exclude(pk=self.pk).update(is_default=False)
-
-	@classmethod
-	def get_default(cls):
-		return cls.objects.filter(is_default=True).first() or cls.objects.filter(slug="catalog").first()
-
-
 class WhiteCatalogUser(models.Model):
 	"""White catalog user model for managing access to white catalog pages."""
 	ROUTE_BOTH = "both"
@@ -264,14 +231,12 @@ class WhiteCatalogUser(models.Model):
 		default=ROUTE_THREES,
 		help_text="ביגוד מוזמן בשלישיות בלבד. חמישיות לא בשימוש."
 	)
-	price_list = models.ForeignKey(
-		WhitePriceList,
-		on_delete=models.PROTECT,
-		related_name="customers",
-		verbose_name="מחירון",
-		null=True,
-		blank=True,
-		help_text="המחירון שלפיו הלקוח רואה ומזמין מחירים באתר.",
+	price_percent = models.DecimalField(
+		"אחוז ממחיר הקטלוג",
+		max_digits=6,
+		decimal_places=2,
+		default=Decimal("100.00"),
+		help_text="100 = מחיר הקטלוג המלא. 96.15 ≈ 12.50 כשהרשימה 13. 92.31 ≈ 12.00.",
 	)
 	is_active = models.BooleanField("פעיל", default=True, help_text="האם המשתמש יכול להתחבר")
 	last_login = models.DateTimeField("כניסה אחרונה", null=True, blank=True)
@@ -303,14 +268,6 @@ class WhiteCatalogUser(models.Model):
 		of the user's stored pack_route.
 		"""
 		return WhitePackType.objects.filter(is_active=True, quantity=3)
-
-	def save(self, *args, **kwargs):
-		update_fields = kwargs.get("update_fields")
-		if self.price_list_id is None and update_fields is None:
-			default = WhitePriceList.get_default()
-			if default is not None:
-				self.price_list = default
-		super().save(*args, **kwargs)
 
 	def update_activity(self):
 		"""Update the last activity timestamp."""

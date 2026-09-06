@@ -94,7 +94,7 @@ def get_current_catalog_user(request):
             return admin_catalog_user
         return None
     try:
-        return WhiteCatalogUser.objects.select_related("price_list").get(pk=user_id, is_active=True)
+        return WhiteCatalogUser.objects.get(pk=user_id, is_active=True)
     except WhiteCatalogUser.DoesNotExist:
         admin_catalog_user = _sync_admin_to_catalog_user(getattr(request, "user", None))
         if admin_catalog_user:
