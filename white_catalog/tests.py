@@ -25,6 +25,7 @@ from .models import (
     WhiteSubcategoryImage,
     apply_price_list,
 )
+from .templatetags.white_catalog_extras import has_price_discount
 from .views import _product_gallery_images
 
 
@@ -415,6 +416,13 @@ class ApplyPriceListTests(TestCase):
     def test_none_price_stays_none(self):
         self.assertIsNone(apply_price_list(None, None))
 
+    def test_has_price_discount_filter(self):
+        user_0 = WhiteCatalogUser(price_percent=Decimal("0.00"))
+        user_10 = WhiteCatalogUser(price_percent=Decimal("10.00"))
+        self.assertFalse(has_price_discount(None))
+        self.assertFalse(has_price_discount(user_0))
+        self.assertTrue(has_price_discount(user_10))
+
 
 class CustomerPriceListTests(TestCase):
     def setUp(self):
@@ -463,6 +471,9 @@ class CustomerPriceListTests(TestCase):
         self.assertEqual(response.status_code, 200)
         sizes = response.context["variants_data"][0]["sizes"]
         self.assertEqual(sizes[0]["unit_price"], "13.00")
+        self.assertEqual(sizes[0]["list_unit_price"], "13.00")
+        self.assertNotContains(response, "המחירים המוצגים הם אחרי ההנחה")
+        self.assertNotContains(response, "יש לך")
 
         add = self.client.post(
             reverse("white_catalog:cart_add"),
@@ -486,6 +497,9 @@ class CustomerPriceListTests(TestCase):
         self.assertEqual(response.status_code, 200)
         sizes = response.context["variants_data"][0]["sizes"]
         self.assertEqual(sizes[0]["unit_price"], "11.70")
+        self.assertEqual(sizes[0]["list_unit_price"], "13.00")
+        self.assertContains(response, "יש לך 10% הנחה")
+        self.assertContains(response, "המחירים המוצגים הם אחרי ההנחה")
 
         add = self.client.post(
             reverse("white_catalog:cart_add"),

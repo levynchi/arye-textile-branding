@@ -1,0 +1,8 @@
+{% load white_catalog_extras %}
+{% if price != None %}
+    {% if catalog_user|has_price_discount %}
+        <span class="price-pair"><s class="price-was">₪{{ price }}</s> <span class="price-now">₪{{ price|listed_price:catalog_user }}</span></span>
+    {% else %}
+        ₪{{ price|listed_price:catalog_user }}
+    {% endif %}
+{% endif %}

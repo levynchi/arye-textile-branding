@@ -306,12 +306,15 @@ def _build_order_grouped_items(order):
     return grouped_items
 
 
-def _nav_context():
+def _nav_context(request=None):
     """Common navigation context shared by all views."""
-    return {
+    context = {
         "all_categories": WhiteCategory.objects.all(),
         "standalone_subcategories": WhiteSubcategory.objects.filter(category__isnull=True),
     }
+    if request is not None:
+        context["catalog_user"] = get_current_catalog_user(request)
+    return context
 
 
 def _cart_count(request):
@@ -402,7 +405,7 @@ def category_detail(request, category_slug):
     """Category detail page showing subcategories."""
     category = get_object_or_404(WhiteCategory, slug=category_slug)
     context = {
-        **_nav_context(),
+        **_nav_context(request),
         "category": category,
         "subcategories": category.subcategories.all(),
         "catalog_user": get_current_catalog_user(request),
@@ -481,14 +484,14 @@ def _subcategory_detail_context(request, subcategory, category=None):
                     "name": variant.fabric_type.name,
                     "sizes": [],
                 }
-            effective_price = apply_price_list(
-                variant.unit_price if variant.unit_price is not None else subcategory.unit_price,
-                catalog_user,
-            )
+            raw_unit = variant.unit_price if variant.unit_price is not None else subcategory.unit_price
+            list_price = apply_price_list(raw_unit, None)
+            effective_price = apply_price_list(raw_unit, catalog_user)
             fabric_map[fid]["sizes"].append({
                 "variant_id": variant.id,
                 "size_name": variant.size_type.name,
                 "unit_price": str(effective_price) if effective_price is not None else None,
+                "list_unit_price": str(list_price) if list_price is not None else None,
                 "barcode": variant.barcode or "",
                 "pack_ids": sorted(size_pack_ids),
                 "cart_quantities": {
@@ -511,7 +514,9 @@ def _subcategory_detail_context(request, subcategory, category=None):
         for cv in (subcategory.color_variants
                    .filter(is_active=True, color__is_active=True)
                    .select_related("color")):
-            effective_price = apply_price_list(cv.get_effective_price(), catalog_user)
+            raw_unit = cv.get_effective_price()
+            list_price = apply_price_list(raw_unit, None)
+            effective_price = apply_price_list(raw_unit, catalog_user)
             color_variants_data.append({
                 "id": cv.id,
                 "color_name": cv.color.name,
@@ -520,6 +525,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
                 "image_url": cv.image.url if cv.image else "",
                 "barcode": cv.barcode or "",
                 "unit_price": str(effective_price) if effective_price is not None else None,
+                "list_unit_price": str(list_price) if list_price is not None else None,
                 "cart_quantity": cart_qty_map.get(cv.id, 0),
             })
     elif show_simple_ordering and active_cart:
@@ -535,7 +541,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
             simple_cart_quantity = simple_item.quantity
 
     return {
-        **_nav_context(),
+        **_nav_context(request),
         "category": category,
         "subcategory": subcategory,
         "subcategory_images": subcategory.images.all(),
@@ -552,6 +558,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
         ),
         "simple_cart_quantity": simple_cart_quantity,
         "display_unit_price": apply_price_list(subcategory.unit_price, catalog_user),
+        "display_list_unit_price": apply_price_list(subcategory.unit_price, None),
         "cart_count": _cart_count(request),
     }
 
@@ -969,7 +976,7 @@ def cart_add(request):
 @require_catalog_login
 def cart_view(request):
     """Display the current cart contents."""
-    context = {**_nav_context(), **_build_cart_page_context(request)}
+    context = {**_nav_context(request), **_build_cart_page_context(request)}
     return render(request, "white_catalog/cart.html", context)
 
 
@@ -977,7 +984,7 @@ def cart_view(request):
 def cart_drawer(request):
     """HTML fragment for the cart side panel (AJAX)."""
     context = {
-        **_nav_context(),
+        **_nav_context(request),
         **_build_cart_page_context(request),
         "drawer_mode": True,
     }
@@ -1314,7 +1321,7 @@ def order_confirm(request, order_number):
         user=user,
     )
     context = {
-        **_nav_context(),
+        **_nav_context(request),
         "order": order,
         "grouped_items": _build_order_grouped_items(order),
         "cart_count": _cart_count(request),
@@ -1328,7 +1335,7 @@ def order_list(request):
     user = get_current_catalog_user(request)
     orders = WhiteOrder.objects.filter(user=user).prefetch_related("items").order_by("-created")
     context = {
-        **_nav_context(),
+        **_nav_context(request),
         "orders": orders,
         "cart_count": _cart_count(request),
     }

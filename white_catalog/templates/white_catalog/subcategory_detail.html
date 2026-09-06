@@ -772,6 +772,21 @@
                                     return size.pack_ids.indexOf(packId) !== -1;
                                 }
 
+                                function formatPriceCell(unitPrice, listUnitPrice, packQty) {
+                                    if (unitPrice === null || isNaN(unitPrice)) return '&mdash;';
+                                    const qty = packQty || 1;
+                                    const now = (unitPrice * qty).toFixed(2);
+                                    const list = listUnitPrice !== null && listUnitPrice !== undefined
+                                        ? parseFloat(listUnitPrice)
+                                        : null;
+                                    if (list !== null && !isNaN(list) && list !== unitPrice) {
+                                        const was = (list * qty).toFixed(2);
+                                        return '<span class="price-pair"><s class="price-was">&#x20AA;' + was +
+                                            '</s> <span class="price-now">&#x20AA;' + now + '</span></span>';
+                                    }
+                                    return '&#x20AA;' + now;
+                                }
+
                                 let selectedVariantId = null;
 
                                 function selectVariantRow(variantId) {
@@ -827,9 +842,8 @@
                                     }
                                     visibleSizes.forEach(function(size) {
                                         const unitPrice = size.unit_price ? parseFloat(size.unit_price) : null;
-                                        const pricePerPack = unitPrice !== null
-                                            ? '&#x20AA;' + (unitPrice * packType.pack_qty).toFixed(2)
-                                            : '&mdash;';
+                                        const listUnitPrice = size.list_unit_price ? parseFloat(size.list_unit_price) : null;
+                                        const pricePerPack = formatPriceCell(unitPrice, listUnitPrice, packType.pack_qty);
                                         const savedQty = size.cart_quantities
                                             ? parseInt(size.cart_quantities[String(packId)] || 0, 10)
                                             : 0;
@@ -988,7 +1002,13 @@
                                                     <div class="color-chip-barcode is-empty">&mdash;</div>
                                                 {% endif %}
                                                 {% if cv.unit_price %}
-                                                    <div class="color-chip-price">₪{{ cv.unit_price }}</div>
+                                                    <div class="color-chip-price">
+                                                        {% if cv.list_unit_price and cv.list_unit_price != cv.unit_price %}
+                                                            <span class="price-pair"><s class="price-was">₪{{ cv.list_unit_price }}</s> <span class="price-now">₪{{ cv.unit_price }}</span></span>
+                                                        {% else %}
+                                                            ₪{{ cv.unit_price }}
+                                                        {% endif %}
+                                                    </div>
                                                 {% endif %}
                                                 <div class="color-chip-qty">
                                                     <input type="number" name="color_qty_{{ cv.id }}" min="0" step="1"
@@ -1253,7 +1273,11 @@
                                                 <div class="simple-order-label">מחיר ל{{ subcategory.simple_price_label_display }}</div>
                                                 <div class="simple-order-price">
                                                     {% if display_unit_price %}
-                                                        ₪{{ display_unit_price }}
+                                                        {% if catalog_user|has_price_discount and display_list_unit_price %}
+                                                            <span class="price-pair"><s class="price-was">₪{{ display_list_unit_price }}</s> <span class="price-now">₪{{ display_unit_price }}</span></span>
+                                                        {% else %}
+                                                            ₪{{ display_unit_price }}
+                                                        {% endif %}
                                                     {% else %}
                                                         לא זמין
                                                     {% endif %}
@@ -1447,7 +1471,7 @@
                                             {% for size_price in subcategory.size_prices.all %}
                                             <tr>
                                                 <td class="size-col">{{ size_price.size_name }}</td>
-                                                <td class="price-col">₪{{ size_price.price|listed_price:catalog_user }}</td>
+                                                <td class="price-col">{% include "white_catalog/partials/price_pair.html" with price=size_price.price catalog_user=catalog_user %}</td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -1458,7 +1482,7 @@
                                     {% if subcategory.unit_price %}
                                         <div class="product-price">
                                             <span class="price-label">מחיר סיטונאי:</span>
-                                            <span class="price-value">₪{{ subcategory.unit_price|listed_price:catalog_user }}</span>
+                                            <span class="price-value">{% include "white_catalog/partials/price_pair.html" with price=subcategory.unit_price catalog_user=catalog_user %}</span>
                                             <span class="price-vat-note">(לא כולל מע"מ)</span>
                                         </div>
                                     {% endif %}

@@ -163,9 +163,19 @@
                                 {% if request.session.white_catalog_user_id %}
                                     {% with price_range=subcategory.get_price_range %}
                                         {% if price_range %}
-                                            <p class="catalog-card-price">₪{{ price_range.0 }} - ₪{{ price_range.1 }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
+                                            <p class="catalog-card-price">
+                                                {% if catalog_user|has_price_discount %}
+                                                    <span class="price-pair">
+                                                        <s class="price-was">₪{{ price_range.0 }} - ₪{{ price_range.1 }}</s>
+                                                        <span class="price-now">₪{{ price_range.0|listed_price:catalog_user }} - ₪{{ price_range.1|listed_price:catalog_user }}</span>
+                                                    </span>
+                                                {% else %}
+                                                    ₪{{ price_range.0 }} - ₪{{ price_range.1 }}
+                                                {% endif %}
+                                                <span class="price-vat-small">(לא כולל מע"מ)</span>
+                                            </p>
                                         {% elif subcategory.unit_price %}
-                                            <p class="catalog-card-price">₪{{ subcategory.unit_price|listed_price:catalog_user }} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
+                                            <p class="catalog-card-price">{% include "white_catalog/partials/price_pair.html" with price=subcategory.unit_price catalog_user=catalog_user %} <span class="price-vat-small">(לא כולל מע"מ)</span></p>
                                         {% endif %}
                                     {% endwith %}
                                 {% endif %}

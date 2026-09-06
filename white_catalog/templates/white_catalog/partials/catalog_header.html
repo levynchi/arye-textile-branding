@@ -1,4 +1,5 @@
 {% load static %}
+{% load white_catalog_extras %}
 <style>
     .catalog-header {
         position: static !important;
@@ -208,6 +209,11 @@
             </div>
         </div>
     </div>
+    {% if catalog_user|has_price_discount %}
+    <div class="catalog-discount-banner" role="status">
+        יש לך {{ catalog_user.price_percent|floatformat:-2 }}% הנחה. המחירים המוצגים הם אחרי ההנחה.
+    </div>
+    {% endif %}
     
     <!-- Logo Section with Navigation -->
     <div class="catalog-logo-section">
