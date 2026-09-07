@@ -98,6 +98,12 @@ class Campaign(models.Model):
     def pending_count(self):
         return self.recipients.filter(status=Recipient.Status.PENDING).count()
 
+    @property
+    def queued_count(self):
+        return self.recipients.filter(
+            status__in=[Recipient.Status.PENDING, Recipient.Status.FAILED]
+        ).count()
+
 
 class Recipient(models.Model):
     class Status(models.TextChoices):

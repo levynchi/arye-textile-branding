@@ -30,7 +30,11 @@ def build_reply(from_email, in_reply_to=None, subject="RE: שלום", body="מע
     return msg
 
 
-@override_settings(RESEND_API_KEY="test-key", CONTACT_EMAIL="levynchi@gmail.com")
+@override_settings(
+    RESEND_API_KEY="test-key",
+    CONTACT_EMAIL="levynchi@gmail.com",
+    RESEND_FROM_EMAIL="info@arye-boutique.co.il",
+)
 class CampaignFlowTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("admin", password="pass", is_staff=True)
@@ -72,7 +76,7 @@ class CampaignFlowTests(TestCase):
         self.assertIsNotNone(recipient.contact.last_contacted_at)
 
         first_payload = self.mock_send.call_args_list[0].args[0]
-        self.assertEqual(first_payload["from"], "Arye Textile <onboarding@resend.dev>")
+        self.assertEqual(first_payload["from"], "Arye Textile <info@arye-boutique.co.il>")
         self.assertEqual(first_payload["reply_to"], "levynchi@gmail.com")
 
     def test_reply_matched_by_message_id(self):
@@ -191,6 +195,19 @@ class CampaignFlowTests(TestCase):
         with patch("campaigns.services.time.sleep", lambda *_: None):
             self.client.post(reverse("campaign_send", args=[campaign.pk]))
         self.assertEqual(campaign.recipients.get().status, Recipient.Status.SENT)
+
+    def test_send_retries_failed_recipient(self):
+        campaign = make_campaign()
+        add_recipients_with_dedup(campaign, "shop1@test.com", include_repeats=False)
+        recipient = campaign.recipients.get()
+        recipient.status = Recipient.Status.FAILED
+        recipient.error = "You can only send testing emails to your own email address"
+        recipient.save()
+        with patch("campaigns.services.time.sleep", lambda *_: None):
+            self.client.post(reverse("campaign_send", args=[campaign.pk]))
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.status, Recipient.Status.SENT)
+        self.assertEqual(recipient.error, "")
 
     def test_admin_index_links_to_campaigns(self):
         response = self.client.get(reverse("admin:index"))

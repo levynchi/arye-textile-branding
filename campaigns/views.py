@@ -157,13 +157,13 @@ def campaign_send_test(request, pk):
 @require_POST
 def campaign_send(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
-    pending = campaign.pending_count
+    pending = campaign.queued_count
     # #region agent log
     try:
         import json
         from pathlib import Path
         from django.utils import timezone as _tz
-        Path(r"C:\My Web Sites\arye-textile-branding\debug-09228a.log").open("a", encoding="utf-8").write(json.dumps({"sessionId":"09228a","hypothesisId":"C,F","location":"campaigns/views.py:campaign_send","message":"send all clicked","data":{"campaign_id":pk,"pending":pending,"status":campaign.status},"timestamp":int(_tz.now().timestamp()*1000)}, ensure_ascii=False)+"\n")
+        Path(r"C:\My Web Sites\arye-textile-branding\debug-09228a.log").open("a", encoding="utf-8").write(json.dumps({"sessionId":"09228a","hypothesisId":"A,C,F","location":"campaigns/views.py:campaign_send","message":"send all clicked","data":{"campaign_id":pk,"queued":pending,"status":campaign.status},"timestamp":int(_tz.now().timestamp()*1000)}, ensure_ascii=False)+"\n")
     except Exception:
         pass
     # #endregion

@@ -13,9 +13,9 @@
 
 <div class="toolbar">
     <form method="post" action="{% url 'campaign_send' campaign.pk %}"
-          onsubmit="return confirm('לשלוח את הקמפיין ל-{{ campaign.pending_count }} נמענים?');">
+          onsubmit="return confirm('לשלוח את הקמפיין ל-{{ campaign.queued_count }} נמענים?');">
         {% csrf_token %}
-        <button type="submit" class="btn" {% if campaign.status == 'sending' and campaign.pending_count == 0 %}disabled{% endif %}>שליחה לכל הנמענים</button>
+        <button type="submit" class="btn" {% if campaign.status == 'sending' and campaign.queued_count == 0 %}disabled{% endif %}>שליחה לכל הנמענים</button>
     </form>
     <a class="btn secondary" href="{% url 'campaign_edit' campaign.pk %}">עריכה</a>
     <form method="post" action="{% url 'campaign_delete' campaign.pk %}" onsubmit="return confirm('למחוק את הקמפיין?');">

@@ -13,8 +13,6 @@ from .models import Campaign, Contact, Recipient
 
 logger = logging.getLogger(__name__)
 
-RESEND_FROM_ADDRESS = "onboarding@resend.dev"
-
 
 def _agent_dbg(hypothesis_id, location, message, data):
     # #region agent log
@@ -48,7 +46,10 @@ def personalize(text: str, recipient: Recipient) -> str:
 
 def campaign_from_header(campaign: Campaign) -> str:
     display = (campaign.from_name or "Arye Textile").strip()
-    return f"{display} <{RESEND_FROM_ADDRESS}>"
+    raw = (getattr(settings, "RESEND_FROM_EMAIL", "") or "info@arye-boutique.co.il").strip()
+    if "<" in raw and ">" in raw:
+        return raw
+    return f"{display} <{raw}>"
 
 
 def send_via_resend(campaign: Campaign, to_email: str, recipient: Recipient | None = None) -> str:
@@ -177,15 +178,19 @@ def _run_campaign(campaign_id: int):
 
 
 def start_campaign(campaign: Campaign) -> bool:
-    """Send pending recipients in this HTTP request so the worker cannot drop the job."""
-    pending = campaign.pending_count
-    if campaign.status == Campaign.Status.SENDING and pending == 0:
+    """Send pending/failed recipients in this HTTP request so the worker cannot drop the job."""
+    queued = campaign.queued_count
+    if campaign.status == Campaign.Status.SENDING and queued == 0:
         return False
+    campaign.recipients.filter(status=Recipient.Status.FAILED).update(
+        status=Recipient.Status.PENDING, error=""
+    )
     campaign.status = Campaign.Status.SENDING
     campaign.save(update_fields=["status", "updated_at"])
-    _agent_dbg("C", "campaigns/services.py:start_campaign", "running inline", {
+    _agent_dbg("A", "campaigns/services.py:start_campaign", "running inline", {
         "campaign_id": campaign.pk,
-        "pending": pending,
+        "queued": queued,
+        "from_header": campaign_from_header(campaign),
     })
     _run_campaign(campaign.pk)
     return True

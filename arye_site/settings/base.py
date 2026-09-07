@@ -148,6 +148,8 @@ WHITE_CATALOG_API_TOKEN = os.environ.get('WHITE_CATALOG_API_TOKEN', '')
 
 # Email settings for contact form notifications (using Resend API)
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+# Campaigns must use a verified Resend domain. arye-boutique.co.il is verified on this account.
+RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'info@arye-boutique.co.il')
 CONTACT_EMAIL = 'levynchi@gmail.com'
 MOLLY_ORDER_NOTIFY_EMAIL = os.environ.get('MOLLY_ORDER_NOTIFY_EMAIL', 'levynchi@gmail.com')
 
