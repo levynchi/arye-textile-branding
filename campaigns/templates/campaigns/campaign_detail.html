@@ -69,41 +69,10 @@
 <script>
 const STATUS_LABELS = {pending: "ממתין", sent: "נשלח", failed: "נכשל", draft: "טיוטה", sending: "בשליחה", done: "הסתיים"};
 
-function dbgCampaign(message, data) {
-    // #region agent log
-    fetch('http://127.0.0.1:7558/ingest/d6fd463d-49c5-40df-9fe9-bc04f1027126',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'09228a'},body:JSON.stringify({sessionId:'09228a',location:'campaign_detail.html',message:message,data:data,timestamp:Date.now(),hypothesisId:'A,C,D,F'})}).catch(()=>{});
-    // #endregion
-}
-
-function summarizeRecipients(recipients) {
-    return (recipients || []).map(r => ({
-        status: r.status,
-        error: (r.error || '').slice(0, 300),
-        domain: (r.email || '').split('@')[1] || '',
-    }));
-}
-
-dbgCampaign('page load', {
-    campaignStatus: '{{ campaign.status }}',
-    total: {{ campaign.total_count }},
-    sent: {{ campaign.sent_count }},
-    pending: {{ campaign.pending_count }},
-    failed: {{ campaign.failed_count }},
-    flash: [{% for message in messages %}'{{ message.tags|escapejs }}:{{ message|truncatechars:180|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}],
-});
-
 function refresh() {
     fetch("{% url 'campaign_status' campaign.pk %}")
         .then(r => r.json())
         .then(data => {
-            dbgCampaign('status poll', {
-                status: data.status,
-                total: data.total,
-                sent: data.sent,
-                pending: data.pending,
-                failed: data.failed,
-                recipients: summarizeRecipients(data.recipients),
-            });
             document.getElementById("stat-total").textContent = data.total;
             document.getElementById("stat-sent").textContent = data.sent;
             document.getElementById("stat-pending").textContent = data.pending;
@@ -125,7 +94,6 @@ function refresh() {
             if (data.status === "sending") setTimeout(refresh, 4000);
         });
 }
-setTimeout(refresh, 500);
 {% if campaign.status == 'sending' %}setTimeout(refresh, 4000);{% endif %}
 </script>
 {% endblock %}
