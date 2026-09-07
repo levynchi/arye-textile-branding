@@ -172,6 +172,26 @@ class CampaignFlowTests(TestCase):
         self.assertIn("repeat", recipient)
         self.assertIsNotNone(recipient["contact_id"])
 
+    def test_send_view_runs_inline_and_marks_sent(self):
+        campaign = make_campaign()
+        add_recipients_with_dedup(campaign, "shop1@test.com", include_repeats=False)
+        with patch("campaigns.services.time.sleep", lambda *_: None):
+            response = self.client.post(reverse("campaign_send", args=[campaign.pk]))
+        self.assertEqual(response.status_code, 302)
+        recipient = campaign.recipients.get()
+        self.assertEqual(recipient.status, Recipient.Status.SENT)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.status, Campaign.Status.DONE)
+
+    def test_send_retries_if_stuck_sending_with_pending(self):
+        campaign = make_campaign()
+        add_recipients_with_dedup(campaign, "shop1@test.com", include_repeats=False)
+        campaign.status = Campaign.Status.SENDING
+        campaign.save(update_fields=["status", "updated_at"])
+        with patch("campaigns.services.time.sleep", lambda *_: None):
+            self.client.post(reverse("campaign_send", args=[campaign.pk]))
+        self.assertEqual(campaign.recipients.get().status, Recipient.Status.SENT)
+
     def test_admin_index_links_to_campaigns(self):
         response = self.client.get(reverse("admin:index"))
         self.assertContains(response, reverse("campaign_list"))

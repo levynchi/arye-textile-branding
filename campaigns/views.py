@@ -138,6 +138,15 @@ def campaign_send_test(request, pk):
             send_test_email(campaign, form.cleaned_data["email"])
             messages.success(request, f"מייל בדיקה נשלח אל {form.cleaned_data['email']}.")
         except Exception as exc:  # noqa: BLE001 - show SMTP error to the user
+            # #region agent log
+            try:
+                import json
+                from pathlib import Path
+                from django.utils import timezone as _tz
+                Path(r"C:\My Web Sites\arye-textile-branding\debug-09228a.log").open("a", encoding="utf-8").write(json.dumps({"sessionId":"09228a","hypothesisId":"A,E,F","location":"campaigns/views.py:campaign_send_test","message":"test send failed","data":{"campaign_id":pk,"to_domain":(form.cleaned_data.get("email") or "").split("@")[-1],"exc_type":type(exc).__name__,"exc":str(exc)[:500]},"timestamp":int(_tz.now().timestamp()*1000)}, ensure_ascii=False)+"\n")
+            except Exception:
+                pass
+            # #endregion
             messages.error(request, f"שליחת הבדיקה נכשלה: {exc}")
     else:
         messages.error(request, "כתובת מייל לא תקינה.")
@@ -148,7 +157,17 @@ def campaign_send_test(request, pk):
 @require_POST
 def campaign_send(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
-    if campaign.pending_count == 0:
+    pending = campaign.pending_count
+    # #region agent log
+    try:
+        import json
+        from pathlib import Path
+        from django.utils import timezone as _tz
+        Path(r"C:\My Web Sites\arye-textile-branding\debug-09228a.log").open("a", encoding="utf-8").write(json.dumps({"sessionId":"09228a","hypothesisId":"C,F","location":"campaigns/views.py:campaign_send","message":"send all clicked","data":{"campaign_id":pk,"pending":pending,"status":campaign.status},"timestamp":int(_tz.now().timestamp()*1000)}, ensure_ascii=False)+"\n")
+    except Exception:
+        pass
+    # #endregion
+    if pending == 0:
         messages.warning(request, "אין נמענים ממתינים לשליחה.")
     elif start_campaign(campaign):
         messages.success(request, "השליחה התחילה! העמוד מתעדכן אוטומטית.")
