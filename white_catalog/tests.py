@@ -514,3 +514,116 @@ class CustomerPriceListTests(TestCase):
         self.assertEqual(item.price_at_add, Decimal("35.10"))
         self.assertEqual(item.quantity, 2)
 
+
+class PerUserCatalogVisibilityTests(TestCase):
+    def setUp(self):
+        self.category = WhiteCategory.objects.create(name="ביגוד", slug="clothing")
+        self.other_category = WhiteCategory.objects.create(name="מצעים", slug="bedding")
+        self.hidden_product = WhiteSubcategory.objects.create(
+            name="בגד גוף מוסתר",
+            slug="hidden-bodysuit",
+            category=self.category,
+            is_orderable=True,
+            unit_price=Decimal("13.00"),
+        )
+        self.visible_product = WhiteSubcategory.objects.create(
+            name="בגד גוף גלוי",
+            slug="visible-bodysuit",
+            category=self.category,
+            is_orderable=True,
+            unit_price=Decimal("13.00"),
+        )
+        self.other_product = WhiteSubcategory.objects.create(
+            name="סדין",
+            slug="sheet",
+            category=self.other_category,
+            is_orderable=True,
+            unit_price=Decimal("20.00"),
+        )
+
+    def _login(self, username="shop-hide"):
+        user = WhiteCatalogUser.objects.create(
+            company_name="חנות בדיקה",
+            contact_name="בודק",
+            contact_phone="050",
+            username=username,
+        )
+        user.set_password("pass")
+        user.save()
+        session = self.client.session
+        session["white_catalog_user_id"] = user.id
+        session["white_catalog_username"] = user.username
+        session.save()
+        return user
+
+    def _category_url(self, category):
+        return reverse("white_catalog:category_detail", kwargs={"category_slug": category.slug})
+
+    def _product_url(self, product):
+        return reverse(
+            "white_catalog:subcategory_detail",
+            kwargs={
+                "category_slug": product.category.slug,
+                "subcategory_slug": product.slug,
+            },
+        )
+
+    def test_guest_sees_full_catalog(self):
+        home = self.client.get(reverse("white_catalog:home"))
+        self.assertEqual(home.status_code, 200)
+        self.assertContains(home, self.category.name)
+        self.assertContains(home, self.other_category.name)
+
+        category_page = self.client.get(self._category_url(self.category))
+        self.assertEqual(category_page.status_code, 200)
+        self.assertContains(category_page, self.hidden_product.name)
+        self.assertContains(category_page, self.visible_product.name)
+        self.assertEqual(self.client.get(self._product_url(self.hidden_product)).status_code, 200)
+
+    def test_user_without_hides_sees_full_catalog(self):
+        self._login()
+        home = self.client.get(reverse("white_catalog:home"))
+        self.assertEqual(home.status_code, 200)
+        nav_ids = list(home.context["all_categories"].values_list("id", flat=True))
+        self.assertIn(self.category.id, nav_ids)
+        self.assertIn(self.other_category.id, nav_ids)
+        self.assertEqual(self.client.get(self._category_url(self.category)).status_code, 200)
+        self.assertEqual(self.client.get(self._product_url(self.visible_product)).status_code, 200)
+
+    def test_hidden_category_is_gone_for_that_user(self):
+        user = self._login()
+        user.hidden_categories.add(self.category)
+
+        home = self.client.get(reverse("white_catalog:home"))
+        nav_ids = list(home.context["all_categories"].values_list("id", flat=True))
+        self.assertNotIn(self.category.id, nav_ids)
+        self.assertIn(self.other_category.id, nav_ids)
+        self.assertEqual(self.client.get(self._category_url(self.category)).status_code, 404)
+        self.assertEqual(self.client.get(self._product_url(self.visible_product)).status_code, 404)
+        self.assertEqual(self.client.get(self._product_url(self.other_product)).status_code, 200)
+
+    def test_hidden_product_is_gone_and_cannot_be_added_to_cart(self):
+        user = self._login()
+        user.hidden_products.add(self.hidden_product)
+
+        category_page = self.client.get(self._category_url(self.category))
+        self.assertEqual(category_page.status_code, 200)
+        names = [product.name for product in category_page.context["subcategories"]]
+        self.assertNotIn(self.hidden_product.name, names)
+        self.assertIn(self.visible_product.name, names)
+        self.assertEqual(self.client.get(self._product_url(self.hidden_product)).status_code, 404)
+        self.assertEqual(self.client.get(self._product_url(self.visible_product)).status_code, 200)
+
+        add = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "product_id": str(self.hidden_product.id),
+                "simple_quantity": "1",
+            },
+        )
+        self.assertEqual(add.status_code, 400)
+        self.assertFalse(
+            WhiteCartItem.objects.filter(cart__user=user, product=self.hidden_product).exists()
+        )
+

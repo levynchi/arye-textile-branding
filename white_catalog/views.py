@@ -15,11 +15,14 @@ from django.utils import timezone
 from django.utils.html import strip_tags
 from django.views.decorators.http import require_POST
 from .models import (
-    WhiteCategory, WhiteSubcategory, WhiteCatalogUser, WhiteCatalogUserActivity,
+    WhiteSubcategory, WhiteCatalogUser, WhiteCatalogUserActivity,
     WhiteFabricType, WhiteProductVariant, WhiteVariantPackPrice, WhitePackType,
     WhiteColorVariant,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
     apply_price_list,
+    can_see_product,
+    visible_categories,
+    visible_products,
 )
 from .middleware import get_client_ip
 
@@ -308,12 +311,13 @@ def _build_order_grouped_items(order):
 
 def _nav_context(request=None):
     """Common navigation context shared by all views."""
+    catalog_user = get_current_catalog_user(request) if request is not None else None
     context = {
-        "all_categories": WhiteCategory.objects.all(),
-        "standalone_subcategories": WhiteSubcategory.objects.filter(category__isnull=True),
+        "all_categories": visible_categories(catalog_user),
+        "standalone_subcategories": visible_products(catalog_user).filter(category__isnull=True),
     }
     if request is not None:
-        context["catalog_user"] = get_current_catalog_user(request)
+        context["catalog_user"] = catalog_user
     return context
 
 
@@ -330,9 +334,12 @@ def _cart_count(request):
 
 def catalog_home(request):
     """Main white catalog page showing all categories and standalone subcategories."""
-    categories = WhiteCategory.objects.filter(show_products_on_homepage=False)
-    standalone_subcategories = WhiteSubcategory.objects.filter(category__isnull=True).prefetch_related("images")
-    category_homepage_subcategories = WhiteSubcategory.objects.filter(
+    catalog_user = get_current_catalog_user(request)
+    categories = visible_categories(catalog_user).filter(show_products_on_homepage=False)
+    standalone_subcategories = visible_products(catalog_user).filter(
+        category__isnull=True
+    ).prefetch_related("images")
+    category_homepage_subcategories = visible_products(catalog_user).filter(
         category__show_products_on_homepage=True
     ).select_related("category").prefetch_related("images").order_by(
         "category__order", "category__name", "order", "name"
@@ -341,8 +348,7 @@ def catalog_home(request):
         "categories": categories,
         "standalone_subcategories": standalone_subcategories,
         "homepage_subcategories": list(category_homepage_subcategories) + list(standalone_subcategories),
-        "all_categories": WhiteCategory.objects.all(),
-        "catalog_user": get_current_catalog_user(request),
+        **_nav_context(request),
         "cart_count": _cart_count(request),
     }
     return render(request, "white_catalog/catalog_home.html", context)
@@ -379,6 +385,10 @@ def barcode_search(request):
         product = color_variant.product
         query = urlencode({"color_variant": color_variant.id})
     else:
+        product = None
+        query = ""
+
+    if product is None or not can_see_product(get_current_catalog_user(request), product):
         messages.error(request, f'לא נמצא מוצר עם ברקוד "{q}"')
         referer = request.META.get("HTTP_REFERER")
         if referer:
@@ -403,12 +413,13 @@ def barcode_search(request):
 
 def category_detail(request, category_slug):
     """Category detail page showing subcategories."""
-    category = get_object_or_404(WhiteCategory, slug=category_slug)
+    catalog_user = get_current_catalog_user(request)
+    category = get_object_or_404(visible_categories(catalog_user), slug=category_slug)
     context = {
         **_nav_context(request),
         "category": category,
-        "subcategories": category.subcategories.all(),
-        "catalog_user": get_current_catalog_user(request),
+        "subcategories": visible_products(catalog_user).filter(category=category),
+        "catalog_user": catalog_user,
         "cart_count": _cart_count(request),
     }
     return render(request, "white_catalog/category_detail.html", context)
@@ -628,15 +639,21 @@ def subcategory_detail(request, category_slug, subcategory_slug):
             subcategory_slug=legacy[1],
             permanent=True,
         )
-    category = get_object_or_404(WhiteCategory, slug=category_slug)
-    subcategory = get_object_or_404(WhiteSubcategory, category=category, slug=subcategory_slug)
+    catalog_user = get_current_catalog_user(request)
+    category = get_object_or_404(visible_categories(catalog_user), slug=category_slug)
+    subcategory = get_object_or_404(
+        visible_products(catalog_user), category=category, slug=subcategory_slug
+    )
     return render(request, "white_catalog/subcategory_detail.html",
                   _subcategory_detail_context(request, subcategory, category))
 
 
 def standalone_subcategory_detail(request, subcategory_slug):
     """Standalone subcategory detail page (without category)."""
-    subcategory = get_object_or_404(WhiteSubcategory, slug=subcategory_slug, category__isnull=True)
+    catalog_user = get_current_catalog_user(request)
+    subcategory = get_object_or_404(
+        visible_products(catalog_user), slug=subcategory_slug, category__isnull=True
+    )
     return render(request, "white_catalog/subcategory_detail.html",
                   _subcategory_detail_context(request, subcategory))
 
@@ -692,15 +709,7 @@ def login_view(request):
 
 			messages.error(request, "שם משתמש או סיסמא שגויים")
 	
-	# Get all categories for navigation
-	all_categories = WhiteCategory.objects.all()
-	standalone_subcategories = WhiteSubcategory.objects.filter(category__isnull=True)
-	
-	context = {
-		"all_categories": all_categories,
-		"standalone_subcategories": standalone_subcategories,
-	}
-	return render(request, "white_catalog/login.html", context)
+	return render(request, "white_catalog/login.html", _nav_context(request))
 
 
 def logout_view(request):
@@ -730,6 +739,12 @@ def cart_add(request):
         try:
             product = WhiteSubcategory.objects.get(pk=product_id, is_orderable=True)
         except (WhiteSubcategory.DoesNotExist, TypeError, ValueError):
+            if want_json:
+                return JsonResponse({"ok": False, "error": "המוצר לא זמין להזמנה"}, status=400)
+            messages.error(request, "המוצר לא זמין להזמנה")
+            return redirect(request.POST.get("next") or "white_catalog:cart")
+
+        if not can_see_product(user, product):
             if want_json:
                 return JsonResponse({"ok": False, "error": "המוצר לא זמין להזמנה"}, status=400)
             messages.error(request, "המוצר לא זמין להזמנה")
@@ -834,6 +849,8 @@ def cart_add(request):
 
             if not color_variant.product.is_orderable or not color_variant.product.has_color_variants:
                 continue
+            if not can_see_product(user, color_variant.product):
+                continue
 
             effective_price = apply_price_list(color_variant.get_effective_price(), user)
             if effective_price is None:
@@ -919,6 +936,8 @@ def cart_add(request):
             continue
 
         if not variant.product.is_orderable or not variant.product.has_order_variants:
+            continue
+        if not can_see_product(user, variant.product):
             continue
 
         # Skip variants that aren't sold in the selected pack form (empty = all forms).
@@ -1046,6 +1065,11 @@ def cart_update(request):
                 return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
             messages.error(request, "הפריט לא נמצא")
             return redirect("white_catalog:cart")
+        if not can_see_product(user, variant.product):
+            if is_ajax:
+                return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
+            messages.error(request, "הפריט לא נמצא")
+            return redirect("white_catalog:cart")
 
         # Enforce the user's pack route and the variant's pack forms.
         if pack_type.quantity != 3:
@@ -1077,6 +1101,11 @@ def cart_update(request):
                 return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
             messages.error(request, "הפריט לא נמצא")
             return redirect("white_catalog:cart")
+        if not can_see_product(user, color_variant.product):
+            if is_ajax:
+                return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
+            messages.error(request, "הפריט לא נמצא")
+            return redirect("white_catalog:cart")
         item = (
             WhiteCartItem.objects.select_related("cart")
             .filter(cart=cart, color_variant=color_variant)
@@ -1087,6 +1116,11 @@ def cart_update(request):
         try:
             product = WhiteSubcategory.objects.get(pk=product_id, is_orderable=True, has_order_variants=False, has_color_variants=False)
         except (WhiteSubcategory.DoesNotExist, TypeError, ValueError):
+            if is_ajax:
+                return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
+            messages.error(request, "הפריט לא נמצא")
+            return redirect("white_catalog:cart")
+        if not can_see_product(user, product):
             if is_ajax:
                 return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
             messages.error(request, "הפריט לא נמצא")
@@ -1410,7 +1444,7 @@ def export_products_excel(request):
                 cell.alignment = Alignment(wrap_text=True, vertical="top")
 
     products = (
-        WhiteSubcategory.objects.filter(is_orderable=True)
+        visible_products(user).filter(is_orderable=True)
         .select_related("category")
         .prefetch_related(
             "images",

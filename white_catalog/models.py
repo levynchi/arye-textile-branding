@@ -241,6 +241,20 @@ class WhiteCatalogUser(models.Model):
 		help_text="0 = מחיר מלא. 10 = 10% הנחה (13 ₪ הופך ל־11.70).",
 	)
 	is_active = models.BooleanField("פעיל", default=True, help_text="האם המשתמש יכול להתחבר")
+	hidden_categories = models.ManyToManyField(
+		WhiteCategory,
+		blank=True,
+		related_name="hidden_from_users",
+		verbose_name="קטגוריות מוסתרות",
+		help_text="ברירת מחדל: הכל גלוי. סמן רק קטגוריות שהמשתמש לא יראה.",
+	)
+	hidden_products = models.ManyToManyField(
+		WhiteSubcategory,
+		blank=True,
+		related_name="hidden_from_users",
+		verbose_name="מוצרים מוסתרים",
+		help_text="ברירת מחדל: הכל גלוי. סמן רק מוצרים שהמשתמש לא יראה.",
+	)
 	last_login = models.DateTimeField("כניסה אחרונה", null=True, blank=True)
 	last_activity_at = models.DateTimeField("פעילות אחרונה", null=True, blank=True)
 	created = models.DateTimeField(auto_now_add=True)
@@ -276,6 +290,46 @@ class WhiteCatalogUser(models.Model):
 		from django.utils import timezone
 		self.last_activity_at = timezone.now()
 		self.save(update_fields=['last_activity_at'])
+
+
+def can_see_category(user, category):
+	"""True when the category is visible for this catalog user (or guest)."""
+	if user is None or category is None:
+		return True
+	return not user.hidden_categories.filter(pk=category.pk).exists()
+
+
+def can_see_product(user, product):
+	"""True when the product is visible for this catalog user (or guest).
+
+	A product is hidden if it was marked hidden, or its category was.
+	"""
+	if user is None or product is None:
+		return True
+	if user.hidden_products.filter(pk=product.pk).exists():
+		return False
+	if product.category_id and user.hidden_categories.filter(pk=product.category_id).exists():
+		return False
+	return True
+
+
+def visible_categories(user):
+	"""Categories the user may browse. Guests and unset hides see the full catalog."""
+	qs = WhiteCategory.objects.all()
+	if user is None:
+		return qs
+	return qs.exclude(pk__in=user.hidden_categories.values("pk"))
+
+
+def visible_products(user):
+	"""Products the user may browse. Guests and unset hides see the full catalog."""
+	qs = WhiteSubcategory.objects.all()
+	if user is None:
+		return qs
+	return qs.exclude(
+		models.Q(pk__in=user.hidden_products.values("pk"))
+		| models.Q(category_id__in=user.hidden_categories.values("pk"))
+	)
 
 
 class WhiteCatalogUserActivity(models.Model):

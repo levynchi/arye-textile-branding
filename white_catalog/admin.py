@@ -158,7 +158,11 @@ class WhiteCatalogUserForm(forms.ModelForm):
 	
 	class Meta:
 		model = WhiteCatalogUser
-		fields = ('company_name', 'contact_name', 'contact_phone', 'username', 'pack_route', 'price_percent', 'is_active')
+		fields = (
+			'company_name', 'contact_name', 'contact_phone', 'username',
+			'pack_route', 'price_percent', 'is_active',
+			'hidden_categories', 'hidden_products',
+		)
 	
 	def save(self, commit=True):
 		user = super().save(commit=False)
@@ -171,6 +175,7 @@ class WhiteCatalogUserForm(forms.ModelForm):
 			user.set_password(get_random_string(12))
 		if commit:
 			user.save()
+			self.save_m2m()
 		return user
 
 
@@ -183,6 +188,7 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 	list_filter = ("pack_route", "price_percent", "is_active", "created", "last_login", "last_activity_at")
 	search_fields = ("company_name", "username", "contact_name", "contact_phone")
 	readonly_fields = ("created", "updated", "last_login", "last_activity_at", "activity_count")
+	filter_horizontal = ("hidden_categories", "hidden_products")
 	inlines = [WhiteCatalogUserActivityInline]
 	
 	def last_login_display(self, obj):
@@ -223,6 +229,10 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 		("מחיר", {
 			"fields": ("price_percent",),
 			"description": "אחוז הנחה ממחיר הקטלוג. 0 = מחיר מלא. 10 = 10% הנחה (13 ₪ הופך ל־11.70).",
+		}),
+		("התאמת קטלוג", {
+			"fields": ("hidden_categories", "hidden_products"),
+			"description": "ברירת מחדל: הכל גלוי כמו בקטלוג. סמן כאן רק מה להסתיר אצל המשתמש הזה. הסתרת קטגוריה מסתירה גם את כל המוצרים שלה.",
 		}),
 		("פעילות", {
 			"fields": ("last_login", "last_activity_at", "activity_count"),
