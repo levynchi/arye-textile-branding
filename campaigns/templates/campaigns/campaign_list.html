@@ -1,0 +1,28 @@
+{% extends "campaigns/base.html" %}
+{% block title %}כל הקמפיינים{% endblock %}
+{% block content %}
+<h1>הקמפיינים שלי</h1>
+<div class="toolbar">
+    <a class="btn" href="{% url 'campaign_create' %}">+ קמפיין חדש</a>
+</div>
+<div class="card">
+    {% if campaigns %}
+    <table>
+        <tr><th>שם</th><th>נושא</th><th>נמענים</th><th>נשלחו</th><th>סטטוס</th><th>נוצר</th><th></th></tr>
+        {% for c in campaigns %}
+        <tr>
+            <td><a href="{% url 'campaign_detail' c.pk %}" style="color:var(--blue);font-weight:600">{{ c.name }}</a></td>
+            <td>{{ c.subject|truncatechars:40 }}</td>
+            <td>{{ c.total_count }}</td>
+            <td>{{ c.sent_count }}</td>
+            <td><span class="tag {{ c.status }}">{{ c.get_status_display }}</span></td>
+            <td>{{ c.created_at|date:"d/m/Y H:i" }}</td>
+            <td><a class="btn small secondary" href="{% url 'campaign_detail' c.pk %}">פתיחה</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>עדיין אין קמפיינים. <a href="{% url 'campaign_create' %}">צרו את הראשון</a> — תבנית המייל המעוצב כבר מחכה בפנים.</p>
+    {% endif %}
+</div>
+{% endblock %}

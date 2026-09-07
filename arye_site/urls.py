@@ -38,6 +38,7 @@ urlpatterns = [
     path('catalog/', include('catalog.urls')),
     path('white-catalog/', include('white_catalog.urls')),
     path('molly/', include('molly_catalog.urls')),
+    path('campaigns/', include('campaigns.urls')),
     path('tinymce/', include('tinymce.urls')),
     path('admin/', admin.site.urls),
 ]

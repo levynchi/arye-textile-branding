@@ -1,0 +1,74 @@
+{% extends "campaigns/base.html" %}
+{% block title %}{{ contact.name|default:contact.email }}{% endblock %}
+{% block content %}
+<h1>{{ contact.name|default:contact.email }} <span class="tag {{ contact.status }}">{{ contact.get_status_display }}</span></h1>
+<p style="color:#666;margin-top:-10px" dir="ltr">{{ contact.email }}</p>
+
+<div class="stats">
+    <div class="stat"><div class="num">{{ recipients|length }}</div><div class="lbl">קמפיינים</div></div>
+    <div class="stat"><div class="num" style="color:var(--green)">{{ replies|length }}</div><div class="lbl">תגובות</div></div>
+    <div class="stat"><div class="num">{{ contact.last_contacted_at|date:"d/m/Y"|default:"—" }}</div><div class="lbl">פנייה אחרונה</div></div>
+</div>
+
+<div class="card">
+    <h2>פרטי לקוח</h2>
+    <form method="post" action="{% url 'contact_update' contact.pk %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn">שמירה</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>תגובות שהתקבלו</h2>
+    {% for reply in replies %}
+    <div style="border:1px solid #eee;border-radius:8px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            <strong>{{ reply.subject|default:"(ללא נושא)" }}</strong>
+            <span style="color:#777;font-size:13px">
+                {{ reply.received_at|date:"d/m/Y H:i" }}
+                {% if reply.campaign %} · תגובה לקמפיין "{{ reply.campaign.name }}"{% endif %}
+            </span>
+        </div>
+        <div style="white-space:pre-wrap;font-size:14px;color:#444;max-height:220px;overflow:auto">{{ reply.body|truncatechars:1500 }}</div>
+    </div>
+    {% empty %}
+    <p>עדיין לא נקלטו תגובות מהלקוח הזה. תגובות נמשכות מ-Gmail אוטומטית כל כמה דקות, או בלחיצה על "סנכרון תגובות" בעמוד הלקוחות.</p>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h2>יומן פעילות</h2>
+    <form method="post" action="{% url 'contact_add_note' contact.pk %}" style="margin-bottom:16px">
+        {% csrf_token %}
+        {{ note_form.as_p }}
+        <button type="submit" class="btn small secondary">הוספת הערה</button>
+    </form>
+    {% for note in notes %}
+    <div style="border-inline-start:3px solid var(--blue-light);padding:6px 12px;margin-bottom:10px">
+        <div style="color:#777;font-size:12px">{{ note.created_at|date:"d/m/Y H:i" }}</div>
+        <div style="white-space:pre-wrap">{{ note.text }}</div>
+    </div>
+    {% empty %}
+    <p style="color:#777">אין הערות עדיין — אפשר לתעד כאן שיחות, סיכומים ותזכורות להמשך.</p>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h2>היסטוריית קמפיינים</h2>
+    {% if recipients %}
+    <table>
+        <tr><th>קמפיין</th><th>סטטוס</th><th>נשלח בתאריך</th></tr>
+        {% for r in recipients %}
+        <tr>
+            <td><a href="{% url 'campaign_detail' r.campaign.pk %}" style="color:var(--blue);font-weight:600">{{ r.campaign.name }}</a></td>
+            <td><span class="tag {{ r.status }}">{{ r.get_status_display }}</span></td>
+            <td>{{ r.sent_at|date:"d/m/Y H:i"|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>הלקוח עדיין לא צורף לאף קמפיין.</p>
+    {% endif %}
+</div>
+{% endblock %}

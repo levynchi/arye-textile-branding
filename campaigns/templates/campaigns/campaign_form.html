@@ -1,0 +1,21 @@
+{% extends "campaigns/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn">שמירה</button>
+        {% if campaign %}<a class="btn secondary" href="{% url 'campaign_detail' campaign.pk %}">ביטול</a>{% endif %}
+    </form>
+</div>
+<div class="card">
+    <h2>טיפים</h2>
+    <ul style="line-height:1.9;margin:0;padding-inline-start:20px">
+        <li>תוכן ה-HTML מגיע מוכן מהמייל המעוצב האחרון שלך — אפשר לערוך או להשאיר כמו שהוא.</li>
+        <li>אם תכתבו <code dir="ltr">{% templatetag openvariable %}שם{% templatetag closevariable %}</code> בנושא או בתוכן, הוא יוחלף בשם החנות של כל נמען.</li>
+        <li>אחרי השמירה תוכלו לראות תצוגה מקדימה ולשלוח מייל בדיקה לעצמכם לפני השליחה לכולם.</li>
+    </ul>
+</div>
+{% endblock %}

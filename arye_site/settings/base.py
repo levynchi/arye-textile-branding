@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'catalog.apps.CatalogConfig',
     'white_catalog',
     'molly_catalog',
+    'campaigns',
 ]
 
 MIDDLEWARE = [
@@ -98,6 +99,9 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/campaigns/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

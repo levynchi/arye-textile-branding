@@ -1,0 +1,99 @@
+{% extends "campaigns/base.html" %}
+{% block title %}{{ campaign.name }}{% endblock %}
+{% block content %}
+<h1>{{ campaign.name }} <span class="tag {{ campaign.status }}" id="campaign-status">{{ campaign.get_status_display }}</span></h1>
+<p style="color:#666;margin-top:-10px">נושא: {{ campaign.subject }}</p>
+
+<div class="stats">
+    <div class="stat"><div class="num" id="stat-total">{{ campaign.total_count }}</div><div class="lbl">נמענים</div></div>
+    <div class="stat"><div class="num" id="stat-sent" style="color:var(--green)">{{ campaign.sent_count }}</div><div class="lbl">נשלחו</div></div>
+    <div class="stat"><div class="num" id="stat-pending">{{ campaign.pending_count }}</div><div class="lbl">ממתינים</div></div>
+    <div class="stat"><div class="num" id="stat-failed" style="color:var(--red)">{{ campaign.failed_count }}</div><div class="lbl">נכשלו</div></div>
+</div>
+
+<div class="toolbar">
+    <form method="post" action="{% url 'campaign_send' campaign.pk %}"
+          onsubmit="return confirm('לשלוח את הקמפיין ל-{{ campaign.pending_count }} נמענים?');">
+        {% csrf_token %}
+        <button type="submit" class="btn" {% if campaign.status == 'sending' %}disabled{% endif %}>שליחה לכל הנמענים</button>
+    </form>
+    <a class="btn secondary" href="{% url 'campaign_edit' campaign.pk %}">עריכה</a>
+    <form method="post" action="{% url 'campaign_delete' campaign.pk %}" onsubmit="return confirm('למחוק את הקמפיין?');">
+        {% csrf_token %}
+        <button type="submit" class="btn danger">מחיקה</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>שליחת מייל בדיקה</h2>
+    <form method="post" action="{% url 'campaign_send_test' campaign.pk %}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        {% csrf_token %}
+        <div style="flex:1;min-width:220px">{{ test_form.email }}</div>
+        <button type="submit" class="btn secondary">שליחת בדיקה</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>תצוגה מקדימה</h2>
+    <iframe class="preview" src="{% url 'campaign_preview' campaign.pk %}"></iframe>
+</div>
+
+<div class="card">
+    <h2>נמענים</h2>
+    <form method="post" action="{% url 'campaign_add_recipients' campaign.pk %}" style="margin-bottom:16px">
+        {% csrf_token %}
+        {{ add_form.recipients_raw }}
+        <label style="font-weight:400;margin-top:8px;display:flex;align-items:center;gap:6px">
+            {{ add_form.include_repeats }} {{ add_form.include_repeats.label }}
+        </label>
+        <button type="submit" class="btn small secondary" style="margin-top:8px">הוספת נמענים</button>
+    </form>
+    <table id="recipients-table">
+        <tr><th>אימייל</th><th>שם החנות</th><th>פנייה</th><th>סטטוס</th><th>שגיאה</th></tr>
+        {% for r in campaign.recipients.all %}
+        <tr>
+            <td dir="ltr" style="text-align:left">
+                {% if r.contact_id %}<a href="{% url 'contact_detail' r.contact_id %}" style="color:var(--blue)">{{ r.email }}</a>{% else %}{{ r.email }}{% endif %}
+            </td>
+            <td>{{ r.name|default:"—" }}</td>
+            <td>{% if r.is_repeat %}<span class="tag repeat">חוזרת</span>{% else %}<span class="tag first">ראשונה</span>{% endif %}</td>
+            <td><span class="tag {{ r.status }}">{{ r.get_status_display }}</span></td>
+            <td class="errcell">{{ r.error|truncatechars:120 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">אין נמענים עדיין — הדביקו רשימה למעלה.</td></tr>
+        {% endfor %}
+    </table>
+</div>
+
+<script>
+const STATUS_LABELS = {pending: "ממתין", sent: "נשלח", failed: "נכשל", draft: "טיוטה", sending: "בשליחה", done: "הסתיים"};
+
+function refresh() {
+    fetch("{% url 'campaign_status' campaign.pk %}")
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById("stat-total").textContent = data.total;
+            document.getElementById("stat-sent").textContent = data.sent;
+            document.getElementById("stat-pending").textContent = data.pending;
+            document.getElementById("stat-failed").textContent = data.failed;
+            const badge = document.getElementById("campaign-status");
+            badge.textContent = STATUS_LABELS[data.status] || data.status;
+            badge.className = "tag " + data.status;
+            const table = document.getElementById("recipients-table");
+            let html = "<tr><th>אימייל</th><th>שם החנות</th><th>פנייה</th><th>סטטוס</th><th>שגיאה</th></tr>";
+            for (const r of data.recipients) {
+                const emailCell = r.contact_id ? `<a href="/contacts/${r.contact_id}/" style="color:var(--blue)">${r.email}</a>` : r.email;
+                const repeatTag = r.repeat ? '<span class="tag repeat">חוזרת</span>' : '<span class="tag first">ראשונה</span>';
+                html += `<tr><td dir="ltr" style="text-align:left">${emailCell}</td><td>${r.name || "—"}</td>` +
+                        `<td>${repeatTag}</td>` +
+                        `<td><span class="tag ${r.status}">${STATUS_LABELS[r.status]}</span></td>` +
+                        `<td class="errcell">${r.error || ""}</td></tr>`;
+            }
+            table.innerHTML = html;
+            if (data.status === "sending") setTimeout(refresh, 4000);
+        });
+}
+{% if campaign.status == 'sending' %}setTimeout(refresh, 4000);{% endif %}
+</script>
+{% endblock %}

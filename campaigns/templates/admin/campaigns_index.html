@@ -1,0 +1,13 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<div class="module" style="margin-bottom: 20px;">
+    <table>
+        <caption>קמפיינים במייל</caption>
+        <tr>
+            <th scope="row"><a href="{% url 'campaign_list' %}">מערכת קמפיינים</a></th>
+            <td>שליחת קמפיינים לרשימות תפוצה, כרטיסי לקוחות ומעקב סטטוס.</td>
+        </tr>
+    </table>
+</div>
+{{ block.super }}
+{% endblock %}
