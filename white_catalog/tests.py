@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import re
 import tempfile
 
 from decimal import Decimal
@@ -870,5 +871,106 @@ class StoreImportExportTests(TestCase):
         self.assertTrue(img1)
         self.assertNotIn("\n", img1)
         self.assertEqual(len(ws._images), 0)
+
+
+class CheckoutResetsCartTests(TestCase):
+    def setUp(self):
+        self.threes = WhitePackType.objects.create(name="שלישיות", quantity=3, is_active=True)
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="בדיקה",
+            contact_name="בודק",
+            contact_phone="050",
+            username="checkout-tester",
+            pack_route=WhiteCatalogUser.ROUTE_THREES,
+        )
+        self.user.set_password("pass")
+        self.user.save()
+        session = self.client.session
+        session["white_catalog_user_id"] = self.user.id
+        session["white_catalog_username"] = self.user.username
+        session.save()
+
+        self.category = WhiteCategory.objects.create(name="ביגוד", slug="clothing-reset")
+        self.product = WhiteSubcategory.objects.create(
+            name="בגד גוף לחורף",
+            slug="winter-bodysuit-reset",
+            category=self.category,
+            is_orderable=True,
+            has_order_variants=True,
+            unit_price=Decimal("13.00"),
+        )
+        fabric = WhiteFabricType.objects.create(name="פלנל-reset")
+        size = WhiteSizeType.objects.create(name="0-3-reset")
+        self.variant = WhiteProductVariant.objects.create(
+            product=self.product,
+            fabric_type=fabric,
+            size_type=size,
+            unit_price=Decimal("13.00"),
+            barcode="2001",
+        )
+        self.variant.pack_types.set([self.threes])
+
+    def _product_url(self):
+        return reverse(
+            "white_catalog:subcategory_detail",
+            args=[self.category.slug, self.product.slug],
+        )
+
+    def _variants_data(self, response):
+        match = re.search(
+            r'<script id="variants-data" type="application/json">(.*?)</script>',
+            response.content.decode(),
+            re.S,
+        )
+        self.assertIsNotNone(match)
+        return json.loads(match.group(1))
+
+    def test_checkout_clears_product_quantities_and_rejects_stale_cart_add(self):
+        add_response = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "pack_type_id": str(self.threes.id),
+                f"qty_{self.variant.id}": "2",
+            },
+        )
+        self.assertEqual(add_response.status_code, 200)
+        self.assertTrue(add_response.json()["ok"])
+
+        before = self._variants_data(self.client.get(self._product_url()))
+        self.assertEqual(before[0]["sizes"][0]["cart_quantities"][str(self.threes.id)], 2)
+
+        checkout = self.client.post(reverse("white_catalog:checkout"))
+        self.assertEqual(checkout.status_code, 302)
+        confirm = self.client.get(checkout.url)
+        self.assertEqual(confirm.status_code, 200)
+        self.assertContains(confirm, "window.__WHITE_CATALOG_RESET_CART = true")
+        self.assertIn("white_catalog_cart_reset_at", checkout.cookies)
+        self.assertTrue(WhiteOrder.objects.filter(user=self.user).exists())
+        self.assertFalse(
+            WhiteCart.objects.filter(user=self.user, status=WhiteCart.STATUS_ACTIVE).exists()
+        )
+
+        after = self._variants_data(self.client.get(self._product_url()))
+        self.assertEqual(after[0]["sizes"][0]["cart_quantities"][str(self.threes.id)], 0)
+        self.assertNotContains(self.client.get(checkout.url), "window.__WHITE_CATALOG_RESET_CART = true")
+
+        stale = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "cart_generation": "0",
+                "pack_type_id": str(self.threes.id),
+                f"qty_{self.variant.id}": "4",
+            },
+        )
+        self.assertEqual(stale.status_code, 200)
+        self.assertTrue(stale.json().get("stale"))
+        self.assertFalse(
+            WhiteCartItem.objects.filter(
+                cart__user=self.user,
+                cart__status=WhiteCart.STATUS_ACTIVE,
+            ).exists()
+        )
 
 

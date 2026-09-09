@@ -311,15 +311,53 @@ def _build_order_grouped_items(order):
     return grouped_items
 
 
+CART_GENERATION_SESSION_KEY = "white_catalog_cart_generation"
+CART_RESET_SESSION_KEY = "white_catalog_reset_cart"
+CART_RESET_COOKIE_NAME = "white_catalog_cart_reset_at"
+
+
+def _cart_generation(request):
+    if request is None:
+        return 0
+    try:
+        return int(request.session.get(CART_GENERATION_SESSION_KEY) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _bump_cart_generation(request):
+    next_gen = _cart_generation(request) + 1
+    request.session[CART_GENERATION_SESSION_KEY] = next_gen
+    request.session[CART_RESET_SESSION_KEY] = True
+    return next_gen
+
+
+def _posted_cart_generation_is_stale(request):
+    raw = request.POST.get("cart_generation")
+    if raw is None or raw == "":
+        return False
+    try:
+        posted = int(raw)
+    except (TypeError, ValueError):
+        return False
+    return posted != _cart_generation(request)
+
+
 def _nav_context(request=None):
     """Common navigation context shared by all views."""
     catalog_user = get_current_catalog_user(request) if request is not None else None
     context = {
         "all_categories": visible_categories(catalog_user),
         "standalone_subcategories": visible_products(catalog_user).filter(category__isnull=True),
+        "cart_generation": _cart_generation(request),
+        "reset_cart": False,
     }
     if request is not None:
         context["catalog_user"] = catalog_user
+        try:
+            context["reset_cart"] = bool(request.session.pop(CART_RESET_SESSION_KEY, False))
+        except Exception:
+            context["reset_cart"] = False
     return context
 
 
@@ -732,9 +770,20 @@ def logout_view(request):
 def cart_add(request):
     """Add/update items in the cart from the product ordering form."""
     user = get_current_catalog_user(request)
-    cart = get_or_create_active_cart(user)
-
     want_json = request.POST.get("format") == "json"
+
+    if _posted_cart_generation_is_stale(request):
+        if want_json:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "stale": True,
+                    "cart_count": _cart_count(request),
+                }
+            )
+        return redirect(request.POST.get("next") or "white_catalog:cart")
+
+    cart = get_or_create_active_cart(user)
     product_id = request.POST.get("product_id")
     simple_quantity_raw = request.POST.get("simple_quantity")
 
@@ -1339,9 +1388,17 @@ def checkout(request):
 
     cart.status = WhiteCart.STATUS_SUBMITTED
     cart.save(update_fields=["status", "updated"])
+    _bump_cart_generation(request)
 
     messages.success(request, f"ההזמנה {order.order_number} התקבלה בהצלחה!")
-    return redirect("white_catalog:order_confirm", order_number=order.order_number)
+    response = redirect("white_catalog:order_confirm", order_number=order.order_number)
+    response.set_cookie(
+        CART_RESET_COOKIE_NAME,
+        str(int(timezone.now().timestamp() * 1000)),
+        max_age=60 * 60 * 24 * 30,
+        samesite="Lax",
+    )
+    return response
 
 
 @require_catalog_login

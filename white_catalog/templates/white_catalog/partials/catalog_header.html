@@ -303,6 +303,9 @@
         <div id="cartDrawerBody" class="cart-drawer-body"></div>
     </div>
 </div>
+{% if reset_cart %}
+<script>window.__WHITE_CATALOG_RESET_CART = true;</script>
+{% endif %}
 <script>
 (function() {
     var drawer = document.getElementById('cartDrawer');
@@ -368,12 +371,77 @@
     }
     window.setHeaderCartCount = setHeaderCartCount;
     var CART_QTY_SYNC_STORAGE_KEY = 'whiteCatalogCartQtySync';
-    function readCartQtySyncMap() {
+    var CART_RESET_STORAGE_KEY = 'whiteCatalogCartResetAt';
+    function getCartResetAt() {
+        var fromStorage = 0;
+        var fromCookie = 0;
         try {
-            return JSON.parse(localStorage.getItem(CART_QTY_SYNC_STORAGE_KEY) || '{}') || {};
+            fromStorage = parseInt(localStorage.getItem(CART_RESET_STORAGE_KEY) || '0', 10) || 0;
+        } catch (e) {}
+        var match = document.cookie.match(/(?:^|; )white_catalog_cart_reset_at=([^;]*)/);
+        if (match) fromCookie = parseInt(decodeURIComponent(match[1]), 10) || 0;
+        var resetAt = Math.max(fromStorage, fromCookie);
+        if (fromCookie > fromStorage) {
+            try { localStorage.setItem(CART_RESET_STORAGE_KEY, String(fromCookie)); } catch (e) {}
+        }
+        return resetAt;
+    }
+    function readCartQtySyncMap() {
+        var raw;
+        try {
+            raw = JSON.parse(localStorage.getItem(CART_QTY_SYNC_STORAGE_KEY) || '{}') || {};
         } catch (e) {
             return {};
         }
+        var resetAt = getCartResetAt();
+        if (!resetAt) return raw;
+        var fresh = {};
+        Object.keys(raw).forEach(function(key) {
+            var entry = raw[key];
+            var updatedAt = entry ? parseInt(entry.updatedAt, 10) || 0 : 0;
+            if (updatedAt >= resetAt) fresh[key] = entry;
+        });
+        return fresh;
+    }
+    function clearCartQtySyncMap() {
+        var previous = {};
+        try {
+            previous = JSON.parse(localStorage.getItem(CART_QTY_SYNC_STORAGE_KEY) || '{}') || {};
+        } catch (e) {
+            previous = {};
+        }
+        try {
+            localStorage.setItem(CART_RESET_STORAGE_KEY, String(Date.now()));
+            localStorage.removeItem(CART_QTY_SYNC_STORAGE_KEY);
+        } catch (e) {}
+        Object.keys(previous).forEach(function(key) {
+            var entry = previous[key];
+            if (!entry) return;
+            window.dispatchEvent(new CustomEvent('white-catalog-cart-quantity-sync', {
+                detail: Object.assign({}, entry, { quantity: 0 })
+            }));
+        });
+        window.dispatchEvent(new CustomEvent('white-catalog-cart-cleared'));
+        setHeaderCartCount(0);
+        document.querySelectorAll('.btn-view-cart').forEach(function(el) {
+            el.textContent = 'דף הזמנה (0)';
+        });
+    }
+    window.getCartResetAt = getCartResetAt;
+    window.clearCartQtySyncMap = clearCartQtySyncMap;
+    window.addEventListener('storage', function(e) {
+        if (e.key !== CART_RESET_STORAGE_KEY && e.key !== CART_QTY_SYNC_STORAGE_KEY) return;
+        if (e.key === CART_RESET_STORAGE_KEY) {
+            try { localStorage.removeItem(CART_QTY_SYNC_STORAGE_KEY); } catch (err) {}
+            window.dispatchEvent(new CustomEvent('white-catalog-cart-cleared'));
+            setHeaderCartCount(0);
+            document.querySelectorAll('.btn-view-cart').forEach(function(el) {
+                el.textContent = 'דף הזמנה (0)';
+            });
+        }
+    });
+    if (window.__WHITE_CATALOG_RESET_CART) {
+        clearCartQtySyncMap();
     }
     function publishCartQuantitySync(payload) {
         var productId = parseInt(payload && payload.productId, 10);

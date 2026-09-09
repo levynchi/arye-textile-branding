@@ -561,6 +561,7 @@
                                 <form id="orderForm" method="post" action="{% url 'white_catalog:cart_add' %}" novalidate>
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.path }}">
+                                    <input type="hidden" name="cart_generation" value="{{ cart_generation|default:0 }}">
                                     <input type="hidden" name="pack_type_id" id="packTypeInput" value="">
                                     <div id="orderTableWrap" style="display:none;">
                                         <table class="order-table">
@@ -712,6 +713,32 @@
                                         });
                                     });
                                 }
+                                function resetAllPackCartQuantities() {
+                                    fabrics.forEach(function(fabric) {
+                                        fabric.sizes.forEach(function(size) {
+                                            size.cart_quantities = {};
+                                        });
+                                    });
+                                    if (typeof window.setHeaderCartCount === 'function') window.setHeaderCartCount(0);
+                                    var viewCartLink = document.querySelector('.btn-view-cart');
+                                    if (viewCartLink) viewCartLink.textContent = 'דף הזמנה (0)';
+                                }
+                                let packQuantitiesEpoch = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : 0;
+                                function refreshPackOrderTable() {
+                                    const activePackId = parseInt(packSelect.value, 10);
+                                    const activeFabricId = parseInt(fabricSelect.value, 10);
+                                    if (Number.isFinite(activePackId) && Number.isFinite(activeFabricId) && typeof window.renderOrderTable === 'function') {
+                                        window.renderOrderTable();
+                                    } else if (typeof window.updateTotal === 'function') {
+                                        window.updateTotal();
+                                    }
+                                }
+                                window.addEventListener('white-catalog-cart-cleared', function() {
+                                    clearTimeout(cartSyncTimer);
+                                    resetAllPackCartQuantities();
+                                    packQuantitiesEpoch = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : Date.now();
+                                    refreshPackOrderTable();
+                                });
                                 function publishCurrentSelectionQuantities(packId) {
                                     if (typeof window.publishCartQuantitySync !== 'function') return;
                                     const activeFabricId = parseInt(fabricSelect.value);
@@ -963,12 +990,15 @@
                                     if (shouldRefresh) window.renderOrderTable();
                                 });
                                 window.addEventListener('pageshow', function() {
-                                    mergeStoredCartQuantities();
-                                    const activePackId = parseInt(packSelect.value, 10);
-                                    const activeFabricId = parseInt(fabricSelect.value, 10);
-                                    if (Number.isFinite(activePackId) && Number.isFinite(activeFabricId)) {
-                                        window.renderOrderTable();
+                                    clearTimeout(cartSyncTimer);
+                                    const resetAt = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : 0;
+                                    if (resetAt > packQuantitiesEpoch) {
+                                        resetAllPackCartQuantities();
+                                        packQuantitiesEpoch = resetAt;
+                                    } else {
+                                        mergeStoredCartQuantities();
                                     }
+                                    refreshPackOrderTable();
                                 });
 
                                 (function applyBarcodeDeepLink() {
@@ -1019,6 +1049,7 @@
                                 <form id="colorOrderForm" method="post" action="{% url 'white_catalog:cart_add' %}" novalidate>
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.path }}">
+                                    <input type="hidden" name="cart_generation" value="{{ cart_generation|default:0 }}">
                                     <input type="hidden" name="product_id" value="{{ subcategory.id }}">
 
                                     {% if color_variants_data %}
@@ -1269,8 +1300,29 @@
                                         applySyncedQuantity(colorVariantId, Number.isFinite(quantity) && quantity > 0 ? quantity : 0);
                                     });
                                 }
-
-                                window.addEventListener('pageshow', mergeStoredQuantities);
+                                function resetAllColorCartQuantities() {
+                                    clearTimeout(colorSyncTimer);
+                                    colorVariants.forEach(function(cv) {
+                                        applySyncedQuantity(cv.id, 0);
+                                    });
+                                    if (typeof window.setHeaderCartCount === 'function') window.setHeaderCartCount(0);
+                                    var viewCartLink = document.querySelector('.btn-view-cart');
+                                    if (viewCartLink) viewCartLink.textContent = 'דף הזמנה (0)';
+                                }
+                                let colorQuantitiesEpoch = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : 0;
+                                window.addEventListener('white-catalog-cart-cleared', function() {
+                                    resetAllColorCartQuantities();
+                                    colorQuantitiesEpoch = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : Date.now();
+                                });
+                                window.addEventListener('pageshow', function() {
+                                    const resetAt = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : 0;
+                                    if (resetAt > colorQuantitiesEpoch) {
+                                        resetAllColorCartQuantities();
+                                        colorQuantitiesEpoch = resetAt;
+                                        return;
+                                    }
+                                    mergeStoredQuantities();
+                                });
 
                                 (function applyColorDeepLink() {
                                     const params = new URLSearchParams(window.location.search);
@@ -1299,6 +1351,7 @@
                                 <form id="simpleOrderForm" method="post" action="{% url 'white_catalog:cart_add' %}" novalidate>
                                     {% csrf_token %}
                                     <input type="hidden" name="next" value="{{ request.path }}">
+                                    <input type="hidden" name="cart_generation" value="{{ cart_generation|default:0 }}">
                                     <input type="hidden" name="product_id" value="{{ subcategory.id }}">
                                     <div class="simple-order-panel">
                                         <div class="simple-order-row">
@@ -1471,8 +1524,27 @@
                                     qtyInput.value = currentSimpleCartQty > 0 ? String(currentSimpleCartQty) : '';
                                     updateSimpleSummary();
                                 });
-
+                                function resetSimpleCartQuantity() {
+                                    clearTimeout(simpleSyncTimer);
+                                    currentSimpleCartQty = 0;
+                                    qtyInput.value = '';
+                                    updateSimpleSummary();
+                                    if (typeof window.setHeaderCartCount === 'function') window.setHeaderCartCount(0);
+                                    var viewCartLink = document.querySelector('.btn-view-cart');
+                                    if (viewCartLink) viewCartLink.textContent = 'דף הזמנה (0)';
+                                }
+                                let simpleQuantitiesEpoch = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : 0;
+                                window.addEventListener('white-catalog-cart-cleared', function() {
+                                    resetSimpleCartQuantity();
+                                    simpleQuantitiesEpoch = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : Date.now();
+                                });
                                 window.addEventListener('pageshow', function() {
+                                    const resetAt = typeof window.getCartResetAt === 'function' ? window.getCartResetAt() : 0;
+                                    if (resetAt > simpleQuantitiesEpoch) {
+                                        resetSimpleCartQuantity();
+                                        simpleQuantitiesEpoch = resetAt;
+                                        return;
+                                    }
                                     const storedQty = readStoredSimpleQuantity();
                                     if (storedQty === null) return;
                                     currentSimpleCartQty = storedQty;
@@ -1665,8 +1737,13 @@
 
     syncProductViewCartCount();
     window.addEventListener('white-catalog-cart-quantity-sync', syncProductViewCartCount);
+    window.addEventListener('white-catalog-cart-cleared', function() {
+        setProductViewCartCount(0);
+    });
     window.addEventListener('storage', function(event) {
-        if (event.key === 'whiteCatalogCartQtySync') syncProductViewCartCount();
+        if (event.key === 'whiteCatalogCartQtySync' || event.key === 'whiteCatalogCartResetAt') {
+            syncProductViewCartCount();
+        }
     });
 
         document.querySelectorAll('.js-open-cart-drawer').forEach(function(button) {
