@@ -1,0 +1,78 @@
+רשימת תפוצה — חנויות תינוקות / ילדים / טקסטיל בישראל
+====================================================
+
+להדביק את הקובץ israel_shops_paste.txt בשדה «רשימת נמענים»
+בכתובת https://arye-textil.co.il/campaigns/
+
+22 כתובות עסקיות מדפי קשר ציבוריים (סיבוב ראשון).
+לא נוחשו כתובות. לא נכללו רשימות בתשלום.
+לא נכללו BabyBasic ו-Molly (מותגים של אריה).
+
+איך לשלוח
+---------
+1. פתח קמפיין חדש ב-/campaigns/
+2. הדבק את כל השורות מ-israel_shops_paste.txt
+3. שלח. מי שכבר קיבל מייל ידולג אוטומטית (אלא אם מסומן «לצרף גם חנויות שכבר קיבלו»).
+
+מקורות
+------
+בייבי סטאר (סניפים + שירות)
+  https://www.baby-star.co.il/pages/branches
+  web@, natanya@, haifa@, petahtikva@, eilat@, ashkelon@, ramot@, ayalon@, rishon@
+
+פופיק
+  https://www.pupik.co.il/contact
+  info@pupik.co.il
+
+בינה ובינו
+  https://en.binaandbino.com/pages/contact-us
+  info@binaandbino.com
+
+KB קייבי
+  https://kbfashion.co.il/יצירת-קשר/
+  office@kbf.co.il
+
+גלורי קידס
+  https://glorykids.co.il/pages/contact
+  glory@glorykids.co.il
+
+כפר השעשועים (רשת חנויות)
+  https://www.kfar.co.il/contact
+  office@kfar.co.il
+
+Golf Kids
+  https://www.golfkids.co.il/customer-service/cancel-order
+  golfkidsservice@golfco.co.il
+
+My Baby
+  https://www.mybaby.co.il/en/pages/contact
+  service@my-baby.co.il
+
+FOX
+  https://fox.co.il/pages/contact
+  foxweb@fox.co.il
+
+H&O Kids / Carter's
+  https://www.h-o.co.il/cancel-transaction
+  service@h-o.co.il
+
+בייבי סתיו נתניה
+  https://www.babystav.co.il/צרו-קשר
+  info@babystav.co.il
+
+מיי בייבי יהוד
+  https://mybaby-yehud.co.il/contact/
+  mybabyyehud@gmail.com
+
+בייבי לני
+  https://babylenny.co.il/
+  almogish91@gmail.com
+
+לא נכלל
+--------
+- שילב, דלתא, מורד גיליס — הוסרו לפי בקשה
+- info@mollykids.co.il / BabyBasic — מותגי אריה
+- סניפי בייבי סטאר ישנים (אריאל, רעננה, יכין, רמת גן) — לא מופיעים בדף הסניפים הנוכחי
+- לידר קידס — לא נמצא מייל בדף הרשמי
+- אינדקס לגדול — שמות חנויות בלי מיילים
+- מיילים פרטיים שלא פורסמו באתר העסק
