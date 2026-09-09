@@ -1427,8 +1427,91 @@ def _export_product_queryset(user, slug=None):
     return qs.filter(is_orderable=True)
 
 
+EXCEL_MAX_IMAGES = 6
+EXCEL_THUMB_PX = 72
+EXCEL_THUMB_ROW_PT = 58
+EXCEL_DEFAULT_ROW_PT = 18
+
+
 def _product_image_urls(request, product):
     return [request.build_absolute_uri(img["url"]) for img in product.get_all_images()]
+
+
+def _product_image_files(product, extra_file=None):
+    """Django file fields for catalog Excel, unique, capped."""
+    files = []
+    seen = set()
+
+    def add(field):
+        if not field:
+            return
+        key = getattr(field, "name", None) or getattr(field, "url", "")
+        if not key or key in seen:
+            return
+        seen.add(key)
+        files.append(field)
+
+    add(extra_file)
+    if product is None:
+        return files[:EXCEL_MAX_IMAGES]
+    add(getattr(product, "image", None))
+    for img in product.images.all():
+        add(img.image)
+    return files[:EXCEL_MAX_IMAGES]
+
+
+def _excel_thumb_buffer(file_field):
+    try:
+        file_field.open("rb")
+        data = file_field.read()
+    except Exception:
+        return None
+    finally:
+        try:
+            file_field.close()
+        except Exception:
+            pass
+    if not data:
+        return None
+    try:
+        from PIL import Image as PILImage
+        image = PILImage.open(BytesIO(data))
+        image = image.convert("RGB")
+        image.thumbnail((EXCEL_THUMB_PX, EXCEL_THUMB_PX))
+        buf = BytesIO()
+        image.save(buf, format="JPEG", quality=65, optimize=True)
+        buf.seek(0)
+        buf.name = "thumb.jpg"
+        return buf
+    except Exception:
+        return None
+
+
+def _write_excel_image_cell(ws, row_index, col_index, url, file_field=None, embed=False, keep=None):
+    from openpyxl.styles import Alignment, Font
+    from openpyxl.utils import get_column_letter
+
+    cell = ws.cell(row=row_index, column=col_index, value=url or "")
+    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+    if url:
+        cell.hyperlink = url
+        cell.font = Font(color="0563C1", underline="single", size=8)
+    if not embed or not file_field:
+        return
+    buf = _excel_thumb_buffer(file_field)
+    if buf is None:
+        return
+    if keep is not None:
+        keep.append(buf)
+    try:
+        from openpyxl.drawing.image import Image as XLImage
+        picture = XLImage(buf)
+        picture.width = EXCEL_THUMB_PX
+        picture.height = EXCEL_THUMB_PX
+        picture.anchor = f"{get_column_letter(col_index)}{row_index}"
+        ws.add_image(picture)
+    except Exception:
+        return
 
 
 def _iter_sellable_variants(product, user, allowed_packs):
@@ -1470,6 +1553,7 @@ def _iter_sellable_variants(product, user, allowed_packs):
                 "wholesale": effective_unit,
                 "pack_cells": pack_cells,
                 "image_url": None,
+                "image_file": None,
                 "digital_price": variant.digital_price if variant.digital_price is not None else product.online_price,
             }
         return
@@ -1479,8 +1563,10 @@ def _iter_sellable_variants(product, user, allowed_packs):
             if not color_variant.is_active:
                 continue
             image_url = None
+            image_file = None
             if color_variant.image:
                 image_url = color_variant.image.url
+                image_file = color_variant.image
             yield {
                 "kind": "color",
                 "pk": color_variant.pk,
@@ -1491,6 +1577,7 @@ def _iter_sellable_variants(product, user, allowed_packs):
                 "wholesale": apply_price_list(color_variant.get_effective_price(), user),
                 "pack_cells": [None] * len(allowed_packs),
                 "image_url": image_url,
+                "image_file": image_file,
                 "digital_price": product.online_price,
             }
         return
@@ -1505,6 +1592,7 @@ def _iter_sellable_variants(product, user, allowed_packs):
         "wholesale": apply_price_list(product.unit_price, user),
         "pack_cells": [None] * len(allowed_packs),
         "image_url": None,
+        "image_file": None,
         "digital_price": product.online_price,
     }
 
@@ -1664,7 +1752,18 @@ def export_products_excel(request):
     user = get_current_catalog_user(request)
     allowed_packs = list(user.get_allowed_pack_types().order_by("order", "quantity"))
     product_slug = (request.GET.get("product") or "").strip()
-    products = _export_product_queryset(user, slug=product_slug or None)
+    products = list(_export_product_queryset(user, slug=product_slug or None))
+
+    prepared_rows = []
+    max_images = 0
+    for product in products:
+        first_variant = True
+        for variant in _iter_sellable_variants(product, user, allowed_packs):
+            files = _product_image_files(product, extra_file=variant.get("image_file"))
+            max_images = max(max_images, len(files))
+            prepared_rows.append((product, variant, files, first_variant))
+            first_variant = False
+    image_count = min(EXCEL_MAX_IMAGES, max_images)
 
     headers = [
         "ברקוד",
@@ -1679,10 +1778,10 @@ def export_products_excel(request):
     headers += [
         'מחיר לצרכן דיגיטלי (כולל מע"מ)',
         "תיאור שיווקי",
-        "קישורי תמונות",
     ]
+    headers += [f"תמונה {i}" for i in range(1, image_count + 1)]
     price_columns = set(range(7, 7 + len(allowed_packs) + 2))  # unit + packs + retail
-    images_column = len(headers)
+    image_start_col = len(headers) - image_count + 1 if image_count else None
 
     wb = Workbook()
     ws = wb.active
@@ -1696,50 +1795,49 @@ def export_products_excel(request):
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.row_dimensions[1].height = 30
     ws.freeze_panes = "A2"
 
-    widths = [16, 20, 28, 20, 12, 14] + [18] * (len(allowed_packs) + 2) + [60, 70]
+    widths = [16, 20, 28, 20, 12, 14] + [18] * (len(allowed_packs) + 2) + [40]
+    widths += [14] * image_count
     for col, width in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(col)].width = width
 
     def clean_html(value):
         return " ".join(strip_tags(value or "").split())
 
-    def write_row(row_index, values):
-        for col, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col, value=value)
-            if col in price_columns and value is not None:
-                cell.number_format = "#,##0.00"
-            if col == images_column:
-                cell.alignment = Alignment(wrap_text=True, vertical="top")
-
+    thumb_keep = []
     row = 2
-    for product in products:
+    for product, variant, files, is_first in prepared_rows:
         category_name = product.category.name if product.category_id else ""
         description = clean_html(product.marketing_description) or clean_html(product.description)
-        image_urls = "\n".join(_product_image_urls(request, product))
-
-        for variant in _iter_sellable_variants(product, user, allowed_packs):
-            row_images = image_urls
-            if variant.get("image_url"):
-                row_images = "\n".join(filter(None, [
-                    request.build_absolute_uri(variant["image_url"]),
-                    image_urls,
-                ]))
-            write_row(row, [
-                variant["barcode"],
-                category_name,
-                product.name,
-                variant["fabric"],
-                variant["size"],
-                variant["color"],
-                variant["wholesale"],
-                *variant["pack_cells"],
-                variant.get("digital_price") if variant.get("digital_price") is not None else product.online_price,
-                description,
-                row_images,
-            ])
-            row += 1
+        values = [
+            variant["barcode"],
+            category_name,
+            product.name,
+            variant["fabric"],
+            variant["size"],
+            variant["color"],
+            variant["wholesale"],
+            *variant["pack_cells"],
+            variant.get("digital_price") if variant.get("digital_price") is not None else product.online_price,
+            description,
+        ]
+        for col, value in enumerate(values, start=1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.alignment = Alignment(vertical="center", wrap_text=False)
+            if col in price_columns and value is not None:
+                cell.number_format = "#,##0.00"
+        if image_start_col:
+            for offset in range(image_count):
+                field = files[offset] if offset < len(files) else None
+                url = request.build_absolute_uri(field.url) if field and getattr(field, "url", None) else ""
+                _write_excel_image_cell(
+                    ws, row, image_start_col + offset, url,
+                    file_field=field, embed=is_first, keep=thumb_keep,
+                )
+        ws.row_dimensions[row].height = EXCEL_THUMB_ROW_PT if is_first and files else EXCEL_DEFAULT_ROW_PT
+        row += 1
 
     buffer = BytesIO()
     wb.save(buffer)
@@ -1819,10 +1917,30 @@ def export_order_excel(request, order_number):
 
     user = get_current_catalog_user(request)
     order = get_object_or_404(
-        WhiteOrder.objects.prefetch_related("items__product__images", "items__variant"),
+        WhiteOrder.objects.prefetch_related(
+            "items__product__images",
+            "items__variant",
+            "items__color_variant",
+        ),
         order_number=order_number,
         user=user,
     )
+
+    prepared_rows = []
+    max_images = 0
+    seen_products = set()
+    for item in order.items.all():
+        product = item.product if item.product_id else None
+        extra = None
+        if item.color_variant_id and item.color_variant and item.color_variant.image:
+            extra = item.color_variant.image
+        files = _product_image_files(product, extra_file=extra) if product else []
+        max_images = max(max_images, len(files))
+        is_first = product is not None and product.pk not in seen_products
+        if product is not None:
+            seen_products.add(product.pk)
+        prepared_rows.append((item, product, files, is_first))
+    image_count = min(EXCEL_MAX_IMAGES, max_images)
 
     headers = [
         "ברקוד",
@@ -1836,10 +1954,10 @@ def export_order_excel(request, order_number):
         'מחיר למארז (לא כולל מע"מ)',
         'סה"כ שורה (לא כולל מע"מ)',
         'מחיר לצרכן דיגיטלי (כולל מע"מ)',
-        "קישורי תמונות",
     ]
+    headers += [f"תמונה {i}" for i in range(1, image_count + 1)]
     price_columns = {9, 10, 11}
-    images_column = len(headers)
+    image_start_col = len(headers) - image_count + 1 if image_count else None
 
     wb = Workbook()
     ws = wb.active
@@ -1853,34 +1971,24 @@ def export_order_excel(request, order_number):
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.row_dimensions[1].height = 30
     ws.freeze_panes = "A2"
 
-    widths = [16, 28, 20, 12, 16, 12, 12, 12, 18, 18, 18, 70]
+    widths = [16, 28, 20, 12, 16, 12, 12, 12, 18, 18, 18]
+    widths += [14] * image_count
     for col, width in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(col)].width = width
 
-    def write_row(row_index, values):
-        for col, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_index, column=col, value=value)
-            if col in price_columns and value is not None:
-                cell.number_format = "#,##0.00"
-            if col == images_column:
-                cell.alignment = Alignment(wrap_text=True, vertical="top")
-
+    thumb_keep = []
     row = 2
-    for item in order.items.all():
+    for item, product, files, is_first in prepared_rows:
         barcode = item.barcode or (item.variant.barcode if item.variant_id and item.variant else None)
-        product = item.product if item.product_id else None
         online_price = None
         if item.variant_id and item.variant and getattr(item.variant, "digital_price", None) is not None:
             online_price = item.variant.digital_price
         elif product:
             online_price = product.online_price
-        image_urls = "\n".join(
-            request.build_absolute_uri(img["url"]) for img in product.get_all_images()
-        ) if product else ""
-
-        write_row(row, [
+        values = [
             barcode or "",
             item.product_name,
             item.variant_name,
@@ -1892,8 +2000,21 @@ def export_order_excel(request, order_number):
             item.unit_price,
             item.get_line_total(),
             online_price,
-            image_urls,
-        ])
+        ]
+        for col, value in enumerate(values, start=1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.alignment = Alignment(vertical="center", wrap_text=False)
+            if col in price_columns and value is not None:
+                cell.number_format = "#,##0.00"
+        if image_start_col:
+            for offset in range(image_count):
+                field = files[offset] if offset < len(files) else None
+                url = request.build_absolute_uri(field.url) if field and getattr(field, "url", None) else ""
+                _write_excel_image_cell(
+                    ws, row, image_start_col + offset, url,
+                    file_field=field, embed=is_first, keep=thumb_keep,
+                )
+        ws.row_dimensions[row].height = EXCEL_THUMB_ROW_PT if is_first and files else EXCEL_DEFAULT_ROW_PT
         row += 1
 
     total_font = Font(bold=True)

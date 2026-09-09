@@ -778,4 +778,99 @@ class StoreImportExportTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
+    def _attach_jpegs(self, product, count=2):
+        from PIL import Image
+
+        for index in range(count):
+            buf = io.BytesIO()
+            Image.new("RGB", (160, 100), (30 * index, 90, 150)).save(buf, "JPEG")
+            buf.seek(0)
+            content = ContentFile(buf.getvalue(), name=f"export-{index}.jpg")
+            if index == 0:
+                product.image.save(f"export-{index}.jpg", content, save=True)
+            else:
+                WhiteSubcategoryImage.objects.create(
+                    subcategory=product,
+                    image=content,
+                    alt_text=f"gallery-{index}",
+                )
+
+    @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+    def test_catalog_excel_splits_images_and_embeds_on_first_row(self):
+        self._attach_jpegs(self.product, 2)
+        response = self.client.get(
+            reverse("white_catalog:export_products"),
+            {"product": "winter-bodysuit"},
+        )
+        self.assertEqual(response.status_code, 200)
+        from openpyxl import load_workbook
+        from io import BytesIO
+        wb = load_workbook(BytesIO(response.content))
+        ws = wb.active
+        headers = [cell.value for cell in ws[1]]
+        self.assertIn("תמונה 1", headers)
+        self.assertIn("תמונה 2", headers)
+        self.assertNotIn("קישורי תמונות", headers)
+        img1_col = headers.index("תמונה 1") + 1
+        img2_col = headers.index("תמונה 2") + 1
+        first = ws.cell(2, img1_col).value
+        second = ws.cell(2, img2_col).value
+        self.assertTrue(first)
+        self.assertTrue(second)
+        self.assertNotIn("\n", first)
+        self.assertNotIn("\n", second)
+        self.assertGreaterEqual(ws.row_dimensions[2].height or 0, 50)
+        self.assertLessEqual(ws.row_dimensions[3].height or 18, 22)
+        self.assertEqual(len(ws._images), 2)
+
+    @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+    def test_order_excel_splits_image_columns(self):
+        self._attach_jpegs(self.product, 2)
+        order = WhiteOrder.objects.create(
+            user=self.user,
+            order_number="ORD-TEST-IMG",
+            total_amount=Decimal("39.00"),
+        )
+        WhiteOrderItem.objects.create(
+            order=order,
+            product=self.product,
+            variant=self.v1,
+            product_name=self.product.name,
+            variant_name="פלנל",
+            barcode="1001",
+            size_name="0-3",
+            pack_type_name="שלישיות",
+            pack_quantity=3,
+            quantity=1,
+            unit_price=Decimal("39.00"),
+        )
+        WhiteOrderItem.objects.create(
+            order=order,
+            product=self.product,
+            variant=self.v2,
+            product_name=self.product.name,
+            variant_name="פלנל",
+            barcode="1002",
+            size_name="3-6",
+            pack_type_name="שלישיות",
+            pack_quantity=3,
+            quantity=1,
+            unit_price=Decimal("39.00"),
+        )
+        response = self.client.get(
+            reverse("white_catalog:export_order", args=["ORD-TEST-IMG"]),
+        )
+        self.assertEqual(response.status_code, 200)
+        from openpyxl import load_workbook
+        from io import BytesIO
+        wb = load_workbook(BytesIO(response.content))
+        ws = wb.active
+        headers = [cell.value for cell in ws[1]]
+        self.assertIn("תמונה 1", headers)
+        self.assertNotIn("קישורי תמונות", headers)
+        img1 = ws.cell(2, headers.index("תמונה 1") + 1).value
+        self.assertTrue(img1)
+        self.assertNotIn("\n", img1)
+        self.assertEqual(len(ws._images), 2)
+
 
