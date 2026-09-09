@@ -1428,9 +1428,6 @@ def _export_product_queryset(user, slug=None):
 
 
 EXCEL_MAX_IMAGES = 6
-EXCEL_THUMB_PX = 72
-EXCEL_THUMB_ROW_PT = 58
-EXCEL_DEFAULT_ROW_PT = 18
 
 
 def _product_image_urls(request, product):
@@ -1460,58 +1457,14 @@ def _product_image_files(product, extra_file=None):
     return files[:EXCEL_MAX_IMAGES]
 
 
-def _excel_thumb_buffer(file_field):
-    try:
-        file_field.open("rb")
-        data = file_field.read()
-    except Exception:
-        return None
-    finally:
-        try:
-            file_field.close()
-        except Exception:
-            pass
-    if not data:
-        return None
-    try:
-        from PIL import Image as PILImage
-        image = PILImage.open(BytesIO(data))
-        image = image.convert("RGB")
-        image.thumbnail((EXCEL_THUMB_PX, EXCEL_THUMB_PX))
-        buf = BytesIO()
-        image.save(buf, format="JPEG", quality=65, optimize=True)
-        buf.seek(0)
-        buf.name = "thumb.jpg"
-        return buf
-    except Exception:
-        return None
-
-
-def _write_excel_image_cell(ws, row_index, col_index, url, file_field=None, embed=False, keep=None):
+def _write_excel_image_cell(ws, row_index, col_index, url):
     from openpyxl.styles import Alignment, Font
-    from openpyxl.utils import get_column_letter
 
     cell = ws.cell(row=row_index, column=col_index, value=url or "")
     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
     if url:
         cell.hyperlink = url
         cell.font = Font(color="0563C1", underline="single", size=8)
-    if not embed or not file_field:
-        return
-    buf = _excel_thumb_buffer(file_field)
-    if buf is None:
-        return
-    if keep is not None:
-        keep.append(buf)
-    try:
-        from openpyxl.drawing.image import Image as XLImage
-        picture = XLImage(buf)
-        picture.width = EXCEL_THUMB_PX
-        picture.height = EXCEL_THUMB_PX
-        picture.anchor = f"{get_column_letter(col_index)}{row_index}"
-        ws.add_image(picture)
-    except Exception:
-        return
 
 
 def _iter_sellable_variants(product, user, allowed_packs):
@@ -1757,12 +1710,10 @@ def export_products_excel(request):
     prepared_rows = []
     max_images = 0
     for product in products:
-        first_variant = True
         for variant in _iter_sellable_variants(product, user, allowed_packs):
             files = _product_image_files(product, extra_file=variant.get("image_file"))
             max_images = max(max_images, len(files))
-            prepared_rows.append((product, variant, files, first_variant))
-            first_variant = False
+            prepared_rows.append((product, variant, files))
     image_count = min(EXCEL_MAX_IMAGES, max_images)
 
     headers = [
@@ -1806,9 +1757,8 @@ def export_products_excel(request):
     def clean_html(value):
         return " ".join(strip_tags(value or "").split())
 
-    thumb_keep = []
     row = 2
-    for product, variant, files, is_first in prepared_rows:
+    for product, variant, files in prepared_rows:
         category_name = product.category.name if product.category_id else ""
         description = clean_html(product.marketing_description) or clean_html(product.description)
         values = [
@@ -1832,11 +1782,7 @@ def export_products_excel(request):
             for offset in range(image_count):
                 field = files[offset] if offset < len(files) else None
                 url = request.build_absolute_uri(field.url) if field and getattr(field, "url", None) else ""
-                _write_excel_image_cell(
-                    ws, row, image_start_col + offset, url,
-                    file_field=field, embed=is_first, keep=thumb_keep,
-                )
-        ws.row_dimensions[row].height = EXCEL_THUMB_ROW_PT if is_first and files else EXCEL_DEFAULT_ROW_PT
+                _write_excel_image_cell(ws, row, image_start_col + offset, url)
         row += 1
 
     buffer = BytesIO()
@@ -1928,7 +1874,6 @@ def export_order_excel(request, order_number):
 
     prepared_rows = []
     max_images = 0
-    seen_products = set()
     for item in order.items.all():
         product = item.product if item.product_id else None
         extra = None
@@ -1936,10 +1881,7 @@ def export_order_excel(request, order_number):
             extra = item.color_variant.image
         files = _product_image_files(product, extra_file=extra) if product else []
         max_images = max(max_images, len(files))
-        is_first = product is not None and product.pk not in seen_products
-        if product is not None:
-            seen_products.add(product.pk)
-        prepared_rows.append((item, product, files, is_first))
+        prepared_rows.append((item, product, files))
     image_count = min(EXCEL_MAX_IMAGES, max_images)
 
     headers = [
@@ -1979,9 +1921,8 @@ def export_order_excel(request, order_number):
     for col, width in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(col)].width = width
 
-    thumb_keep = []
     row = 2
-    for item, product, files, is_first in prepared_rows:
+    for item, product, files in prepared_rows:
         barcode = item.barcode or (item.variant.barcode if item.variant_id and item.variant else None)
         online_price = None
         if item.variant_id and item.variant and getattr(item.variant, "digital_price", None) is not None:
@@ -2010,11 +1951,7 @@ def export_order_excel(request, order_number):
             for offset in range(image_count):
                 field = files[offset] if offset < len(files) else None
                 url = request.build_absolute_uri(field.url) if field and getattr(field, "url", None) else ""
-                _write_excel_image_cell(
-                    ws, row, image_start_col + offset, url,
-                    file_field=field, embed=is_first, keep=thumb_keep,
-                )
-        ws.row_dimensions[row].height = EXCEL_THUMB_ROW_PT if is_first and files else EXCEL_DEFAULT_ROW_PT
+                _write_excel_image_cell(ws, row, image_start_col + offset, url)
         row += 1
 
     total_font = Font(bold=True)

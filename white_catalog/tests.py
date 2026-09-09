@@ -796,7 +796,7 @@ class StoreImportExportTests(TestCase):
                 )
 
     @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
-    def test_catalog_excel_splits_images_and_embeds_on_first_row(self):
+    def test_catalog_excel_splits_images_into_columns(self):
         self._attach_jpegs(self.product, 2)
         response = self.client.get(
             reverse("white_catalog:export_products"),
@@ -819,9 +819,7 @@ class StoreImportExportTests(TestCase):
         self.assertTrue(second)
         self.assertNotIn("\n", first)
         self.assertNotIn("\n", second)
-        self.assertGreaterEqual(ws.row_dimensions[2].height or 0, 50)
-        self.assertLessEqual(ws.row_dimensions[3].height or 18, 22)
-        self.assertEqual(len(ws._images), 2)
+        self.assertEqual(len(ws._images), 0)
 
     @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
     def test_order_excel_splits_image_columns(self):
@@ -871,6 +869,6 @@ class StoreImportExportTests(TestCase):
         img1 = ws.cell(2, headers.index("תמונה 1") + 1).value
         self.assertTrue(img1)
         self.assertNotIn("\n", img1)
-        self.assertEqual(len(ws._images), 2)
+        self.assertEqual(len(ws._images), 0)
 
 
