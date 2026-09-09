@@ -6,7 +6,7 @@ from decimal import Decimal
 from io import BytesIO
 from urllib.parse import urlencode
 from django.conf import settings
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, logout as django_logout
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
@@ -90,16 +90,51 @@ def _sync_admin_to_catalog_user(django_user, raw_password=None):
 def get_current_catalog_user(request):
     """Return the logged-in WhiteCatalogUser or None."""
     user_id = request.session.get("white_catalog_user_id")
+    django_user = getattr(request, "user", None)
+    # #region agent log
+    try:
+        import json as _j, time as _t
+        with open(r"c:\optitex excell\debug-1b186f.log", "a", encoding="utf-8") as _f:
+            _f.write(_j.dumps({
+                "sessionId": "1b186f", "hypothesisId": "B",
+                "location": "white_catalog/views.py:get_current_catalog_user",
+                "message": "resolve catalog user",
+                "timestamp": int(_t.time() * 1000),
+                "data": {
+                    "catalog_session_id": user_id,
+                    "django_auth": bool(getattr(django_user, "is_authenticated", False)),
+                    "django_staff": bool(getattr(django_user, "is_staff", False)),
+                    "path": getattr(request, "path", ""),
+                },
+            }, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # #endregion
     if not user_id:
-        admin_catalog_user = _sync_admin_to_catalog_user(getattr(request, "user", None))
+        admin_catalog_user = _sync_admin_to_catalog_user(django_user)
         if admin_catalog_user:
+            # #region agent log
+            try:
+                import json as _j, time as _t
+                with open(r"c:\optitex excell\debug-1b186f.log", "a", encoding="utf-8") as _f:
+                    _f.write(_j.dumps({
+                        "sessionId": "1b186f", "hypothesisId": "B",
+                        "location": "white_catalog/views.py:get_current_catalog_user:resync",
+                        "message": "admin resync after empty catalog session",
+                        "timestamp": int(_t.time() * 1000),
+                        "data": {"username": getattr(admin_catalog_user, "username", ""),
+                                 "company": getattr(admin_catalog_user, "company_name", "")},
+                    }, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            # #endregion
             _catalog_session_login(request, admin_catalog_user)
             return admin_catalog_user
         return None
     try:
         return WhiteCatalogUser.objects.get(pk=user_id, is_active=True)
     except WhiteCatalogUser.DoesNotExist:
-        admin_catalog_user = _sync_admin_to_catalog_user(getattr(request, "user", None))
+        admin_catalog_user = _sync_admin_to_catalog_user(django_user)
         if admin_catalog_user:
             _catalog_session_login(request, admin_catalog_user)
             return admin_catalog_user
@@ -714,8 +749,47 @@ def login_view(request):
 
 def logout_view(request):
     """Logout view for white catalog users."""
+    django_user = getattr(request, "user", None)
+    # #region agent log
+    try:
+        import json as _j, time as _t
+        with open(r"c:\optitex excell\debug-1b186f.log", "a", encoding="utf-8") as _f:
+            _f.write(_j.dumps({
+                "sessionId": "1b186f", "hypothesisId": "A",
+                "location": "white_catalog/views.py:logout_view",
+                "message": "logout before clear",
+                "timestamp": int(_t.time() * 1000),
+                "data": {
+                    "had_catalog_id": request.session.get("white_catalog_user_id"),
+                    "django_auth": bool(getattr(django_user, "is_authenticated", False)),
+                    "django_staff": bool(getattr(django_user, "is_staff", False)),
+                    "django_username": getattr(django_user, "username", "") if getattr(django_user, "is_authenticated", False) else "",
+                },
+            }, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # #endregion
     for key in ("white_catalog_user_id", "white_catalog_username", "white_catalog_company_name"):
         request.session.pop(key, None)
+    django_logout(request)
+    # #region agent log
+    try:
+        import json as _j, time as _t
+        _du = getattr(request, "user", None)
+        with open(r"c:\optitex excell\debug-1b186f.log", "a", encoding="utf-8") as _f:
+            _f.write(_j.dumps({
+                "sessionId": "1b186f", "hypothesisId": "A", "runId": "post-fix",
+                "location": "white_catalog/views.py:logout_view:after",
+                "message": "logout after django_logout",
+                "timestamp": int(_t.time() * 1000),
+                "data": {
+                    "catalog_id": request.session.get("white_catalog_user_id"),
+                    "django_auth": bool(getattr(_du, "is_authenticated", False)),
+                },
+            }, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    # #endregion
     messages.success(request, "התנתקת בהצלחה")
     return redirect("white_catalog:home")
 

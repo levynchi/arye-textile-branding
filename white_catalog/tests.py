@@ -62,6 +62,19 @@ class WhiteCatalogAdminBridgeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(WhiteCatalogUser.objects.filter(username="admin", is_active=True).exists())
 
+    def test_staff_catalog_logout_clears_session_and_shows_login(self):
+        self.client.force_login(self.django_admin)
+        self.client.get(reverse("white_catalog:home"))
+        self.assertTrue(self.client.session.get("white_catalog_user_id"))
+
+        response = self.client.get(reverse("white_catalog:logout"), follow=True)
+
+        self.assertIsNone(self.client.session.get("white_catalog_user_id"))
+        self.assertContains(response, reverse("white_catalog:login"))
+        self.assertContains(response, "התחבר")
+        self.assertNotContains(response, reverse("white_catalog:logout"))
+        self.assertNotContains(response, "Admin Test Account")
+
 
 @override_settings(WHITE_CATALOG_API_TOKEN="test-token", MEDIA_ROOT=tempfile.mkdtemp())
 class ImportColorVariantsTests(TestCase):
