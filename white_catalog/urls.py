@@ -21,6 +21,7 @@ urlpatterns = [
     path("orders/<str:order_number>/", views.order_confirm, name="order_confirm"),
     # Product data export for customer site integration
     path("export/products/", views.export_products_excel, name="export_products"),
+    path("export/store-import/", views.export_store_import_csv, name="export_store_import"),
     # JSON API for the desktop app (token-authenticated) — must come before the slug catch-alls
     path("api/export-meta/", api.export_meta, name="api_export_meta"),
     path("api/variants/import/", api.import_variants, name="api_import_variants"),

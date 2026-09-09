@@ -1,15 +1,16 @@
+import csv
 import hashlib
 import json
 import logging
 from functools import wraps
 from decimal import Decimal
-from io import BytesIO
+from io import BytesIO, StringIO
 from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import authenticate, logout as django_logout
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import strip_tags
@@ -1382,14 +1383,277 @@ def order_list(request):
 # Product data export (for customer site integration)
 # ---------------------------------------------------------------------------
 
+STORE_IMPORT_HEADERS = [
+    "Handle",
+    "Title",
+    "Body (HTML)",
+    "Vendor",
+    "Type",
+    "Published",
+    "Option1 Name",
+    "Option1 Value",
+    "Option2 Name",
+    "Option2 Value",
+    "Variant SKU",
+    "Variant Barcode",
+    "Variant Price",
+    "Cost per item",
+    "Image Src",
+    "Image Position",
+    "Image Alt Text",
+    "Status",
+]
+
+
+def _export_product_queryset(user, slug=None):
+    qs = (
+        visible_products(user)
+        .select_related("category")
+        .prefetch_related(
+            "images",
+            "variants__fabric_type",
+            "variants__size_type",
+            "variants__pack_types",
+            "variants__pack_prices",
+            "color_variants__color",
+        )
+        .order_by("category__order", "category__name", "order", "name")
+    )
+    if slug:
+        qs = qs.filter(slug=slug)
+        if not qs.exists():
+            raise Http404("מוצר לא נמצא")
+        return qs
+    return qs.filter(is_orderable=True)
+
+
+def _product_image_urls(request, product):
+    return [request.build_absolute_uri(img["url"]) for img in product.get_all_images()]
+
+
+def _iter_sellable_variants(product, user, allowed_packs):
+    """Yield catalog rows that the user can actually order."""
+    if product.has_order_variants:
+        for variant in product.variants.all():
+            if not variant.is_active:
+                continue
+            variant_pack_ids = {pt.pk for pt in variant.pack_types.all()}
+            pack_price_map = {pp.pack_type_id: pp.price for pp in variant.pack_prices.all()}
+            effective_unit = apply_price_list(
+                variant.unit_price if variant.unit_price is not None else product.unit_price,
+                user,
+            )
+            pack_cells = []
+            available_in_any_pack = False
+            for pack in allowed_packs:
+                if variant_pack_ids and pack.pk not in variant_pack_ids:
+                    pack_cells.append(None)
+                    continue
+                raw_pack = pack_price_map.get(pack.pk)
+                if raw_pack is not None:
+                    price = apply_price_list(raw_pack, user)
+                elif effective_unit is not None:
+                    price = effective_unit * pack.quantity
+                else:
+                    price = None
+                pack_cells.append(price)
+                available_in_any_pack = True
+            if allowed_packs and not available_in_any_pack:
+                continue
+            yield {
+                "kind": "variant",
+                "pk": variant.pk,
+                "barcode": variant.barcode or "",
+                "size": variant.size_type.name if variant.size_type_id else "",
+                "fabric": variant.fabric_type.name if variant.fabric_type_id else "",
+                "color": "",
+                "wholesale": effective_unit,
+                "pack_cells": pack_cells,
+                "image_url": None,
+            }
+        return
+
+    if product.has_color_variants:
+        for color_variant in product.color_variants.all():
+            if not color_variant.is_active:
+                continue
+            image_url = None
+            if color_variant.image:
+                image_url = color_variant.image.url
+            yield {
+                "kind": "color",
+                "pk": color_variant.pk,
+                "barcode": color_variant.barcode or "",
+                "size": "",
+                "fabric": "",
+                "color": color_variant.color.name if color_variant.color_id else "",
+                "wholesale": apply_price_list(color_variant.get_effective_price(), user),
+                "pack_cells": [None] * len(allowed_packs),
+                "image_url": image_url,
+            }
+        return
+
+    yield {
+        "kind": "simple",
+        "pk": None,
+        "barcode": "",
+        "size": "",
+        "fabric": "",
+        "color": "",
+        "wholesale": apply_price_list(product.unit_price, user),
+        "pack_cells": [None] * len(allowed_packs),
+        "image_url": None,
+    }
+
+
+def _store_import_option_names(variants):
+    has_size = any(row["size"] for row in variants)
+    has_fabric = any(row["fabric"] for row in variants)
+    has_color = any(row["color"] for row in variants)
+    if has_size:
+        return ("מידה", "בד" if has_fabric else "")
+    if has_color:
+        return ("צבע", "")
+    return ("Title", "")
+
+
+def _money_cell(value):
+    if value is None or value == "":
+        return ""
+    return f"{Decimal(str(value)):.2f}"
+
+
+def _store_import_rows_for_product(request, product, user, allowed_packs, variant_keys=None):
+    variants = [
+        row for row in _iter_sellable_variants(product, user, allowed_packs)
+        if variant_keys is None or (row["kind"], row["pk"]) in variant_keys
+    ]
+    if not variants:
+        return []
+
+    handle = product.slug or ""
+    title = product.name
+    body = product.marketing_description or product.description or ""
+    category_name = product.category.name if product.category_id else ""
+    retail = product.online_price
+    gallery = _product_image_urls(request, product)
+    opt1_name, opt2_name = _store_import_option_names(variants)
+    rows = []
+
+    for index, variant in enumerate(variants):
+        if opt1_name == "Title":
+            opt1_value = "Default Title"
+            opt2_value = ""
+            option2 = ""
+        else:
+            opt1_value = variant["size"] or variant["color"] or variant["fabric"]
+            opt2_value = variant["fabric"] if opt2_name == "בד" else ""
+            option2 = opt2_name
+        image_src = ""
+        image_pos = ""
+        if variant.get("image_url"):
+            image_src = request.build_absolute_uri(variant["image_url"])
+            image_pos = index + 1
+        elif index == 0 and gallery:
+            image_src = gallery[0]
+            image_pos = 1
+        rows.append([
+            handle,
+            title if index == 0 else "",
+            body if index == 0 else "",
+            "אריה טקסטיל" if index == 0 else "",
+            category_name if index == 0 else "",
+            "TRUE" if index == 0 else "",
+            opt1_name,
+            opt1_value,
+            option2,
+            opt2_value,
+            variant["barcode"],
+            variant["barcode"],
+            _money_cell(retail),
+            _money_cell(variant["wholesale"]),
+            image_src,
+            image_pos,
+            product.name if image_src else "",
+            "active" if index == 0 else "",
+        ])
+
+    used_images = {row[14] for row in rows if row[14]}
+    position = len(used_images) + 1
+    for url in gallery:
+        if url in used_images:
+            continue
+        rows.append([
+            handle, "", "", "", "", "", "", "", "", "", "", "", "", "",
+            url, position, product.name, "",
+        ])
+        position += 1
+    return rows
+
+
+def _store_import_rows_for_order(request, order, user, allowed_packs):
+    rows = []
+    seen_products = []
+    product_keys = {}
+    snapshot_items = []
+    for item in order.items.all():
+        product = item.product if item.product_id else None
+        if product is None:
+            snapshot_items.append(item)
+            continue
+        if product.pk not in product_keys:
+            seen_products.append(product)
+            product_keys[product.pk] = set()
+        if item.variant_id:
+            product_keys[product.pk].add(("variant", item.variant_id))
+        elif item.color_variant_id:
+            product_keys[product.pk].add(("color", item.color_variant_id))
+        else:
+            product_keys[product.pk].add(("simple", None))
+
+    for product in seen_products:
+        keys = product_keys[product.pk]
+        if ("simple", None) in keys:
+            keys = None
+        rows.extend(_store_import_rows_for_product(request, product, user, allowed_packs, keys))
+
+    for item in snapshot_items:
+        handle = f"order-{order.order_number}-{item.pk}"
+        opt1 = "מידה" if item.size_name else ("צבע" if item.color_name else "Title")
+        opt1_value = item.size_name or item.color_name or "Default Title"
+        rows.append([
+            handle,
+            item.product_name,
+            "",
+            "אריה טקסטיל",
+            "",
+            "TRUE",
+            opt1,
+            opt1_value,
+            "בד" if item.variant_name else "",
+            item.variant_name if item.variant_name else "",
+            item.barcode or "",
+            item.barcode or "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "active",
+        ])
+    return rows
+
+
 @require_catalog_login
 def export_products_excel(request):
-    """Download the full product catalog as an Excel file.
+    """Download the product catalog as an Excel file.
 
     One row per product variant (barcode + fabric + size) with wholesale and
     recommended retail prices, pack prices filtered by the user's pack route,
     marketing description and absolute image URLs — everything a customer
     needs to import the products into their own store.
+
+    Optional ?product=<slug> limits the file to a single visible product.
     """
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
@@ -1397,6 +1661,8 @@ def export_products_excel(request):
 
     user = get_current_catalog_user(request)
     allowed_packs = list(user.get_allowed_pack_types().order_by("order", "quantity"))
+    product_slug = (request.GET.get("product") or "").strip()
+    products = _export_product_queryset(user, slug=product_slug or None)
 
     headers = [
         "ברקוד",
@@ -1445,121 +1711,94 @@ def export_products_excel(request):
             if col == images_column:
                 cell.alignment = Alignment(wrap_text=True, vertical="top")
 
-    products = (
-        visible_products(user).filter(is_orderable=True)
-        .select_related("category")
-        .prefetch_related(
-            "images",
-            "variants__fabric_type",
-            "variants__size_type",
-            "variants__pack_types",
-            "variants__pack_prices",
-            "color_variants__color",
-        )
-        .order_by("category__order", "category__name", "order", "name")
-    )
-
     row = 2
     for product in products:
         category_name = product.category.name if product.category_id else ""
         description = clean_html(product.marketing_description) or clean_html(product.description)
-        image_urls = "\n".join(
-            request.build_absolute_uri(img["url"]) for img in product.get_all_images()
-        )
+        image_urls = "\n".join(_product_image_urls(request, product))
 
-        if product.has_order_variants:
-            for variant in product.variants.all():
-                if not variant.is_active:
-                    continue
-                # Empty pack_types on a variant means it is sold in all pack forms.
-                variant_pack_ids = {pt.pk for pt in variant.pack_types.all()}
-                pack_price_map = {pp.pack_type_id: pp.price for pp in variant.pack_prices.all()}
-                effective_unit = apply_price_list(
-                    variant.unit_price if variant.unit_price is not None else product.unit_price,
-                    user,
-                )
-
-                pack_cells = []
-                available_in_any_pack = False
-                for pack in allowed_packs:
-                    if variant_pack_ids and pack.pk not in variant_pack_ids:
-                        pack_cells.append(None)
-                        continue
-                    raw_pack = pack_price_map.get(pack.pk)
-                    if raw_pack is not None:
-                        price = apply_price_list(raw_pack, user)
-                    elif effective_unit is not None:
-                        price = effective_unit * pack.quantity
-                    else:
-                        price = None
-                    pack_cells.append(price)
-                    available_in_any_pack = True
-
-                if allowed_packs and not available_in_any_pack:
-                    continue
-
-                write_row(row, [
-                    variant.barcode or "",
-                    category_name,
-                    product.name,
-                    variant.fabric_type.name,
-                    variant.size_type.name,
-                    "",
-                    effective_unit,
-                    *pack_cells,
-                    product.online_price,
-                    description,
+        for variant in _iter_sellable_variants(product, user, allowed_packs):
+            row_images = image_urls
+            if variant.get("image_url"):
+                row_images = "\n".join(filter(None, [
+                    request.build_absolute_uri(variant["image_url"]),
                     image_urls,
-                ])
-                row += 1
-        elif product.has_color_variants:
-            for color_variant in product.color_variants.all():
-                if not color_variant.is_active:
-                    continue
-                color_image_urls = image_urls
-                if color_variant.image:
-                    color_image_urls = "\n".join(filter(None, [
-                        request.build_absolute_uri(color_variant.image.url),
-                        image_urls,
-                    ]))
-                write_row(row, [
-                    color_variant.barcode or "",
-                    category_name,
-                    product.name,
-                    "",
-                    "",
-                    color_variant.color.name,
-                    apply_price_list(color_variant.get_effective_price(), user),
-                    *[None] * len(allowed_packs),
-                    product.online_price,
-                    description,
-                    color_image_urls,
-                ])
-                row += 1
-        else:
+                ]))
             write_row(row, [
-                "",
+                variant["barcode"],
                 category_name,
                 product.name,
-                "",
-                "",
-                "",
-                apply_price_list(product.unit_price, user),
-                *[None] * len(allowed_packs),
+                variant["fabric"],
+                variant["size"],
+                variant["color"],
+                variant["wholesale"],
+                *variant["pack_cells"],
                 product.online_price,
                 description,
-                image_urls,
+                row_images,
             ])
             row += 1
 
     buffer = BytesIO()
     wb.save(buffer)
 
-    filename = f"arye-white-catalog-{timezone.now().strftime('%Y-%m-%d')}.xlsx"
+    date_stamp = timezone.now().strftime("%Y-%m-%d")
+    if product_slug:
+        filename = f"arye-white-catalog-{product_slug}-{date_stamp}.xlsx"
+    else:
+        filename = f"arye-white-catalog-{date_stamp}.xlsx"
     response = HttpResponse(
         buffer.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@require_catalog_login
+def export_store_import_csv(request):
+    """Shopify-compatible CSV for setting products up in the customer's store."""
+    user = get_current_catalog_user(request)
+    allowed_packs = list(user.get_allowed_pack_types().order_by("order", "quantity"))
+    product_slug = (request.GET.get("product") or "").strip()
+    order_number = (request.GET.get("order") or "").strip()
+
+    if order_number:
+        order = get_object_or_404(
+            WhiteOrder.objects.prefetch_related(
+                "items__product__images",
+                "items__product__category",
+                "items__product__variants__fabric_type",
+                "items__product__variants__size_type",
+                "items__product__variants__pack_types",
+                "items__product__variants__pack_prices",
+                "items__product__color_variants__color",
+                "items__variant",
+                "items__color_variant",
+            ),
+            order_number=order_number,
+            user=user,
+        )
+        rows = _store_import_rows_for_order(request, order, user, allowed_packs)
+        filename = f"arye-store-import-{order.order_number}.csv"
+    else:
+        products = _export_product_queryset(user, slug=product_slug or None)
+        rows = []
+        for product in products:
+            rows.extend(_store_import_rows_for_product(request, product, user, allowed_packs))
+        date_stamp = timezone.now().strftime("%Y-%m-%d")
+        if product_slug:
+            filename = f"arye-store-import-{product_slug}.csv"
+        else:
+            filename = f"arye-store-import-{date_stamp}.csv"
+
+    text_buffer = StringIO()
+    writer = csv.writer(text_buffer)
+    writer.writerow(STORE_IMPORT_HEADERS)
+    writer.writerows(rows)
+    payload = ("\ufeff" + text_buffer.getvalue()).encode("utf-8")
+
+    response = HttpResponse(payload, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
 

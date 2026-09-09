@@ -157,6 +157,7 @@
                             <td>
                                 <div class="order-actions-cell">
                                     <a href="{% url 'white_catalog:order_confirm' order.order_number %}" class="btn-view">צפה</a>
+                                    <a href="{% url 'white_catalog:export_store_import' %}?order={{ order.order_number }}" class="btn-export">CSV לחנות</a>
                                     <a href="{% url 'white_catalog:export_order' order.order_number %}" class="btn-export">אקסל</a>
                                 </div>
                             </td>
@@ -196,6 +197,7 @@
                         </div>
                         <div class="order-mobile-actions">
                             <a href="{% url 'white_catalog:order_confirm' order.order_number %}" class="btn-view">צפה בהזמנה</a>
+                            <a href="{% url 'white_catalog:export_store_import' %}?order={{ order.order_number }}" class="btn-export">CSV לחנות</a>
                             <a href="{% url 'white_catalog:export_order' order.order_number %}" class="btn-export">הורדה לאקסל</a>
                         </div>
                     </div>

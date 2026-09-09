@@ -157,6 +157,9 @@
             {% endif %}
 
             <div class="confirm-actions">
+                <a href="{% url 'white_catalog:export_store_import' %}?order={{ order.order_number }}" class="btn-orders btn-export-order">
+                    CSV להקמה באתר
+                </a>
                 <a href="{% url 'white_catalog:export_order' order.order_number %}" class="btn-orders btn-export-order">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

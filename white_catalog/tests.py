@@ -18,6 +18,8 @@ from .models import (
     WhiteColor,
     WhiteColorVariant,
     WhiteFabricType,
+    WhiteOrder,
+    WhiteOrderItem,
     WhitePackType,
     WhiteProductVariant,
     WhiteSizeType,
@@ -639,4 +641,141 @@ class PerUserCatalogVisibilityTests(TestCase):
         self.assertFalse(
             WhiteCartItem.objects.filter(cart__user=user, product=self.hidden_product).exists()
         )
+
+
+class StoreImportExportTests(TestCase):
+    def setUp(self):
+        self.threes = WhitePackType.objects.create(name="שלישיות", quantity=3, is_active=True)
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="Toyland",
+            contact_name="איילת",
+            contact_phone="050",
+            username="toyland_test",
+        )
+        self.user.set_password("pass")
+        self.user.save()
+        session = self.client.session
+        session["white_catalog_user_id"] = self.user.id
+        session["white_catalog_username"] = self.user.username
+        session.save()
+
+        self.category = WhiteCategory.objects.create(name="לבנים", slug="basics-test")
+        fabric = WhiteFabricType.objects.create(name="פלנל")
+        size_a = WhiteSizeType.objects.create(name="0-3")
+        size_b = WhiteSizeType.objects.create(name="3-6")
+        self.product = WhiteSubcategory.objects.create(
+            name="בגד גוף חורף",
+            slug="winter-bodysuit",
+            category=self.category,
+            is_orderable=True,
+            has_order_variants=True,
+            unit_price=Decimal("13.00"),
+            online_price=Decimal("29.90"),
+            marketing_description="לבנים לחורף",
+        )
+        self.v1 = WhiteProductVariant.objects.create(
+            product=self.product,
+            fabric_type=fabric,
+            size_type=size_a,
+            unit_price=Decimal("13.00"),
+            barcode="1001",
+        )
+        self.v2 = WhiteProductVariant.objects.create(
+            product=self.product,
+            fabric_type=fabric,
+            size_type=size_b,
+            unit_price=Decimal("13.00"),
+            barcode="1002",
+        )
+        self.hidden = WhiteSubcategory.objects.create(
+            name="מוצר מוסתר",
+            slug="hidden-item",
+            is_orderable=True,
+            unit_price=Decimal("5.00"),
+        )
+        self.user.hidden_products.add(self.hidden)
+
+    def _csv_rows(self, response):
+        import csv
+        from io import StringIO
+
+        text = response.content.decode("utf-8-sig")
+        return list(csv.DictReader(StringIO(text)))
+
+    def test_store_csv_groups_sizes_under_one_handle(self):
+        response = self.client.get(reverse("white_catalog:export_store_import"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/csv", response["Content-Type"])
+        rows = self._csv_rows(response)
+        variant_rows = [r for r in rows if r["Variant Barcode"]]
+        self.assertEqual({r["Handle"] for r in variant_rows}, {"winter-bodysuit"})
+        self.assertEqual({r["Variant Barcode"] for r in variant_rows}, {"1001", "1002"})
+        self.assertEqual(variant_rows[0]["Option1 Name"], "מידה")
+        self.assertEqual(variant_rows[0]["Option2 Name"], "בד")
+        self.assertEqual(variant_rows[0]["Variant Price"], "29.90")
+        self.assertEqual(variant_rows[0]["Cost per item"], "13.00")
+        self.assertNotIn("hidden-item", {r["Handle"] for r in rows})
+
+    def test_product_scope_csv_and_excel(self):
+        extra = WhiteSubcategory.objects.create(
+            name="מוצר נוסף",
+            slug="other-item",
+            is_orderable=True,
+            unit_price=Decimal("8.00"),
+        )
+        csv_response = self.client.get(
+            reverse("white_catalog:export_store_import"),
+            {"product": "winter-bodysuit"},
+        )
+        self.assertEqual(csv_response.status_code, 200)
+        handles = {r["Handle"] for r in self._csv_rows(csv_response)}
+        self.assertEqual(handles, {"winter-bodysuit"})
+        self.assertNotIn(extra.slug, handles)
+
+        excel_response = self.client.get(
+            reverse("white_catalog:export_products"),
+            {"product": "winter-bodysuit"},
+        )
+        self.assertEqual(excel_response.status_code, 200)
+        self.assertIn("winter-bodysuit", excel_response["Content-Disposition"])
+        from openpyxl import load_workbook
+        from io import BytesIO
+        wb = load_workbook(BytesIO(excel_response.content))
+        barcodes = [row[0].value for row in wb.active.iter_rows(min_row=2, max_col=1)]
+        self.assertEqual(set(barcodes), {"1001", "1002"})
+
+    def test_order_scope_csv_only_ordered_size(self):
+        order = WhiteOrder.objects.create(
+            user=self.user,
+            order_number="ORD-TEST-1",
+            total_amount=Decimal("39.00"),
+        )
+        WhiteOrderItem.objects.create(
+            order=order,
+            product=self.product,
+            variant=self.v1,
+            product_name=self.product.name,
+            variant_name="פלנל",
+            barcode="1001",
+            size_name="0-3",
+            pack_type_name="שלישיות",
+            pack_quantity=3,
+            quantity=1,
+            unit_price=Decimal("39.00"),
+        )
+        response = self.client.get(
+            reverse("white_catalog:export_store_import"),
+            {"order": "ORD-TEST-1"},
+        )
+        self.assertEqual(response.status_code, 200)
+        barcodes = {r["Variant Barcode"] for r in self._csv_rows(response) if r["Variant Barcode"]}
+        self.assertEqual(barcodes, {"1001"})
+
+    def test_unknown_product_export_is_404(self):
+        response = self.client.get(
+            reverse("white_catalog:export_store_import"),
+            {"product": "does-not-exist"},
+        )
+        self.assertEqual(response.status_code, 404)
+
 
