@@ -96,7 +96,7 @@ class WhiteSubcategory(models.Model):
 		blank=True,
 		help_text="למשל: יחידה, מארז, סט"
 	)
-	online_price = models.DecimalField("מחיר קמעונאי מומלץ (לא כולל מע\"מ)", max_digits=10, decimal_places=2, blank=True, null=True, help_text="מחיר מומלץ למכירה באתר החנות ללקוח הסופי - לא כולל מע\"מ")
+	online_price = models.DecimalField("מחיר לצרכן דיגיטלי (כולל מע\"מ)", max_digits=10, decimal_places=2, blank=True, null=True, help_text="מחיר מומלץ ללקוח הסופי במארז — כולל מע״מ. אם לגרסה יש מחיר משלה, הוא גובר בייצוא.")
 	image = models.ImageField("תמונה ראשית", upload_to="white_catalog/subcategories/", blank=True, null=True, help_text="תמונה ראשית - מוצגת בכרטיס התת-קטגוריה")
 	order = models.PositiveIntegerField("סדר תצוגה", default=0, help_text="מספר קטן = קודם")
 	slug = models.SlugField("Slug", max_length=200, unique=True, blank=True, help_text="יוצר אוטומטית מהשם")
@@ -544,6 +544,14 @@ class WhiteProductVariant(models.Model):
 		null=True,
 		blank=True,
 		help_text='מחיר ליחידה בודדת — המחיר למארז יחושב אוטומטית לפי הכמות'
+	)
+	digital_price = models.DecimalField(
+		'מחיר לצרכן דיגיטלי (כולל מע"מ)',
+		max_digits=10,
+		decimal_places=2,
+		null=True,
+		blank=True,
+		help_text='מחיר מארז ללקוח הסופי כולל מע״מ. ריק = מחיר המוצר.',
 	)
 	barcode = models.CharField("ברקוד", max_length=64, blank=True, null=True)
 	is_active = models.BooleanField("פעיל", default=True)

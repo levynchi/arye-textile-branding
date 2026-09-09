@@ -1470,6 +1470,7 @@ def _iter_sellable_variants(product, user, allowed_packs):
                 "wholesale": effective_unit,
                 "pack_cells": pack_cells,
                 "image_url": None,
+                "digital_price": variant.digital_price if variant.digital_price is not None else product.online_price,
             }
         return
 
@@ -1490,6 +1491,7 @@ def _iter_sellable_variants(product, user, allowed_packs):
                 "wholesale": apply_price_list(color_variant.get_effective_price(), user),
                 "pack_cells": [None] * len(allowed_packs),
                 "image_url": image_url,
+                "digital_price": product.online_price,
             }
         return
 
@@ -1503,6 +1505,7 @@ def _iter_sellable_variants(product, user, allowed_packs):
         "wholesale": apply_price_list(product.unit_price, user),
         "pack_cells": [None] * len(allowed_packs),
         "image_url": None,
+        "digital_price": product.online_price,
     }
 
 
@@ -1535,7 +1538,6 @@ def _store_import_rows_for_product(request, product, user, allowed_packs, varian
     title = product.name
     body = product.marketing_description or product.description or ""
     category_name = product.category.name if product.category_id else ""
-    retail = product.online_price
     gallery = _product_image_urls(request, product)
     opt1_name, opt2_name = _store_import_option_names(variants)
     rows = []
@@ -1570,7 +1572,7 @@ def _store_import_rows_for_product(request, product, user, allowed_packs, varian
             opt2_value,
             variant["barcode"],
             variant["barcode"],
-            _money_cell(retail),
+            _money_cell(variant.get("digital_price") if variant.get("digital_price") is not None else product.online_price),
             _money_cell(variant["wholesale"]),
             image_src,
             image_pos,
@@ -1675,7 +1677,7 @@ def export_products_excel(request):
     ]
     headers += [f'מחיר {pack.name} (לא כולל מע"מ)' for pack in allowed_packs]
     headers += [
-        'מחיר קמעונאי מומלץ (לא כולל מע"מ)',
+        'מחיר לצרכן דיגיטלי (כולל מע"מ)',
         "תיאור שיווקי",
         "קישורי תמונות",
     ]
@@ -1733,7 +1735,7 @@ def export_products_excel(request):
                 variant["color"],
                 variant["wholesale"],
                 *variant["pack_cells"],
-                product.online_price,
+                variant.get("digital_price") if variant.get("digital_price") is not None else product.online_price,
                 description,
                 row_images,
             ])
@@ -1833,7 +1835,7 @@ def export_order_excel(request, order_number):
         'סה"כ יחידות',
         'מחיר למארז (לא כולל מע"מ)',
         'סה"כ שורה (לא כולל מע"מ)',
-        'מחיר קמעונאי מומלץ (לא כולל מע"מ)',
+        'מחיר לצרכן דיגיטלי (כולל מע"מ)',
         "קישורי תמונות",
     ]
     price_columns = {9, 10, 11}
@@ -1869,7 +1871,11 @@ def export_order_excel(request, order_number):
     for item in order.items.all():
         barcode = item.barcode or (item.variant.barcode if item.variant_id and item.variant else None)
         product = item.product if item.product_id else None
-        online_price = product.online_price if product else None
+        online_price = None
+        if item.variant_id and item.variant and getattr(item.variant, "digital_price", None) is not None:
+            online_price = item.variant.digital_price
+        elif product:
+            online_price = product.online_price
         image_urls = "\n".join(
             request.build_absolute_uri(img["url"]) for img in product.get_all_images()
         ) if product else ""

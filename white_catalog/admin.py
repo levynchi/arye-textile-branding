@@ -88,7 +88,7 @@ class WhiteProductVariantInline(admin.TabularInline):
 	"""Inline: one row = fabric type + size + unit price."""
 	model = WhiteProductVariant
 	extra = 1
-	fields = ("fabric_type", "size_type", "pack_types", "unit_price", "barcode", "is_active", "order")
+	fields = ("fabric_type", "size_type", "pack_types", "unit_price", "digital_price", "barcode", "is_active", "order")
 	show_change_link = True
 	formfield_overrides = {
 		dj_models.ManyToManyField: {"widget": forms.CheckboxSelectMultiple},
@@ -132,7 +132,7 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 		(None, {
 			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable", "has_order_variants", "has_color_variants")
 		}),
-		("מחירים (למוצרים ללא גרסאות)", {
+		("מחירים", {
 			"fields": ("unit_price", "simple_price_label", "online_price"),
 		}),
 		("פרטים נוספים", {
@@ -358,8 +358,8 @@ class WhiteVariantPackPriceInline(admin.TabularInline):
 
 @admin.register(WhiteProductVariant)
 class WhiteProductVariantAdmin(admin.ModelAdmin):
-	list_display = ("product", "fabric_type", "size_type", "unit_price", "barcode", "is_active", "order")
-	list_editable = ("unit_price", "barcode", "is_active", "order")
+	list_display = ("product", "fabric_type", "size_type", "unit_price", "digital_price", "barcode", "is_active", "order")
+	list_editable = ("unit_price", "digital_price", "barcode", "is_active", "order")
 	list_filter = ("fabric_type", "product", "pack_types", "is_active")
 	search_fields = ("fabric_type__name", "size_type__name", "product__name", "barcode")
 	ordering = ("product__name", "fabric_type__name", "size_type__order")
