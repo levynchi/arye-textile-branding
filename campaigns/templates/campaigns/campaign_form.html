@@ -3,9 +3,42 @@
 {% block content %}
 <h1>{{ title }}</h1>
 <div class="card">
-    <form method="post">
+    <form method="post" id="campaign-form">
         {% csrf_token %}
-        {{ form.as_p }}
+        {% for field in form %}
+            {% if field.name == "html_content" %}
+            <div class="library">
+                <label for="lib-select">מאגר מיילים</label>
+                <div class="library-row">
+                    <select id="lib-select">
+                        <option value="">— בחירת מייל מהמאגר —</option>
+                        <optgroup label="מיילים מעוצבים">
+                            {% for item in library_templates %}
+                            <option value="{{ item.key }}" {% if item.key == library_selected %}selected{% endif %}>{{ item.label }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% if library_previous %}
+                        <optgroup label="קמפיינים קודמים">
+                            {% for item in library_previous %}
+                            <option value="{{ item.key }}">{{ item.label }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                    </select>
+                    <button type="button" class="btn small" id="lib-load" disabled>טעינה לתוכן</button>
+                    <a class="btn small secondary" id="lib-open" href="#" target="_blank" rel="noopener" hidden>פתיחה בחלון חדש</a>
+                </div>
+                <span class="helptext">בוחרים מייל, רואים תצוגה מקדימה, ולוחצים "טעינה לתוכן" כדי להעתיק את ה-HTML שלו לשדה למטה.</span>
+                <iframe id="lib-frame" class="preview" title="תצוגה מקדימה" hidden></iframe>
+            </div>
+            {% endif %}
+            <p>
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+                {{ field.errors }}
+            </p>
+        {% endfor %}
         <button type="submit" class="btn">שמירה</button>
         {% if campaign %}<a class="btn secondary" href="{% url 'campaign_detail' campaign.pk %}">ביטול</a>{% endif %}
     </form>
@@ -13,9 +46,72 @@
 <div class="card">
     <h2>טיפים</h2>
     <ul style="line-height:1.9;margin:0;padding-inline-start:20px">
-        <li>תוכן ה-HTML מגיע מוכן מהמייל המעוצב האחרון שלך — אפשר לערוך או להשאיר כמו שהוא.</li>
+        <li>מאגר המיילים כולל את המיילים המעוצבים וגם כל קמפיין קודם — אפשר לטעון כל אחד מהם לתוכן ולערוך.</li>
         <li>אם תכתבו <code dir="ltr">{% templatetag openvariable %}שם{% templatetag closevariable %}</code> בנושא או בתוכן, הוא יוחלף בשם החנות של כל נמען.</li>
         <li>אחרי השמירה תוכלו לראות תצוגה מקדימה ולשלוח מייל בדיקה לעצמכם לפני השליחה לכולם.</li>
     </ul>
 </div>
+<style>
+    .library { margin: 0 0 16px; padding: 16px; background: #f4f7fa; border: 1px solid #dfe6ee; border-radius: 8px; }
+    .library-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .library select { flex: 1; min-width: 220px; padding: 9px 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; font-size: 14px; background: #fff; }
+    .library .btn[disabled] { opacity: .5; cursor: default; }
+    #lib-frame { height: 420px; margin-top: 12px; }
+</style>
+<script>
+(function () {
+    var select = document.getElementById('lib-select');
+    var loadBtn = document.getElementById('lib-load');
+    var openLink = document.getElementById('lib-open');
+    var frame = document.getElementById('lib-frame');
+    var textarea = document.getElementById('id_html_content');
+    var htmlUrl = "{% url 'library_html' 'KEY' %}";
+    var previewUrl = "{% url 'library_preview' 'KEY' %}";
+    var initialHtml = textarea.value;
+
+    function urlFor(base, key) { return base.replace('KEY', encodeURIComponent(key)); }
+
+    function update() {
+        var key = select.value;
+        var has = !!key;
+        loadBtn.disabled = !has;
+        openLink.hidden = !has;
+        frame.hidden = !has;
+        if (has) {
+            openLink.href = urlFor(previewUrl, key);
+            frame.src = urlFor(previewUrl, key);
+        } else {
+            frame.removeAttribute('src');
+        }
+    }
+
+    select.addEventListener('change', update);
+    update();
+
+    loadBtn.addEventListener('click', function () {
+        var key = select.value;
+        if (!key) return;
+        var current = textarea.value.trim();
+        if (current && current !== initialHtml.trim() &&
+            !confirm('התוכן הנוכחי בשדה HTML יוחלף במייל שנבחר. להמשיך?')) {
+            return;
+        }
+        loadBtn.disabled = true;
+        loadBtn.textContent = 'טוען...';
+        fetch(urlFor(htmlUrl, key), { credentials: 'same-origin' })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (data) {
+                textarea.value = data.html;
+                initialHtml = data.html;
+                loadBtn.textContent = 'נטען ✓';
+                setTimeout(function () { loadBtn.textContent = 'טעינה לתוכן'; loadBtn.disabled = false; }, 1500);
+            })
+            .catch(function () {
+                alert('הטעינה נכשלה, נסו שוב.');
+                loadBtn.textContent = 'טעינה לתוכן';
+                loadBtn.disabled = false;
+            });
+    });
+})();
+</script>
 {% endblock %}

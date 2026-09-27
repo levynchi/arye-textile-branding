@@ -3,8 +3,9 @@ from pathlib import Path
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from .forms import AddRecipientsForm, CampaignForm, ContactForm, ContactNoteForm, TestEmailForm, parse_recipients
@@ -12,12 +13,56 @@ from .inbox import ensure_sync_thread, sync_enabled, sync_replies
 from .models import Campaign, Contact, Recipient
 from .services import send_test_email, start_campaign
 
-DEFAULT_EMAIL_PATH = Path(__file__).parent / "templates" / "campaigns" / "winter_email.html"
+TEMPLATES_DIR = Path(__file__).parent / "templates" / "campaigns"
+
+# Built-in designed emails available in the "מאגר מיילים" picker. First one is the default
+# for new campaigns. (key, label, file name)
+EMAIL_TEMPLATES = [
+    ("winter_2026", "חורף 2026 — העיצוב החדש", "winter_email.html"),
+    ("welcome", "מייל WELCOME — העיצוב הקודם", "default_email.html"),
+]
+DEFAULT_TEMPLATE_KEY = EMAIL_TEMPLATES[0][0]
+DEFAULT_EMAIL_PATH = TEMPLATES_DIR / EMAIL_TEMPLATES[0][2]
 
 
 def default_html() -> str:
     # Read raw so curly braces in the email HTML are never parsed as template syntax
     return DEFAULT_EMAIL_PATH.read_text(encoding="utf-8")
+
+
+def library_items(exclude_pk=None):
+    """Everything the admin can pick from: built-in templates + HTML of previous campaigns."""
+    templates = [{"key": f"tpl:{key}", "label": label} for key, label, _ in EMAIL_TEMPLATES]
+    campaigns = Campaign.objects.exclude(pk=exclude_pk) if exclude_pk else Campaign.objects.all()
+    previous = [
+        {"key": f"campaign:{c.pk}", "label": f"{c.name} — {c.created_at:%d/%m/%Y}"}
+        for c in campaigns.only("pk", "name", "created_at")
+    ]
+    return templates, previous
+
+
+def library_lookup(key: str):
+    """Resolve a picker key to (label, html). Raises Http404 for unknown keys."""
+    kind, _, ident = key.partition(":")
+    if kind == "tpl":
+        for tpl_key, label, filename in EMAIL_TEMPLATES:
+            if tpl_key == ident:
+                return label, (TEMPLATES_DIR / filename).read_text(encoding="utf-8")
+        raise Http404
+    if kind == "campaign" and ident.isdigit():
+        campaign = get_object_or_404(Campaign, pk=int(ident))
+        return campaign.name, campaign.html_content
+    raise Http404
+
+
+def _wrap_preview(html: str) -> HttpResponse:
+    if "<html" in html.lower():
+        return HttpResponse(html)
+    return HttpResponse(
+        '<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1"></head>'
+        f"<body style=\"margin:0\">{html}</body></html>"
+    )
 
 
 def add_recipients_with_dedup(campaign, raw, include_repeats):
@@ -86,7 +131,12 @@ def campaign_create(request):
             return redirect("campaign_detail", pk=campaign.pk)
     else:
         form = CampaignForm(initial={"html_content": default_html()})
-    return render(request, "campaigns/campaign_form.html", {"form": form, "title": "קמפיין חדש"})
+    templates, previous = library_items()
+    return render(request, "campaigns/campaign_form.html", {
+        "form": form, "title": "קמפיין חדש",
+        "library_templates": templates, "library_previous": previous,
+        "library_selected": f"tpl:{DEFAULT_TEMPLATE_KEY}",
+    })
 
 
 @staff_member_required
@@ -104,7 +154,25 @@ def campaign_edit(request, pk):
             return redirect("campaign_detail", pk=campaign.pk)
     else:
         form = CampaignForm(instance=campaign)
-    return render(request, "campaigns/campaign_form.html", {"form": form, "title": f"עריכה: {campaign.name}", "campaign": campaign})
+    templates, previous = library_items(exclude_pk=campaign.pk)
+    return render(request, "campaigns/campaign_form.html", {
+        "form": form, "title": f"עריכה: {campaign.name}", "campaign": campaign,
+        "library_templates": templates, "library_previous": previous,
+        "library_selected": "",
+    })
+
+
+@staff_member_required
+def library_html(request, key):
+    label, html = library_lookup(key)
+    return JsonResponse({"key": key, "label": label, "html": html})
+
+
+@staff_member_required
+@xframe_options_sameorigin
+def library_preview(request, key):
+    _, html = library_lookup(key)
+    return _wrap_preview(html)
 
 
 @staff_member_required
@@ -118,14 +186,10 @@ def campaign_detail(request, pk):
 
 
 @staff_member_required
+@xframe_options_sameorigin
 def campaign_preview(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
-    html = (
-        '<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width, initial-scale=1"></head>'
-        f"<body style=\"margin:0\">{campaign.html_content}</body></html>"
-    )
-    return HttpResponse(html)
+    return _wrap_preview(campaign.html_content)
 
 
 @staff_member_required

@@ -209,6 +209,40 @@ class CampaignFlowTests(TestCase):
         self.assertEqual(recipient.status, Recipient.Status.SENT)
         self.assertEqual(recipient.error, "")
 
+    def test_new_campaign_form_lists_library_and_defaults_to_winter(self):
+        old = make_campaign("קמפיין ישן")
+        response = self.client.get(reverse("campaign_create"))
+        self.assertContains(response, "מאגר מיילים")
+        self.assertContains(response, 'value="tpl:winter_2026" selected')
+        self.assertContains(response, 'value="tpl:welcome"')
+        self.assertContains(response, f'value="campaign:{old.pk}"')
+        self.assertContains(response, "emails/winter2026/hero_bg.jpg")  # default html_content
+
+    def test_library_html_and_preview(self):
+        old = make_campaign("קמפיין ישן")
+        data = self.client.get(reverse("library_html", args=["tpl:winter_2026"])).json()
+        self.assertEqual(data["label"], "חורף 2026 — העיצוב החדש")
+        self.assertIn("emails/winter2026/hero_bg.jpg", data["html"])
+
+        data = self.client.get(reverse("library_html", args=[f"campaign:{old.pk}"])).json()
+        self.assertEqual(data["html"], old.html_content)
+
+        response = self.client.get(reverse("library_preview", args=[f"campaign:{old.pk}"]))
+        self.assertContains(response, "<p>שלום {{שם}}</p>")
+        self.assertContains(response, "<!DOCTYPE html>")
+        # Previews are embedded in an iframe on the same site
+        self.assertEqual(response["X-Frame-Options"], "SAMEORIGIN")
+        self.assertEqual(self.client.get(reverse("campaign_preview", args=[old.pk]))["X-Frame-Options"], "SAMEORIGIN")
+
+        self.assertEqual(self.client.get(reverse("library_html", args=["tpl:nope"])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("library_html", args=["campaign:999"])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("library_html", args=["junk"])).status_code, 404)
+
+    def test_library_requires_staff(self):
+        self.client.logout()
+        response = self.client.get(reverse("library_html", args=["tpl:winter_2026"]))
+        self.assertEqual(response.status_code, 302)
+
     def test_admin_index_links_to_campaigns(self):
         response = self.client.get(reverse("admin:index"))
         self.assertContains(response, reverse("campaign_list"))
