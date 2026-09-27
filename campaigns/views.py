@@ -12,7 +12,7 @@ from .inbox import ensure_sync_thread, sync_enabled, sync_replies
 from .models import Campaign, Contact, Recipient
 from .services import send_test_email, start_campaign
 
-DEFAULT_EMAIL_PATH = Path(__file__).parent / "templates" / "campaigns" / "default_email.html"
+DEFAULT_EMAIL_PATH = Path(__file__).parent / "templates" / "campaigns" / "winter_email.html"
 
 
 def default_html() -> str:
