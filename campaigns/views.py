@@ -5,13 +5,14 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.html import strip_tags
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from .forms import AddRecipientsForm, CampaignForm, ContactForm, ContactNoteForm, TestEmailForm, parse_recipients
 from .inbox import ensure_sync_thread, sync_enabled, sync_replies
 from .models import Campaign, Contact, Recipient
-from .services import send_test_email, start_campaign
+from .services import paste_safe_html, send_test_email, start_campaign
 
 TEMPLATES_DIR = Path(__file__).parent / "templates" / "campaigns"
 
@@ -190,6 +191,14 @@ def campaign_detail(request, pk):
 def campaign_preview(request, pk):
     campaign = get_object_or_404(Campaign, pk=pk)
     return _wrap_preview(campaign.html_content)
+
+
+@staff_member_required
+def campaign_paste_html(request, pk):
+    """HTML + plain text for the 'copy for Gmail' button (written to the clipboard by JS)."""
+    campaign = get_object_or_404(Campaign, pk=pk)
+    html = paste_safe_html(campaign.html_content)
+    return JsonResponse({"html": html, "text": strip_tags(html)})
 
 
 @staff_member_required

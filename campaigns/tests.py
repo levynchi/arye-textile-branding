@@ -8,8 +8,8 @@ from django.urls import reverse
 
 from .inbox import process_incoming_message
 from .models import Campaign, Contact, Recipient, Reply
-from .services import _run_campaign
-from .views import add_recipients_with_dedup
+from .services import _run_campaign, paste_safe_html
+from .views import add_recipients_with_dedup, default_html
 
 
 def make_campaign(name="קמפיין בדיקה", **kwargs):
@@ -242,6 +242,35 @@ class CampaignFlowTests(TestCase):
         self.client.logout()
         response = self.client.get(reverse("library_html", args=["tpl:winter_2026"]))
         self.assertEqual(response.status_code, 302)
+
+    def test_paste_safe_html_strips_css_dependent_markup_but_keeps_fluid_layout(self):
+        html = paste_safe_html(default_html())  # the winter template
+        self.assertTrue(html.startswith('<div dir="rtl">'))
+        self.assertNotIn("<style", html)
+        self.assertNotIn("<head", html)
+        self.assertNotIn("<body", html)
+        self.assertNotIn("class=", html)
+        self.assertNotIn("cloud_right_a.png", html)  # decorative side cells removed
+        self.assertNotIn('class="dbr"', html)
+        # Fluid inline layout survives (this is what Gmail keeps)
+        self.assertIn("max-width:680px", html)
+        self.assertIn('width="33%"', html)
+        self.assertIn('width="25%"', html)
+        self.assertIn("p1_kimono_bodysuit.jpg", html)
+
+    def test_paste_html_view(self):
+        campaign = make_campaign()
+        campaign.html_content = '<html><head><style>.x{}</style></head><body><p class="x">שלום</p></body></html>'
+        campaign.save()
+        data = self.client.get(reverse("campaign_paste_html", args=[campaign.pk])).json()
+        self.assertEqual(data["html"], '<div dir="rtl"><p>שלום</p></div>')
+        self.assertEqual(data["text"], "שלום")
+
+        response = self.client.get(reverse("campaign_detail", args=[campaign.pk]))
+        self.assertContains(response, "העתקה להדבקה ב-Gmail")
+
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("campaign_paste_html", args=[campaign.pk])).status_code, 302)
 
     def test_admin_index_links_to_campaigns(self):
         response = self.client.get(reverse("admin:index"))

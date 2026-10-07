@@ -1,6 +1,7 @@
 """Campaign sending logic - one email at a time, inline in the HTTP request."""
 import logging
 import random
+import re
 import time
 from email.utils import make_msgid
 
@@ -16,6 +17,32 @@ logger = logging.getLogger(__name__)
 # Delay between emails so the sender is not flagged as a bulk sender
 MIN_DELAY_SECONDS = 3
 MAX_DELAY_SECONDS = 7
+
+
+_HEAD_RE = re.compile(r"<head\b.*?</head>", re.I | re.S)
+_STYLE_RE = re.compile(r"<style\b.*?</style>", re.I | re.S)
+_BODY_RE = re.compile(r"<body\b[^>]*>(.*?)</body>", re.I | re.S)
+_DECO_CELL_RE = re.compile(r"<td\b[^>]*\bclass=\"[^\"]*\bdeco\b[^\"]*\"[^>]*>.*?</td>", re.I | re.S)
+_DESKTOP_BR_RE = re.compile(r"<br\b[^>]*\bclass=\"[^\"]*\bdbr\b[^\"]*\"[^>]*>", re.I)
+_CLASS_ATTR_RE = re.compile(r"\s+class=\"[^\"]*\"", re.I)
+
+
+def paste_safe_html(html: str) -> str:
+    """Make campaign HTML safe to paste into a Gmail compose window.
+
+    Gmail drops <style> blocks (so classes and media queries never apply) and keeps only
+    inline styles and HTML attributes. We strip everything that depends on CSS classes and
+    leave the fluid inline layout (percent widths + max-width) intact.
+    """
+    html = _HEAD_RE.sub("", html)
+    html = _STYLE_RE.sub("", html)
+    body = _BODY_RE.search(html)
+    if body:
+        html = body.group(1)
+    html = _DECO_CELL_RE.sub("", html)
+    html = _DESKTOP_BR_RE.sub(" ", html)
+    html = _CLASS_ATTR_RE.sub("", html)
+    return f'<div dir="rtl">{html.strip()}</div>'
 
 
 def personalize(text: str, recipient: Recipient) -> str:

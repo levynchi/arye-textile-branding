@@ -8,6 +8,7 @@ urlpatterns = [
     path("<int:pk>/", views.campaign_detail, name="campaign_detail"),
     path("<int:pk>/edit/", views.campaign_edit, name="campaign_edit"),
     path("<int:pk>/preview/", views.campaign_preview, name="campaign_preview"),
+    path("<int:pk>/paste-html/", views.campaign_paste_html, name="campaign_paste_html"),
     path("<int:pk>/send-test/", views.campaign_send_test, name="campaign_send_test"),
     path("<int:pk>/send/", views.campaign_send, name="campaign_send"),
     path("<int:pk>/add-recipients/", views.campaign_add_recipients, name="campaign_add_recipients"),

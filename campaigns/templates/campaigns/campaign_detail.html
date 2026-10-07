@@ -34,6 +34,18 @@
 </div>
 
 <div class="card">
+    <h2>העתקה להדבקה ב-Gmail</h2>
+    <p style="color:#666;margin:0 0 12px;font-size:14px;line-height:1.6">
+        לשליחה ידנית מתיבת Gmail אישית: לוחצים על הכפתור, פותחים הודעה חדשה ב-Gmail במחשב ולוחצים Ctrl+V.
+        אין לסמן ולהעתיק מהתצוגה המקדימה — זה מקבע את המידות והמייל נחתך בטלפון.
+    </p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn secondary" id="copy-gmail-btn">העתקת המייל ל-Gmail</button>
+        <span id="copy-gmail-status" style="font-size:14px;font-weight:600"></span>
+    </div>
+</div>
+
+<div class="card">
     <h2>תצוגה מקדימה</h2>
     <iframe class="preview" src="{% url 'campaign_preview' campaign.pk %}"></iframe>
 </div>
@@ -95,5 +107,67 @@ function refresh() {
         });
 }
 {% if campaign.status == 'sending' %}setTimeout(refresh, 4000);{% endif %}
+
+(function () {
+    const btn = document.getElementById("copy-gmail-btn");
+    const status = document.getElementById("copy-gmail-status");
+    const url = "{% url 'campaign_paste_html' campaign.pk %}";
+
+    function say(text, color) { status.textContent = text; status.style.color = color; }
+
+    // Both copy paths below hand the raw HTML string to the clipboard. We never copy a
+    // rendered selection: Chrome would then inline computed pixel widths (width:467.2px)
+    // and the email could no longer adapt to the phone screen.
+    async function copyWithClipboardApi(data) {
+        await navigator.clipboard.write([new ClipboardItem({
+            "text/html": new Blob([data.html], {type: "text/html"}),
+            "text/plain": new Blob([data.text], {type: "text/plain"}),
+        })]);
+    }
+
+    function copyWithCopyEvent(data) {
+        let handled = false;
+        const onCopy = function (e) {
+            e.clipboardData.setData("text/html", data.html);
+            e.clipboardData.setData("text/plain", data.text);
+            e.preventDefault();
+            handled = true;
+        };
+        const holder = document.createElement("textarea");
+        holder.value = " ";
+        holder.setAttribute("readonly", "");
+        holder.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+        document.body.appendChild(holder);
+        holder.select();
+        document.addEventListener("copy", onCopy);
+        try { document.execCommand("copy"); } finally {
+            document.removeEventListener("copy", onCopy);
+            holder.remove();
+        }
+        return handled;
+    }
+
+    // Fetch once up front so the click handler can copy synchronously (the copy-event
+    // fallback needs the user gesture to still be active).
+    const pasteData = fetch(url, {credentials: "same-origin"}).then(r => r.json());
+
+    btn.addEventListener("click", async function () {
+        btn.disabled = true;
+        say("מעתיק...", "#666");
+        try {
+            const data = await pasteData;
+            let done = false;
+            if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+                try { await copyWithClipboardApi(data); done = true; } catch (err) { done = false; }
+            }
+            if (!done && !copyWithCopyEvent(data)) throw new Error("copy failed");
+            say("הועתק! פתחו הודעה חדשה ב-Gmail ולחצו Ctrl+V", "var(--green)");
+        } catch (err) {
+            say("ההעתקה נכשלה — נסו שוב בדפדפן Chrome במחשב", "var(--red)");
+        } finally {
+            btn.disabled = false;
+        }
+    });
+})();
 </script>
 {% endblock %}
