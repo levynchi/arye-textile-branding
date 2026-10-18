@@ -228,7 +228,7 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 		}),
 		("מחיר", {
 			"fields": ("price_percent",),
-			"description": "אחוז הנחה ממחיר הקטלוג. 0 = מחיר מלא. 10 = 10% הנחה (13 ₪ הופך ל־11.70).",
+			"description": "אחוז הנחה ממחיר הקטלוג. 0 = מחיר מלא. 10 = 10% הנחה (13 ₪ הופך ל־11.7). המחיר אחרי הנחה מעוגל לעשירית השקל.",
 		}),
 		("התאמת קטלוג", {
 			"fields": ("hidden_categories", "hidden_products"),

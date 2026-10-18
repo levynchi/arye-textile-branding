@@ -426,8 +426,22 @@ class ApplyPriceListTests(TestCase):
             username="l",
             price_percent=Decimal("7.69"),
         )
-        self.assertEqual(apply_price_list(Decimal("13.00"), user_10), Decimal("11.70"))
-        self.assertEqual(apply_price_list(Decimal("13.00"), user_l), Decimal("12.00"))
+        self.assertEqual(apply_price_list(Decimal("13.00"), user_10), Decimal("11.7"))
+        self.assertEqual(apply_price_list(Decimal("13.00"), user_l), Decimal("12.0"))
+
+    def test_discount_rounds_to_one_decimal(self):
+        user_15 = WhiteCatalogUser(
+            company_name="א",
+            contact_name="ב",
+            contact_phone="1",
+            username="d15",
+            price_percent=Decimal("15.00"),
+        )
+        self.assertEqual(apply_price_list(Decimal("12.80"), user_15), Decimal("10.9"))
+        self.assertEqual(apply_price_list(Decimal("13.60"), user_15), Decimal("11.6"))
+        self.assertEqual(str(apply_price_list(Decimal("12.80"), user_15)), "10.9")
+        self.assertEqual(str(apply_price_list(Decimal("13.60"), user_15)), "11.6")
+        self.assertEqual(apply_price_list(Decimal("12.80"), None), Decimal("12.80"))
 
     def test_none_price_stays_none(self):
         self.assertIsNone(apply_price_list(None, None))
@@ -512,7 +526,7 @@ class CustomerPriceListTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         sizes = response.context["variants_data"][0]["sizes"]
-        self.assertEqual(sizes[0]["unit_price"], "11.70")
+        self.assertEqual(sizes[0]["unit_price"], "11.7")
         self.assertEqual(sizes[0]["list_unit_price"], "13.00")
         self.assertContains(response, "יש לך 10% הנחה")
         self.assertContains(response, "המחירים המוצגים הם אחרי ההנחה")

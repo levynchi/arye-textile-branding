@@ -7,6 +7,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from tinymce.models import HTMLField
 
 _TWO_PLACES = Decimal("0.01")
+_ONE_PLACE = Decimal("0.1")
 _HUNDRED = Decimal("100")
 
 
@@ -14,7 +15,8 @@ def apply_price_list(unit_price, user):
 	"""Return unit_price after the customer's discount percent.
 
 	0 is the stored wholesale price. Missing user or percent leaves the
-	price unchanged (still quantized to 2 decimal places).
+	price unchanged (still quantized to 2 decimal places). A discount
+	rounds the result to one decimal place (nearest 10 agorot).
 	"""
 	if unit_price is None:
 		return None
@@ -22,6 +24,7 @@ def apply_price_list(unit_price, user):
 	discount = getattr(user, "price_percent", None) if user is not None else None
 	if discount is not None and discount != 0:
 		price = price * (_HUNDRED - discount) / _HUNDRED
+		return price.quantize(_ONE_PLACE, rounding=ROUND_HALF_UP)
 	return price.quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
@@ -238,7 +241,7 @@ class WhiteCatalogUser(models.Model):
 		decimal_places=2,
 		default=Decimal("0.00"),
 		validators=[MinValueValidator(Decimal("0.00")), MaxValueValidator(Decimal("100.00"))],
-		help_text="0 = מחיר מלא. 10 = 10% הנחה (13 ₪ הופך ל־11.70).",
+		help_text="0 = מחיר מלא. 10 = 10% הנחה (13 ₪ הופך ל־11.7). המחיר אחרי הנחה מעוגל לעשירית השקל.",
 	)
 	is_active = models.BooleanField("פעיל", default=True, help_text="האם המשתמש יכול להתחבר")
 	hidden_categories = models.ManyToManyField(
