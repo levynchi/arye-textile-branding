@@ -461,6 +461,15 @@ class WhiteColorVariant(models.Model):
 		related_name="product_variants",
 		verbose_name="צבע"
 	)
+	size = models.ForeignKey(
+		"WhiteSizeType",
+		on_delete=models.PROTECT,
+		related_name="color_variants",
+		verbose_name="מידה",
+		null=True,
+		blank=True,
+		help_text="ריק — כמות אחת לצבע. בחירת מידה מציגה שורת כמות נפרדת לכל מידה של אותו צבע",
+	)
 	barcode = models.CharField("ברקוד", max_length=64, blank=True, null=True)
 	unit_price = models.DecimalField(
 		'מחיר ליחידה (לא כולל מע"מ)',
@@ -484,11 +493,22 @@ class WhiteColorVariant(models.Model):
 
 	class Meta:
 		app_label = "white_catalog"
-		ordering = ("order", "color__order", "color__name")
+		ordering = ("order", "color__order", "color__name", "size__order", "size__name")
 		verbose_name = "צבע למוצר"
 		verbose_name_plural = "צבעים למוצר"
-		unique_together = ("product", "color")
 		constraints = [
+			models.UniqueConstraint(
+				fields=["product", "color"],
+				condition=models.Q(size__isnull=True),
+				name="unique_color_variant_without_size",
+				violation_error_message="לצבע הזה כבר יש שורה בלי מידה",
+			),
+			models.UniqueConstraint(
+				fields=["product", "color", "size"],
+				condition=models.Q(size__isnull=False),
+				name="unique_color_variant_with_size",
+				violation_error_message="לצבע הזה כבר יש שורה במידה הזו",
+			),
 			models.UniqueConstraint(
 				fields=["barcode"],
 				condition=models.Q(barcode__isnull=False) & ~models.Q(barcode=""),
@@ -503,7 +523,10 @@ class WhiteColorVariant(models.Model):
 		super().save(*args, **kwargs)
 
 	def __str__(self):
-		return f"{self.product.name} — {self.color.name}"
+		label = f"{self.product.name} — {self.color.name}"
+		if self.size_id:
+			label = f"{label} · {self.size.name}"
+		return label
 
 	@property
 	def name(self):
@@ -704,7 +727,10 @@ class WhiteCartItem(models.Model):
 
 	def __str__(self):
 		if self.color_variant_id:
-			return f"{self.product.name} | צבע {self.color_variant.color.name} x{self.quantity}"
+			label = self.color_variant.color.name
+			if self.color_variant.size_id:
+				label = f"{label} · {self.color_variant.size.name}"
+			return f"{self.product.name} | צבע {label} x{self.quantity}"
 		if self.variant and self.pack_type:
 			return (
 				f"{self.product.name} | {self.variant.fabric_type.name} | "
@@ -734,10 +760,22 @@ class WhiteCartItem(models.Model):
 	@property
 	def display_size_name(self):
 		if self.color_variant_id and self.color_variant:
+			if self.color_variant.size_id:
+				return self.color_variant.size.name
 			return self.color_variant.color.name
 		if self.variant_id and self.variant and self.variant.size_type_id:
 			return self.variant.size_type.name
 		return "-"
+
+	@property
+	def display_color_and_size(self):
+		"""Cart label: the color name, and the garment size when the row has one."""
+		if self.color_variant_id and self.color_variant:
+			color_name = self.color_variant.color.name
+			if self.color_variant.size_id:
+				return f"{color_name} · {self.color_variant.size.name}"
+			return color_name
+		return self.display_size_name()
 
 	@property
 	def display_pack_name(self):

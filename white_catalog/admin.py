@@ -99,7 +99,8 @@ class WhiteColorVariantInline(admin.TabularInline):
 	"""Inline: one row = color from the fan + its own barcode."""
 	model = WhiteColorVariant
 	extra = 1
-	fields = ("color", "barcode", "unit_price", "image", "is_active", "order")
+	fields = ("color", "size", "barcode", "unit_price", "image", "is_active", "order")
+	autocomplete_fields = ("color", "size")
 	show_change_link = True
 
 
@@ -319,8 +320,10 @@ class WhiteColorAdmin(admin.ModelAdmin):
 		(None, {
 			"fields": ("name", "hex_color", "swatch_image", "order", "is_active"),
 			"description": (
-				"אפשר לדגום צבע מתמונה עם הכפתורים ליד שדה קוד HEX, "
-				"או לדגום קודם מתמונת המוצר בעמוד העריכה ואז ללחוץ + כאן — הקוד יוזן אוטומטית."
+				"אפשר לדגום צבע מתמונה עם הכפתורים ליד שדה קוד HEX. "
+				"גררו מלבן על התמונה — האזור יישמר כתמונת הדוגמית שמוצגת בקטלוג, "
+				"וקוד HEX יהיה ממוצע הצבע באזור. לחיצה על נקודה דוגמת רק את הקוד. "
+				"אפשר גם לדגום קודם מתמונת המוצר בעמוד העריכה ואז ללחוץ + כאן — הקוד יוזן אוטומטית."
 			),
 		}),
 	)
@@ -342,10 +345,11 @@ class WhiteColorAdmin(admin.ModelAdmin):
 
 @admin.register(WhiteColorVariant)
 class WhiteColorVariantAdmin(admin.ModelAdmin):
-	list_display = ("product", "color", "barcode", "unit_price", "is_active", "order")
+	list_display = ("product", "color", "size", "barcode", "unit_price", "is_active", "order")
 	list_editable = ("barcode", "unit_price", "is_active", "order")
-	list_filter = ("color", "product", "is_active")
-	search_fields = ("color__name", "product__name", "barcode")
+	list_filter = ("color", "size", "product", "is_active")
+	search_fields = ("color__name", "size__name", "product__name", "barcode")
+	autocomplete_fields = ("product", "color", "size")
 	ordering = ("product__name", "order", "color__order")
 	list_per_page = 200
 

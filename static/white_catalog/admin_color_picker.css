@@ -75,6 +75,16 @@
   border-radius: 8px;
   overflow: hidden;
   background: #f4f4f4;
+  user-select: none;
+  touch-action: none;
+}
+
+.wc-sample-selection {
+  position: absolute;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #1a6b8a;
+  background: rgba(255, 255, 255, 0.18);
+  pointer-events: none;
 }
 
 .wc-sample-canvas-wrap canvas {
@@ -103,6 +113,23 @@
   height: 24px;
   border-radius: 50%;
   border: 1px solid #bbb;
+  background-repeat: no-repeat;
+}
+
+.wc-sample-toolbar .wc-picked-swatch.is-crop {
+  width: 56px;
+  height: 40px;
+  border-radius: 4px;
+}
+
+.wc-swatch-file-preview {
+  display: block;
+  margin-top: 8px;
+  width: 120px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #ccc;
 }
 
 .wc-inline-sample-bar {

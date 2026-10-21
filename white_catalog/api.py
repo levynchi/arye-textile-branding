@@ -97,7 +97,9 @@ def _import_color_row(product, row, color_name, price, barcode):
 				f'הברקוד {barcode} כבר משויך לצבע של מוצר אחר ({variant.product.name})'
 			)
 	if variant is None:
-		variant = WhiteColorVariant.objects.filter(product=product, color=color).first()
+		variant = WhiteColorVariant.objects.filter(
+			product=product, color=color, size__isnull=True
+		).first()
 
 	was_created = variant is None
 	if variant is None:

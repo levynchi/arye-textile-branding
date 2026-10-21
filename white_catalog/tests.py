@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -26,6 +27,7 @@ from .models import (
     WhiteSizeType,
     WhiteSubcategory,
     WhiteSubcategoryImage,
+    WhiteSubcategoryPrice,
     apply_price_list,
 )
 from .templatetags.white_catalog_extras import has_price_discount
@@ -118,6 +120,7 @@ class ImportColorVariantsTests(TestCase):
         tchelet = WhiteColorVariant.objects.get(barcode="7297555022264")
         self.assertEqual(tchelet.color.name, "תכלת קשי")
         self.assertEqual(tchelet.color.hex_color, "#7387a8")
+        self.assertIsNone(tchelet.size_id)
         self.assertEqual(str(tchelet.unit_price), "21.30")
         # המוצר סומן אוטומטית להזמנה לפי מניפת צבעים
         self.product.refresh_from_db()
@@ -1026,5 +1029,160 @@ class ColorfulHomePlacementTests(TestCase):
         )
         self.assertEqual(product.status_code, 200)
         self.assertNotContains(product, "צבעוני")
+
+
+class ColorSizePerVariantTests(TestCase):
+    def setUp(self):
+        self.category = WhiteCategory.objects.create(name="צבעוני בדיקה", slug="colorful-sizes", order=1)
+        self.product = WhiteSubcategory.objects.create(
+            category=self.category,
+            name="סט פיג'מה",
+            slug="pajama-sizes",
+            is_orderable=True,
+            has_color_variants=True,
+            unit_price=Decimal("23.00"),
+        )
+        self.color = WhiteColor.objects.create(name="ורוד בדיקה", hex_color="#ffc0cb")
+        self.s1 = WhiteSizeType.objects.create(name="18-24", order=1)
+        self.s2 = WhiteSizeType.objects.create(name="12-18-בדיקה", order=2)
+        self.row1 = WhiteColorVariant.objects.create(
+            product=self.product,
+            color=self.color,
+            size=self.s1,
+            barcode="111222333",
+            unit_price=Decimal("23.00"),
+            order=1,
+        )
+        self.row2 = WhiteColorVariant.objects.create(
+            product=self.product,
+            color=self.color,
+            size=self.s2,
+            unit_price=Decimal("23.00"),
+            order=2,
+        )
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="חנות",
+            contact_name="בדיקה",
+            contact_phone="0500000000",
+            username="size-shop",
+            password_hash="x",
+        )
+        session = self.client.session
+        session["white_catalog_user_id"] = self.user.id
+        session["white_catalog_username"] = self.user.username
+        session.save()
+
+    def test_product_page_asks_for_one_quantity_covering_every_size(self):
+        response = self.client.get(
+            reverse(
+                "white_catalog:subcategory_detail",
+                kwargs={"category_slug": self.category.slug, "subcategory_slug": self.product.slug},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "18-24")
+        self.assertContains(response, "12-18-בדיקה")
+        self.assertContains(response, f'name="color_set_qty_{self.color.id}"')
+        self.assertNotContains(response, f'name="color_qty_{self.row1.id}"')
+        self.assertContains(response, "111222333")
+        self.assertContains(response, "הכמות זהה בכל המידות")
+
+    def test_one_quantity_is_copied_onto_every_size(self):
+        added = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "product_id": str(self.product.id),
+                f"color_set_qty_{self.color.id}": "2",
+            },
+        )
+        self.assertEqual(added.status_code, 200)
+        self.assertEqual(added.json()["added"], 1)
+        lines = list(WhiteCartItem.objects.filter(cart__user=self.user).order_by("color_variant__order"))
+        self.assertEqual([line.quantity for line in lines], [2, 2])
+        self.assertEqual(
+            [line.color_variant.size.name for line in lines],
+            ["18-24", "12-18-בדיקה"],
+        )
+
+        page = self.client.get(
+            reverse(
+                "white_catalog:subcategory_detail",
+                kwargs={"category_slug": self.category.slug, "subcategory_slug": self.product.slug},
+            )
+        )
+        self.assertContains(page, "2 מכל מידה = 4 סטים")
+
+    def test_each_size_is_its_own_cart_and_order_line(self):
+        added = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                f"color_qty_{self.row1.id}": "2",
+                f"color_qty_{self.row2.id}": "3",
+            },
+        )
+        self.assertEqual(added.status_code, 200)
+        self.assertEqual(added.json()["added"], 2)
+        self.assertEqual(WhiteCartItem.objects.filter(cart__user=self.user).count(), 2)
+        item = WhiteCartItem.objects.select_related("color_variant__color", "color_variant__size").get(
+            color_variant=self.row1
+        )
+        self.assertEqual(item.display_size_name, "18-24")
+        self.assertEqual(item.display_color_and_size, "ורוד בדיקה · 18-24")
+
+        checkout = self.client.post(reverse("white_catalog:checkout"), {"notes": ""})
+        self.assertEqual(checkout.status_code, 302)
+        saved = WhiteOrderItem.objects.get(order__user=self.user, color_variant=self.row1)
+        self.assertEqual(saved.color_name, "ורוד בדיקה")
+        self.assertEqual(saved.size_name, "ורוד בדיקה · 18-24")
+
+    def test_a_color_without_a_size_stays_a_single_row(self):
+        other = WhiteColor.objects.create(name="לבן בדיקה")
+        WhiteColorVariant.objects.create(product=self.product, color=other, unit_price=Decimal("10"))
+        with self.assertRaises(IntegrityError):
+            WhiteColorVariant.objects.create(product=self.product, color=other)
+
+    def test_split_keeps_the_color_price_and_the_barcode_on_the_first_size(self):
+        import importlib.util
+        from pathlib import Path
+
+        from django.apps import apps
+
+        migration_path = Path(__file__).resolve().parent / "migrations" / "0032_color_variant_size.py"
+        spec = importlib.util.spec_from_file_location("color_variant_size_migration", migration_path)
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+
+        product = WhiteSubcategory.objects.create(
+            category=self.category,
+            name="מניפה",
+            slug="fan-split",
+            is_orderable=True,
+            has_color_variants=True,
+        )
+        color = WhiteColor.objects.create(name="כחול בדיקה")
+        original = WhiteColorVariant.objects.create(
+            product=product,
+            color=color,
+            barcode="999888777",
+            unit_price=Decimal("23.00"),
+        )
+        WhiteSubcategoryPrice.objects.create(
+            subcategory=product, size_name="24-30", price=Decimal("10"), order=1
+        )
+        WhiteSubcategoryPrice.objects.create(
+            subcategory=product, size_name="30-36", price=Decimal("10"), order=2
+        )
+        migration.split_colors_into_sizes(apps, None)
+        rows = list(
+            WhiteColorVariant.objects.filter(product=product, color=color).select_related("size").order_by("order", "id")
+        )
+        self.assertEqual([row.size.name for row in rows], ["24-30", "30-36"])
+        self.assertFalse(WhiteColorVariant.objects.filter(pk=original.pk).exists())
+        self.assertEqual(rows[0].barcode, "999888777")
+        self.assertIsNone(rows[1].barcode)
+        self.assertEqual(rows[0].unit_price, Decimal("23.00"))
+        self.assertEqual(rows[1].unit_price, Decimal("23.00"))
 
 

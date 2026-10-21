@@ -118,6 +118,58 @@ def require_catalog_login(view_func):
     return wrapper
 
 
+def _mark_equal_size_sets(rows):
+	"""A color with sizes is ordered as one quantity, copied onto every size."""
+	grouped = {}
+	for row in rows:
+		grouped.setdefault(row["color_id"], []).append(row)
+	for group in grouped.values():
+		sized = bool(group[0].get("size_name"))
+		quantities = {row["cart_quantity"] for row in group}
+		shared = group[0]["cart_quantity"] if len(quantities) == 1 else 0
+		count = len(group) if sized else 1
+		for row in group:
+			row["set_quantity"] = shared if sized else row["cart_quantity"]
+			row["size_count"] = count
+			row["set_total"] = (shared if sized else row["cart_quantity"]) * count
+
+
+def _sized_color_variants(color_variant):
+	if color_variant is None or not color_variant.size_id:
+		return []
+	return list(
+		WhiteColorVariant.objects.filter(
+			product_id=color_variant.product_id,
+			color_id=color_variant.color_id,
+			is_active=True,
+			size__isnull=False,
+		).select_related("product", "color", "size").order_by("order", "id")
+	)
+
+
+def _apply_equal_size_quantity(cart, variants, quantity, user):
+	"""Write the same quantity onto every size of one color. Returns the cart lines kept."""
+	kept = []
+	for variant in variants:
+		if quantity <= 0:
+			WhiteCartItem.objects.filter(cart=cart, color_variant=variant).delete()
+			continue
+		price = apply_price_list(variant.get_effective_price(), user)
+		if price is None:
+			continue
+		row, _created = WhiteCartItem.objects.update_or_create(
+			cart=cart,
+			color_variant=variant,
+			defaults={
+				"product": variant.product,
+				"quantity": quantity,
+				"price_at_add": price,
+			},
+		)
+		kept.append(row)
+	return kept
+
+
 def get_or_create_active_cart(user):
     """Return the user's active cart, creating one if needed."""
     cart, _ = WhiteCart.objects.get_or_create(user=user, status=WhiteCart.STATUS_ACTIVE)
@@ -132,7 +184,7 @@ def _build_cart_page_context(request):
     try:
         cart = WhiteCart.objects.prefetch_related(
             "items__product__images", "items__variant__fabric_type", "items__variant__size_type",
-            "items__color_variant__color", "items__pack_type"
+            "items__color_variant__color", "items__color_variant__size", "items__pack_type"
         ).get(user=user, status=WhiteCart.STATUS_ACTIVE)
     except WhiteCart.DoesNotExist:
         cart = None
@@ -176,12 +228,12 @@ def _build_cart_page_context(request):
             if group["is_color"]:
                 color_variants = (
                     group["product"].color_variants.filter(is_active=True)
-                    .select_related("color")
+                    .select_related("color", "size")
+                    .order_by("color__order", "color__name", "order", "id")
                 )
-                for cv in color_variants:
-                    existing_item = group["items_by_variant_id"].get(cv.id)
-                    quantity = existing_item.quantity if existing_item else 0
-                    line_total = existing_item.get_line_total() if existing_item else Decimal("0")
+                size_batch = []
+
+                def append_color_row(existing_item, cv, quantity, line_total, size_label, set_note=""):
                     group["items"].append(
                         {
                             "item_id": existing_item.id if existing_item else "",
@@ -189,7 +241,8 @@ def _build_cart_page_context(request):
                             "color_variant_id": cv.id,
                             "pack_type_id": "",
                             "barcode": cv.barcode or "",
-                            "size_name": cv.color.name,
+                            "size_name": size_label,
+                            "set_note": set_note,
                             "color_hex": cv.color.hex_color or "",
                             "swatch_url": cv.color.swatch_image.url if cv.color.swatch_image else "",
                             "quantity": quantity,
@@ -199,6 +252,39 @@ def _build_cart_page_context(request):
                             "is_color": True,
                         }
                     )
+
+                def flush_size_batch():
+                    if not size_batch:
+                        return
+                    quantities = {row[1] for row in size_batch}
+                    quantity = size_batch[0][1] if len(quantities) == 1 else 0
+                    names = [row[0].size.name for row in size_batch]
+                    sets = quantity * len(size_batch)
+                    total = sum((row[2] for row in size_batch), Decimal("0"))
+                    first_cv, _qty, _total, first_item = size_batch[0]
+                    note = f"{quantity} מכל מידה = {sets} סטים" if quantity else "הכמות זהה בכל המידות"
+                    append_color_row(
+                        first_item,
+                        first_cv,
+                        quantity,
+                        total,
+                        ", ".join(names),
+                        note,
+                    )
+                    size_batch.clear()
+
+                for cv in color_variants:
+                    existing_item = group["items_by_variant_id"].get(cv.id)
+                    quantity = existing_item.quantity if existing_item else 0
+                    line_total = existing_item.get_line_total() if existing_item else Decimal("0")
+                    if cv.size_id:
+                        if size_batch and size_batch[0][0].color_id != cv.color_id:
+                            flush_size_batch()
+                        size_batch.append((cv, quantity, line_total, existing_item))
+                        continue
+                    flush_size_batch()
+                    append_color_row(existing_item, cv, quantity, line_total, cv.color.name)
+                flush_size_batch()
             elif group["is_simple"]:
                 existing_item = group["items_by_variant_id"].get(f"simple-{group['product'].id}")
                 group["items"].append(
@@ -293,7 +379,7 @@ def _build_order_grouped_items(order):
             grouped_items.append(group)
 
         if is_color:
-            row_name = item.color_name or item.variant_name
+            row_name = item.size_name or item.color_name or item.variant_name
         elif is_simple:
             row_name = "יחידות"
         else:
@@ -308,7 +394,50 @@ def _build_order_grouped_items(order):
         )
         groups_map[key]["group_total"] += item.get_line_total()
 
+    for group in grouped_items:
+        if group.get("is_color"):
+            group["items"] = _collapse_equal_size_order_rows(group["items"])
+
     return grouped_items
+
+
+def _collapse_equal_size_order_rows(rows):
+    """Show one order row when every size of a color was ordered in the same quantity."""
+    collapsed = []
+    batch = []
+
+    def same_set(left, right):
+        left_name = left["size_name"]
+        right_name = right["size_name"]
+        if " · " not in left_name or " · " not in right_name:
+            return False
+        return left_name.split(" · ", 1)[0] == right_name.split(" · ", 1)[0] and left["quantity"] == right["quantity"]
+
+    def flush():
+        if not batch:
+            return
+        if len(batch) == 1:
+            collapsed.append(batch[0])
+        else:
+            color = batch[0]["size_name"].split(" · ", 1)[0]
+            sizes = [row["size_name"].split(" · ", 1)[1] for row in batch]
+            quantity = batch[0]["quantity"]
+            sets = quantity * len(batch)
+            total = sum((Decimal(row["line_total"]) for row in batch), Decimal("0"))
+            collapsed.append({
+                "size_name": f"{color}: {', '.join(sizes)} — {quantity} מכל מידה ({sets} סטים)",
+                "barcode": "",
+                "quantity": sets,
+                "line_total": "{:.2f}".format(total),
+            })
+        batch.clear()
+
+    for row in rows:
+        if batch and not same_set(batch[-1], row):
+            flush()
+        batch.append(row)
+    flush()
+    return collapsed
 
 
 CART_GENERATION_SESSION_KEY = "white_catalog_cart_generation"
@@ -567,13 +696,16 @@ def _subcategory_detail_context(request, subcategory, category=None):
 
         for cv in (subcategory.color_variants
                    .filter(is_active=True, color__is_active=True)
-                   .select_related("color")):
+                   .select_related("color", "size")
+                   .order_by("color__order", "color__name", "color_id", "order", "id")):
             raw_unit = cv.get_effective_price()
             list_price = apply_price_list(raw_unit, None)
             effective_price = apply_price_list(raw_unit, catalog_user)
             color_variants_data.append({
                 "id": cv.id,
+                "color_id": cv.color_id,
                 "color_name": cv.color.name,
+                "size_name": cv.size.name if cv.size_id else "",
                 "hex_color": cv.color.hex_color or "",
                 "swatch_url": cv.color.swatch_image.url if cv.color.swatch_image else "",
                 "image_url": cv.image.url if cv.image else "",
@@ -582,6 +714,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
                 "list_unit_price": str(list_price) if list_price is not None else None,
                 "cart_quantity": cart_qty_map.get(cv.id, 0),
             })
+        _mark_equal_size_sets(color_variants_data)
     elif show_simple_ordering and active_cart:
         simple_item = (
             active_cart.items.filter(
@@ -607,6 +740,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
         "variants_data": variants_data,
         "pack_types_data": pack_types_data,
         "color_variants_data": color_variants_data,
+        "color_variants_have_sizes": any(cv.get("size_name") for cv in color_variants_data),
         "color_variants_have_images": any(
             (cv.get("image_url") or cv.get("swatch_url")) for cv in color_variants_data
         ),
@@ -879,23 +1013,50 @@ def cart_add(request):
             messages.info(request, "המוצר הוסר מדף ההזמנה")
         return redirect(request.POST.get("next") or "white_catalog:cart")
 
-    # Color-fan ordering: one quantity per color variant, no pack types.
-    if any(key.startswith("color_qty_") for key in request.POST):
+    # Color-fan ordering. A sized color uses one quantity, copied onto every size.
+    if any(key.startswith("color_qty_") or key.startswith("color_set_qty_") for key in request.POST):
         added = 0
+        product_id = request.POST.get("product_id")
         for key, value in request.POST.items():
-            if not key.startswith("color_qty_"):
+            is_set = key.startswith("color_set_qty_")
+            is_single = key.startswith("color_qty_")
+            if not is_set and not is_single:
                 continue
             try:
-                color_variant_id = key[len("color_qty_"):]
                 raw = (value or "").strip()
                 quantity = 0 if raw == "" else int(raw)
             except (ValueError, TypeError, AttributeError):
                 continue
-
             if quantity < 0:
                 continue
 
+            if is_set:
+                try:
+                    color_id = int(key[len("color_set_qty_"):])
+                    product_pk = int(product_id)
+                except (TypeError, ValueError):
+                    continue
+                variants = list(
+                    WhiteColorVariant.objects.filter(
+                        product_id=product_pk,
+                        color_id=color_id,
+                        is_active=True,
+                        size__isnull=False,
+                    ).select_related("product", "color", "size")
+                )
+                if not variants:
+                    continue
+                if not variants[0].product.is_orderable or not variants[0].product.has_color_variants:
+                    continue
+                if not can_see_product(user, variants[0].product):
+                    continue
+                kept = _apply_equal_size_quantity(cart, variants, quantity, user)
+                if kept:
+                    added += 1
+                continue
+
             try:
+                color_variant_id = key[len("color_qty_"):]
                 color_variant = WhiteColorVariant.objects.select_related("product").get(
                     pk=color_variant_id, is_active=True
                 )
@@ -1096,7 +1257,7 @@ def cart_update(request):
     product = None
     if item_id:
         try:
-            item = WhiteCartItem.objects.select_related("cart").get(pk=item_id, cart__user=user, cart__status=WhiteCart.STATUS_ACTIVE)
+            item = WhiteCartItem.objects.select_related("cart", "color_variant").get(pk=item_id, cart__user=user, cart__status=WhiteCart.STATUS_ACTIVE)
         except WhiteCartItem.DoesNotExist:
             if settings.DEBUG:
                 logger.warning(
@@ -1189,6 +1350,32 @@ def cart_update(request):
         if is_ajax:
             return JsonResponse({"status": "error", "error": "הפריט לא נמצא"}, status=400)
         messages.error(request, "הפריט לא נמצא")
+        return redirect("white_catalog:cart")
+
+    bundle_source = color_variant
+    if bundle_source is None and item is not None and item.color_variant_id:
+        bundle_source = item.color_variant
+    bundle = _sized_color_variants(bundle_source)
+    if bundle and action in ("remove", "update"):
+        target_cart = item.cart if item is not None else cart
+        try:
+            qty = 0 if action == "remove" else int(request.POST.get("quantity", 0))
+        except (TypeError, ValueError):
+            qty = 0
+        kept = _apply_equal_size_quantity(target_cart, bundle, max(qty, 0), user)
+        if is_ajax:
+            line_total = sum((row.get_line_total() for row in kept), Decimal("0"))
+            return JsonResponse({
+                "status": "ok" if kept else "removed",
+                "item_id": kept[0].id if kept else "",
+                "line_total": "{:.2f}".format(line_total),
+                "cart_total": "{:.2f}".format(target_cart.get_total()),
+                "cart_count": target_cart.get_item_count(),
+            })
+        if kept:
+            messages.success(request, "דף ההזמנה עודכן")
+        else:
+            messages.success(request, "הפריט הוסר מההזמנה")
         return redirect("white_catalog:cart")
 
     if action == "remove":
@@ -1343,7 +1530,7 @@ def checkout(request):
     try:
         cart = WhiteCart.objects.prefetch_related(
             "items__product", "items__variant__fabric_type", "items__variant__size_type",
-            "items__color_variant__color", "items__pack_type"
+            "items__color_variant__color", "items__color_variant__size", "items__pack_type"
         ).get(user=user, status=WhiteCart.STATUS_ACTIVE)
     except WhiteCart.DoesNotExist:
         messages.error(request, "דף ההזמנה ריק")
@@ -1365,7 +1552,7 @@ def checkout(request):
     )
 
     for item in cart.items.select_related(
-        "product", "variant__fabric_type", "variant__size_type", "color_variant__color", "pack_type"
+        "product", "variant__fabric_type", "variant__size_type", "color_variant__color", "color_variant__size", "pack_type"
     ).all():
         if item.color_variant_id:
             snapshot_barcode = item.color_variant.barcode or ""
@@ -1382,7 +1569,7 @@ def checkout(request):
             variant_name="מניפת צבעים" if item.color_variant_id else item.display_variant_name,
             color_name=item.color_variant.color.name if item.color_variant_id else "",
             barcode=snapshot_barcode,
-            size_name=item.display_size_name,
+            size_name=item.display_color_and_size if item.color_variant_id else item.display_size_name,
             pack_type_name=item.display_pack_name,
             pack_quantity=item.pack_type.quantity if item.pack_type_id else 1,
             quantity=item.quantity,

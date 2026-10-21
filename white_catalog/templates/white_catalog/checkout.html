@@ -72,7 +72,7 @@
                         <tr>
                             <td>{{ item.product.name }}</td>
                             <td>{{ item.display_variant_name }}</td>
-                            <td>{{ item.display_size_name }}</td>
+                            <td>{% if item.is_color_item %}{{ item.display_color_and_size }}{% else %}{{ item.display_size_name }}{% endif %}</td>
                             <td>{{ item.display_pack_name }}</td>
                             <td>₪{{ item.price_at_add }}</td>
                             <td>{{ item.quantity }}</td>

@@ -24,7 +24,7 @@
                             {% else %}
                             <td data-label="ברקוד" class="col-barcode{% if not item.variant_id or not item.variant.barcode %} is-empty{% endif %}">{% if item.variant_id and item.variant.barcode %}{{ item.variant.barcode }}{% else %}—{% endif %}</td>
                             {% endif %}
-                            <td data-label="מידה">{{ item.display_size_name }}</td>
+                            <td data-label="מידה">{% if item.is_color_item %}{{ item.display_color_and_size }}{% else %}{{ item.display_size_name }}{% endif %}</td>
                             <td data-label="מארז">{{ item.display_pack_name }}</td>
                             <td data-label="מחיר">{% if item.is_color_item %}₪{{ item.price_at_add }} ליחידה{% elif item.is_simple_item %}₪{{ item.price_at_add }} ל{{ item.display_pack_name }}{% else %}₪{{ item.price_at_add }} למארז{% endif %}</td>
                             <td data-label="כמות">
@@ -89,7 +89,7 @@
                                 {% for item in group.items %}
                                 <tr>
                                     <td class="col-barcode{% if not item.barcode %} is-empty{% endif %}">{% if item.barcode %}{{ item.barcode }}{% else %}—{% endif %}</td>
-                                    <td>{% if item.is_color %}<span style="display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;margin-left:5px;border:1px solid #ccc;background-color:{{ item.color_hex|default:'#eee' }};{% if item.swatch_url %}background-image:url('{{ item.swatch_url }}');background-size:cover;background-position:center;{% endif %}"></span>{% endif %}{{ item.size_name }}</td>
+                                    <td>{% if item.is_color %}<span style="display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;margin-left:5px;border:1px solid #ccc;background-color:{{ item.color_hex|default:'#eee' }};{% if item.swatch_url %}background-image:url('{{ item.swatch_url }}');background-size:cover;background-position:center;{% endif %}"></span>{% endif %}{{ item.size_name }}{% if item.set_note %}<div style="font-size:0.78rem;color:#355230;font-weight:700;">{{ item.set_note }}</div>{% endif %}</td>
                                     <td>
                                         <form method="post" action="{% url 'white_catalog:cart_update' %}" style="display:inline;" onsubmit="return false;">
                                             {% csrf_token %}
