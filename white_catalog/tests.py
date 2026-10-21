@@ -988,3 +988,43 @@ class CheckoutResetsCartTests(TestCase):
         )
 
 
+class ColorfulHomePlacementTests(TestCase):
+    def test_colorful_products_sit_below_categories_and_have_no_category_page(self):
+        clothing = WhiteCategory.objects.create(name="ביגוד", slug="clothing", order=1)
+        colorful = WhiteCategory.objects.create(
+            name="צבעוני",
+            slug="colorful",
+            order=100,
+            show_products_on_homepage=True,
+        )
+        WhiteSubcategory.objects.create(
+            name="סט פיג'מה",
+            slug="pajama-set",
+            category=colorful,
+        )
+
+        home = self.client.get(reverse("white_catalog:home"))
+        self.assertEqual(home.status_code, 200)
+        html = home.content.decode()
+        self.assertLess(html.find("ביגוד"), html.find("pajama-set"))
+        nav_ids = list(home.context["all_categories"].values_list("id", flat=True))
+        self.assertIn(clothing.id, nav_ids)
+        self.assertNotIn(colorful.id, nav_ids)
+        slugs = [product.slug for product in home.context["bottom_subcategories"]]
+        self.assertIn("pajama-set", slugs)
+
+        category_page = self.client.get(
+            reverse("white_catalog:category_detail", kwargs={"category_slug": colorful.slug})
+        )
+        self.assertRedirects(category_page, reverse("white_catalog:home"))
+
+        product = self.client.get(
+            reverse(
+                "white_catalog:subcategory_detail",
+                kwargs={"category_slug": colorful.slug, "subcategory_slug": "pajama-set"},
+            )
+        )
+        self.assertEqual(product.status_code, 200)
+        self.assertNotContains(product, "צבעוני")
+
+

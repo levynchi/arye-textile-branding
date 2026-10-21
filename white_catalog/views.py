@@ -347,7 +347,7 @@ def _nav_context(request=None):
     """Common navigation context shared by all views."""
     catalog_user = get_current_catalog_user(request) if request is not None else None
     context = {
-        "all_categories": visible_categories(catalog_user),
+        "all_categories": visible_categories(catalog_user).filter(show_products_on_homepage=False),
         "standalone_subcategories": visible_products(catalog_user).filter(category__isnull=True),
         "cart_generation": _cart_generation(request),
         "reset_cart": False,
@@ -387,7 +387,8 @@ def catalog_home(request):
     context = {
         "categories": categories,
         "standalone_subcategories": standalone_subcategories,
-        "homepage_subcategories": list(category_homepage_subcategories) + list(standalone_subcategories),
+        "homepage_subcategories": list(standalone_subcategories),
+        "bottom_subcategories": list(category_homepage_subcategories),
         **_nav_context(request),
         "cart_count": _cart_count(request),
     }
@@ -455,6 +456,8 @@ def category_detail(request, category_slug):
     """Category detail page showing subcategories."""
     catalog_user = get_current_catalog_user(request)
     category = get_object_or_404(visible_categories(catalog_user), slug=category_slug)
+    if category.show_products_on_homepage:
+        return redirect("white_catalog:home")
     context = {
         **_nav_context(request),
         "category": category,

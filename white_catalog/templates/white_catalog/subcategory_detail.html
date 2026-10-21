@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ subcategory.name }}{% if category %} - {{ category.name }}{% endif %} - קטלוג אריה טקסטיל</title>
+    <title>{{ subcategory.name }}{% if category and not category.show_products_on_homepage %} - {{ category.name }}{% endif %} - קטלוג אריה טקסטיל</title>
     {% load static %}
     {% load white_catalog_extras %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -467,7 +467,7 @@
         <!-- Breadcrumb -->
         <nav class="catalog-breadcrumb" aria-label="ניווט">
             <a href="{% url 'white_catalog:home' %}">דף הבית</a>
-            {% if category %}
+            {% if category and not category.show_products_on_homepage %}
                 <span class="separator">/</span>
                 <a href="{% url 'white_catalog:category_detail' category.slug %}">{{ category.name }}</a>
             {% endif %}
