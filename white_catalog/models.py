@@ -404,7 +404,13 @@ class WhiteFabricType(models.Model):
 
 class WhiteColor(models.Model):
 	"""Global color-fan entry — defined once, reused across all products."""
-	name = models.CharField("שם צבע", max_length=80, unique=True, help_text="למשל: לבן, תכלת, ורוד עתיק")
+	name = models.CharField("שם צבע", max_length=80, unique=True, help_text="שם קצר לתצוגה, למשל: ורוד, תכלת, אפור עשן")
+	notes = models.CharField(
+		"הערות",
+		max_length=200,
+		blank=True,
+		help_text="פירוט לזיהוי הצבע, למשל: קשי ורוד 2026 אינטרלוק",
+	)
 	hex_color = models.CharField(
 		"קוד HEX",
 		max_length=9,
@@ -429,9 +435,12 @@ class WhiteColor(models.Model):
 		verbose_name_plural = "מניפת צבעים"
 
 	def __str__(self):
+		label = self.name
+		if self.notes:
+			label = f"{label} — {self.notes}"
 		if self.hex_color:
-			return f"{self.name} ({self.hex_color})"
-		return self.name
+			return f"{label} ({self.hex_color})"
+		return label
 
 	def save(self, *args, **kwargs):
 		# Normalize "#fff" / "fff" / " #AABBCC " → "#aabbcc"
@@ -468,7 +477,7 @@ class WhiteColorVariant(models.Model):
 		verbose_name="מידה",
 		null=True,
 		blank=True,
-		help_text="ריק — כמות אחת לצבע. בחירת מידה מציגה שורת כמות נפרדת לכל מידה של אותו צבע",
+		help_text="אפשר להשאיר ריק. אם למוצר כבר יש מידות, השמירה תוסיף את הצבע לכל המידות האלה",
 	)
 	barcode = models.CharField("ברקוד", max_length=64, blank=True, null=True)
 	unit_price = models.DecimalField(
@@ -534,6 +543,77 @@ class WhiteColorVariant(models.Model):
 
 	def get_effective_price(self):
 		return self.unit_price if self.unit_price is not None else self.product.unit_price
+
+
+def product_color_sizes(product):
+	"""Sizes this product already sells, from its colors or its size prices."""
+	if product is None or not getattr(product, "pk", None):
+		return []
+	size_ids = set(
+		WhiteColorVariant.objects.filter(product=product, size__isnull=False)
+		.values_list("size_id", flat=True)
+	)
+	price_names = [
+		name.strip()
+		for name in product.size_prices.values_list("size_name", flat=True)
+		if (name or "").strip()
+	]
+	return list(
+		WhiteSizeType.objects.filter(
+			models.Q(pk__in=size_ids) | models.Q(name__in=price_names, is_active=True)
+		).order_by("order", "name")
+	)
+
+
+def fill_missing_color_sizes(product, color_ids):
+	"""Add one row per product size for each color that was entered once."""
+	sizes = product_color_sizes(product)
+	if not sizes:
+		return
+	for color_id in dict.fromkeys(color_ids):
+		rows = list(
+			WhiteColorVariant.objects.filter(product=product, color_id=color_id).order_by("id")
+		)
+		if not rows:
+			continue
+		missing = [size for size in sizes if size.pk not in {row.size_id for row in rows if row.size_id}]
+		source = max(rows, key=lambda row: row.pk or 0)
+		unsized = [row for row in rows if row.size_id is None]
+		if unsized and missing:
+			row = unsized.pop(0)
+			row.size = missing.pop(0)
+			row.order = row.size.order
+			row.save()
+		elif unsized and not missing:
+			_drop_unsized_color_rows(unsized, rows)
+			unsized = []
+		for extra in unsized:
+			extra.delete()
+		image_name = source.image.name if source.image else ""
+		for size in missing:
+			created = WhiteColorVariant(
+				product=product,
+				color_id=color_id,
+				size=size,
+				barcode=None,
+				unit_price=source.unit_price,
+				is_active=source.is_active,
+				order=size.order,
+			)
+			if image_name:
+				created.image.name = image_name
+			created.save()
+
+
+def _drop_unsized_color_rows(unsized, rows):
+	sized = [row for row in rows if row.size_id]
+	for extra in unsized:
+		if extra.barcode:
+			target = next((row for row in sized if not row.barcode), None)
+			if target is not None:
+				target.barcode = extra.barcode
+				target.save(update_fields=["barcode"])
+		extra.delete()
 
 
 class WhiteProductVariant(models.Model):

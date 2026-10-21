@@ -1186,3 +1186,142 @@ class ColorSizePerVariantTests(TestCase):
         self.assertEqual(rows[1].unit_price, Decimal("23.00"))
 
 
+class ColorFilledOntoProductSizesTests(TestCase):
+    def setUp(self):
+        self.category = WhiteCategory.objects.create(name="צבעוני מילוי", slug="colorful-fill", order=1)
+        self.product = WhiteSubcategory.objects.create(
+            category=self.category,
+            name="סט פיג'מה",
+            slug="pajama-fill",
+            is_orderable=True,
+            has_color_variants=True,
+            unit_price=Decimal("23.00"),
+        )
+        self.sizes = [
+            WhiteSizeType.objects.create(name=name, order=index)
+            for index, name in enumerate(("12-18", "18-24", "24-30"), start=1)
+        ]
+        for size in self.sizes:
+            WhiteSubcategoryPrice.objects.create(
+                subcategory=self.product,
+                size_name=size.name,
+                price=Decimal("23.00"),
+                order=size.order,
+            )
+        self.existing = WhiteColor.objects.create(name="ורוד קיים")
+        for size in self.sizes:
+            WhiteColorVariant.objects.create(
+                product=self.product,
+                color=self.existing,
+                size=size,
+                unit_price=Decimal("23.00"),
+                order=size.order,
+            )
+
+    def test_one_new_color_is_copied_onto_every_product_size(self):
+        from white_catalog.models import fill_missing_color_sizes
+
+        color = WhiteColor.objects.create(name="מנומר חום בדיקה")
+        entered = WhiteColorVariant.objects.create(
+            product=self.product,
+            color=color,
+            barcode="555666777",
+            unit_price=Decimal("23.00"),
+        )
+        fill_missing_color_sizes(self.product, [color.id])
+        rows = list(
+            WhiteColorVariant.objects.filter(product=self.product, color=color)
+            .select_related("size")
+            .order_by("size__order")
+        )
+        self.assertEqual([row.size.name for row in rows], ["12-18", "18-24", "24-30"])
+        self.assertEqual(rows[0].pk, entered.pk)
+        self.assertEqual(rows[0].barcode, "555666777")
+        self.assertIsNone(rows[1].barcode)
+        self.assertIsNone(rows[2].barcode)
+        self.assertEqual({row.unit_price for row in rows}, {Decimal("23.00")})
+
+    def test_a_color_without_product_sizes_stays_one_row(self):
+        from white_catalog.models import fill_missing_color_sizes
+
+        plain = WhiteSubcategory.objects.create(
+            category=self.category,
+            name="מגבת",
+            slug="plain-towel",
+            is_orderable=True,
+            has_color_variants=True,
+        )
+        color = WhiteColor.objects.create(name="לבן מילוי")
+        WhiteColorVariant.objects.create(product=plain, color=color)
+        fill_missing_color_sizes(plain, [color.id])
+        self.assertEqual(WhiteColorVariant.objects.filter(product=plain, color=color).count(), 1)
+        self.assertFalse(WhiteColorVariant.objects.filter(product=plain, color=color, size__isnull=False).exists())
+
+    def test_editing_an_existing_size_does_not_ask_to_fill_again(self):
+        from white_catalog.admin import colors_to_expand
+
+        class FakeForm:
+            def __init__(self, color, size, pk=None, delete=False):
+                self.cleaned_data = {"color": color, "size": size, "DELETE": delete}
+                self.instance = type("Instance", (), {"pk": pk})()
+
+        existing = FakeForm(self.existing, self.sizes[0], pk=10)
+        removed = FakeForm(self.existing, self.sizes[2], pk=12, delete=True)
+        fresh = WhiteColor.objects.create(name="תכלת מילוי")
+        added = FakeForm(fresh, None, pk=None)
+        self.assertEqual(colors_to_expand([existing, removed, added]), [fresh.id])
+
+
+class ColorAutocompleteSwatchTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser(
+            username="swatch-admin",
+            email="swatch@example.com",
+            password="secret",
+        )
+        self.client.force_login(self.admin)
+
+    def test_color_search_returns_the_swatch_and_the_short_name(self):
+        from django.core.files.base import ContentFile
+
+        photo = WhiteColor.objects.create(name="מנומר תפריט", notes="בד אינטרלוק אריה מנומר")
+        photo.swatch_image.save("swatch.gif", ContentFile(
+            b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!"
+            b"\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+        ), save=True)
+        plain = WhiteColor.objects.create(name="אפור תפריט", notes="הערה ארוכה", hex_color="#dedede")
+        WhiteSizeType.objects.create(name="12-18-תפריט")
+
+        response = self.client.get(
+            reverse("admin:autocomplete"),
+            {
+                "term": "תפריט",
+                "app_label": "white_catalog",
+                "model_name": "whitecolorvariant",
+                "field_name": "color",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        by_id = {row["id"]: row for row in response.json()["results"]}
+        self.assertEqual(by_id[str(photo.pk)]["text"], "מנומר תפריט")
+        self.assertNotIn("אינטרלוק", by_id[str(photo.pk)]["text"])
+        self.assertIn("swatch.gif", by_id[str(photo.pk)]["swatch"])
+        self.assertEqual(by_id[str(plain.pk)]["text"], "אפור תפריט")
+        self.assertEqual(by_id[str(plain.pk)]["hex"], "#dedede")
+        self.assertNotIn("swatch", by_id[str(plain.pk)])
+
+        sizes = self.client.get(
+            reverse("admin:autocomplete"),
+            {
+                "term": "12-18-תפריט",
+                "app_label": "white_catalog",
+                "model_name": "whitecolorvariant",
+                "field_name": "size",
+            },
+        )
+        self.assertEqual(sizes.status_code, 200)
+        size_row = sizes.json()["results"][0]
+        self.assertEqual(size_row["text"], "12-18-תפריט")
+        self.assertNotIn("swatch", size_row)
+
+

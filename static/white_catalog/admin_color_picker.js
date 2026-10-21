@@ -99,7 +99,7 @@
     var imageBtn = document.createElement("button");
     imageBtn.type = "button";
     imageBtn.className = "button";
-    imageBtn.textContent = "דגום מתמונת דוגמית";
+    imageBtn.textContent = "ערוך תמונת דוגמית";
 
     wrap.appendChild(colorInput);
     wrap.appendChild(preview);
@@ -232,6 +232,8 @@
     syncFromText();
   }
 
+  var SWATCH_PX = 104;
+
   function openImageSampler(imageUrl, onPick) {
     var existing = document.getElementById("wc-sample-modal");
     if (existing) {
@@ -244,40 +246,45 @@
     modal.className = "wc-sample-modal is-open";
     modal.innerHTML =
       '<div class="wc-sample-dialog">' +
-      "<h2>דגימת צבע מהתמונה</h2>" +
-      "<p>גררו מלבן על הבד. האזור שתסמנו יישמר כדוגמית שמוצגת בקטלוג. לחיצה על נקודה דוגמת רק את קוד הצבע.</p>" +
-      '<div class="wc-sample-canvas-wrap"><canvas></canvas><div class="wc-sample-selection" hidden></div></div>' +
+      "<h2>עריכת דוגמית</h2>" +
+      "<p>גררו את התמונה מתחת לעיגול, וגלגלו כדי להגדיל או להקטין. העיגול הוא בדיוק מה שהלקוח יראה. לחיצה על נקודה דוגמת רק את קוד הצבע.</p>" +
+      '<div class="wc-sample-layout">' +
+      '<div class="wc-sample-stage"><canvas></canvas><div class="wc-sample-circle"></div></div>' +
+      '<div class="wc-sample-live"><div class="wc-customer-preview"></div><span>כך הלקוח יראה</span></div>' +
+      "</div>" +
       '<div class="wc-sample-toolbar">' +
       '<span class="wc-picked"><span class="wc-picked-swatch"></span><code class="wc-picked-hex">—</code></span>' +
-      '<button type="button" class="button default wc-use-hex">השתמש בצבע זה</button>' +
+      '<button type="button" class="button default wc-use-hex">השתמש באזור זה</button>' +
       '<button type="button" class="button wc-close-modal">סגור</button>' +
       "</div></div>";
 
     document.body.appendChild(modal);
 
+    var stage = modal.querySelector(".wc-sample-stage");
     var canvas = modal.querySelector("canvas");
-    var wrap = modal.querySelector(".wc-sample-canvas-wrap");
-    var box = modal.querySelector(".wc-sample-selection");
     var ctx = canvas.getContext("2d", { willReadFrequently: true });
+    var preview = modal.querySelector(".wc-customer-preview");
     var swatch = modal.querySelector(".wc-picked-swatch");
     var hexEl = modal.querySelector(".wc-picked-hex");
     var useBtn = modal.querySelector(".wc-use-hex");
     var picked = "";
-    var mode = "";
-    var cropCanvas = null;
+    var mode = "region";
+    var centerX = 0;
+    var centerY = 0;
+    var span = SWATCH_PX;
     var drag = null;
     var ready = false;
     var closed = false;
+    var previewUrl = "";
 
     var img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = function () {
-      var maxW = Math.min(860, window.innerWidth - 80);
-      var scale = Math.min(1, maxW / img.naturalWidth);
-      canvas.width = Math.round(img.naturalWidth * scale);
-      canvas.height = Math.round(img.naturalHeight * scale);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      centerX = img.naturalWidth / 2;
+      centerY = img.naturalHeight / 2;
+      span = Math.min(img.naturalWidth, img.naturalHeight);
       ready = true;
+      draw();
     };
     img.onerror = function () {
       window.alert("לא ניתן לטעון את התמונה לדגימה. נסו ״דגום צבע מהמסך״.");
@@ -290,6 +297,7 @@
         URL.revokeObjectURL(imageUrl);
         imageUrl = "";
       }
+      if (previewUrl && previewUrl.indexOf("blob:") === 0) URL.revokeObjectURL(previewUrl);
     }
     modal._wcRelease = releaseImageUrl;
 
@@ -300,70 +308,94 @@
       modal.remove();
     }
 
-    function displayPoint(clientX, clientY) {
-      var rect = canvas.getBoundingClientRect();
-      var x = clientX - rect.left;
-      var y = clientY - rect.top;
-      if (x < 0) x = 0;
-      if (y < 0) y = 0;
-      if (x > rect.width) x = rect.width;
-      if (y > rect.height) y = rect.height;
-      return { x: x, y: y, rect: rect };
+    function clampView() {
+      var minSpan = Math.min(32, img.naturalWidth, img.naturalHeight);
+      var maxSpan = Math.min(img.naturalWidth, img.naturalHeight);
+      if (span < minSpan) span = minSpan;
+      if (span > maxSpan) span = maxSpan;
+      var half = span / 2;
+      if (span >= img.naturalWidth) centerX = img.naturalWidth / 2;
+      else {
+        if (centerX < half) centerX = half;
+        if (centerX > img.naturalWidth - half) centerX = img.naturalWidth - half;
+      }
+      if (span >= img.naturalHeight) centerY = img.naturalHeight / 2;
+      else {
+        if (centerY < half) centerY = half;
+        if (centerY > img.naturalHeight - half) centerY = img.naturalHeight - half;
+      }
     }
 
-    function placeBox(dispX, dispY, dispW, dispH) {
-      var canvasRect = canvas.getBoundingClientRect();
-      var wrapRect = wrap.getBoundingClientRect();
-      box.style.left = canvasRect.left - wrapRect.left - wrap.clientLeft + dispX + "px";
-      box.style.top = canvasRect.top - wrapRect.top - wrap.clientTop + dispY + "px";
-      box.style.width = Math.max(0, dispW) + "px";
-      box.style.height = Math.max(0, dispH) + "px";
-      box.hidden = false;
-    }
-
-    function hideBox() {
-      box.hidden = true;
-    }
-
-    function toCanvasRect(dx, dy, dw, dh, rect) {
-      var sx = canvas.width / rect.width;
-      var sy = canvas.height / rect.height;
-      var x = Math.round(dx * sx);
-      var y = Math.round(dy * sy);
-      var w = Math.round(dw * sx);
-      var h = Math.round(dh * sy);
-      if (x < 0) x = 0;
-      if (y < 0) y = 0;
-      if (x + w > canvas.width) w = canvas.width - x;
-      if (y + h > canvas.height) h = canvas.height - y;
-      if (w < 1) w = 1;
-      if (h < 1) h = 1;
-      return { x: x, y: y, w: w, h: h };
-    }
-
-    function buildCrop(canvasRect) {
-      var naturalW = img.naturalWidth || canvas.width;
-      var naturalH = img.naturalHeight || canvas.height;
-      var nx = naturalW / canvas.width;
-      var ny = naturalH / canvas.height;
-      var sx = canvasRect.x * nx;
-      var sy = canvasRect.y * ny;
-      var sw = canvasRect.w * nx;
-      var sh = canvasRect.h * ny;
-      var scale = Math.min(1, MAX_CROP_EDGE / Math.max(sw, sh));
-      var outW = Math.max(1, Math.round(sw * scale));
-      var outH = Math.max(1, Math.round(sh * scale));
+    function buildSquare() {
+      clampView();
+      var out = Math.max(SWATCH_PX, Math.min(MAX_CROP_EDGE, Math.round(span)));
       var crop = document.createElement("canvas");
-      crop.width = outW;
-      crop.height = outH;
-      crop.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+      crop.width = out;
+      crop.height = out;
+      crop.getContext("2d").drawImage(
+        img,
+        centerX - span / 2,
+        centerY - span / 2,
+        span,
+        span,
+        0,
+        0,
+        out,
+        out
+      );
       return crop;
+    }
+
+    function showRegion() {
+      var crop;
+      try {
+        crop = buildSquare();
+      } catch (err) {
+        return null;
+      }
+      var hex = averageHexFromCanvas(crop) || picked;
+      var url;
+      try {
+        url = crop.toDataURL("image/jpeg", 0.85);
+      } catch (err) {
+        return null;
+      }
+      mode = "region";
+      picked = hex;
+      preview.style.backgroundImage = 'url("' + url + '")';
+      preview.style.backgroundColor = "transparent";
+      swatch.classList.add("is-crop");
+      swatch.style.background = "transparent";
+      swatch.style.backgroundImage = 'url("' + url + '")';
+      swatch.style.backgroundSize = "cover";
+      swatch.style.backgroundPosition = "center";
+      hexEl.textContent = hex || "—";
+      useBtn.textContent = "השתמש באזור זה";
+      return crop;
+    }
+
+    function draw() {
+      if (!ready) return;
+      var width = stage.clientWidth || 640;
+      var height = stage.clientHeight || 360;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      clampView();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      var pxPerNat = SWATCH_PX / span;
+      var dx = canvas.width / 2 - centerX * pxPerNat;
+      var dy = canvas.height / 2 - centerY * pxPerNat;
+      ctx.drawImage(img, dx, dy, img.naturalWidth * pxPerNat, img.naturalHeight * pxPerNat);
+      if (mode === "region") showRegion();
     }
 
     function showFlat(hex) {
       mode = "point";
-      cropCanvas = null;
       picked = hex;
+      preview.style.backgroundImage = "";
+      preview.style.backgroundColor = hex;
       swatch.classList.remove("is-crop");
       swatch.style.backgroundImage = "";
       swatch.style.backgroundSize = "";
@@ -371,122 +403,95 @@
       swatch.style.background = hex;
       hexEl.textContent = hex;
       useBtn.textContent = "השתמש בצבע זה";
-      hideBox();
-    }
-
-    function showRegion(hex, crop) {
-      var previewUrl;
-      try {
-        previewUrl = crop.toDataURL("image/jpeg", 0.85);
-      } catch (err) {
-        window.alert("לא ניתן להציג את האזור שסומן. העלו את הקובץ מחדש, או השתמשו ב״דגום צבע מהמסך״.");
-        return false;
-      }
-      mode = "region";
-      cropCanvas = crop;
-      picked = hex;
-      swatch.classList.add("is-crop");
-      swatch.style.background = "transparent";
-      swatch.style.backgroundImage = 'url("' + previewUrl + '")';
-      swatch.style.backgroundSize = "cover";
-      swatch.style.backgroundPosition = "center";
-      hexEl.textContent = hex;
-      useBtn.textContent = "השתמש באזור זה";
-      return true;
     }
 
     function samplePoint(clientX, clientY) {
-      var point = displayPoint(clientX, clientY);
-      var mapped = toCanvasRect(point.x, point.y, 1, 1, point.rect);
+      var rect = canvas.getBoundingClientRect();
+      var x = Math.round(((clientX - rect.left) * canvas.width) / rect.width);
+      var y = Math.round(((clientY - rect.top) * canvas.height) / rect.height);
+      if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
       var data;
       try {
-        data = ctx.getImageData(mapped.x, mapped.y, 1, 1).data;
+        data = ctx.getImageData(x, y, 1, 1).data;
       } catch (err) {
         window.alert("לא ניתן לקרוא את הצבע מהתמונה. העלו את הקובץ מחדש, או השתמשו ב״דגום צבע מהמסך״.");
         return;
       }
+      if (data[3] < 16) return;
       showFlat(rgbToHex(data[0], data[1], data[2]));
     }
 
-    function selectRegion(dispX, dispY, dispW, dispH, rect) {
-      var mapped = toCanvasRect(dispX, dispY, dispW, dispH, rect);
-      var crop;
-      try {
-        crop = buildCrop(mapped);
-      } catch (err) {
-        window.alert("לא ניתן לחתוך את האזור מהתמונה. העלו את הקובץ מחדש, או השתמשו ב״דגום צבע מהמסך״.");
-        return;
-      }
-      var hex = averageHexFromCanvas(crop);
-      if (!hex) {
-        window.alert("לא ניתן לקרוא את הצבע מהאזור שסומן. העלו את הקובץ מחדש, או השתמשו ב״דגום צבע מהמסך״.");
-        return;
-      }
-      if (!showRegion(hex, crop)) return;
-      placeBox(dispX, dispY, dispW, dispH);
-    }
-
-    canvas.addEventListener("pointerdown", function (e) {
+    stage.addEventListener("pointerdown", function (e) {
       if (!ready || e.button !== 0) return;
-      var point = displayPoint(e.clientX, e.clientY);
       drag = {
-        x0: point.x,
-        y0: point.y,
-        x1: point.x,
-        y1: point.y,
+        x: e.clientX,
+        y: e.clientY,
+        centerX: centerX,
+        centerY: centerY,
         pointerId: e.pointerId,
-        rect: point.rect,
+        moved: false,
       };
+      stage.classList.add("is-dragging");
       try {
-        canvas.setPointerCapture(e.pointerId);
+        stage.setPointerCapture(e.pointerId);
       } catch (err) {}
       e.preventDefault();
     });
 
-    canvas.addEventListener("pointermove", function (e) {
+    stage.addEventListener("pointermove", function (e) {
       if (!drag || e.pointerId !== drag.pointerId) return;
-      var point = displayPoint(e.clientX, e.clientY);
-      drag.x1 = point.x;
-      drag.y1 = point.y;
-      drag.rect = point.rect;
-      placeBox(
-        Math.min(drag.x0, drag.x1),
-        Math.min(drag.y0, drag.y1),
-        Math.abs(drag.x1 - drag.x0),
-        Math.abs(drag.y1 - drag.y0)
-      );
+      var dx = e.clientX - drag.x;
+      var dy = e.clientY - drag.y;
+      if (Math.abs(dx) >= MIN_DRAG_PX || Math.abs(dy) >= MIN_DRAG_PX) drag.moved = true;
+      if (!drag.moved) return;
+      mode = "region";
+      centerX = drag.centerX - dx * (span / SWATCH_PX);
+      centerY = drag.centerY - dy * (span / SWATCH_PX);
+      draw();
     });
 
     function finishDrag(e) {
       if (!drag || e.pointerId !== drag.pointerId) return;
-      var start = drag;
+      var moved = drag.moved;
       drag = null;
-      var x = Math.min(start.x0, start.x1);
-      var y = Math.min(start.y0, start.y1);
-      var w = Math.abs(start.x1 - start.x0);
-      var h = Math.abs(start.y1 - start.y0);
-      if (w < MIN_DRAG_PX && h < MIN_DRAG_PX) {
-        samplePoint(e.clientX, e.clientY);
-        return;
-      }
-      selectRegion(x, y, w, h, start.rect);
+      stage.classList.remove("is-dragging");
+      if (!moved) samplePoint(e.clientX, e.clientY);
     }
 
-    canvas.addEventListener("pointerup", finishDrag);
-    canvas.addEventListener("pointercancel", function (e) {
+    stage.addEventListener("pointerup", finishDrag);
+    stage.addEventListener("pointercancel", function (e) {
       if (!drag || e.pointerId !== drag.pointerId) return;
       drag = null;
-      if (mode !== "region") hideBox();
+      stage.classList.remove("is-dragging");
     });
+
+    stage.addEventListener(
+      "wheel",
+      function (e) {
+        if (!ready) return;
+        e.preventDefault();
+        var factor = e.deltaY < 0 ? 0.9 : 1.1;
+        span *= factor;
+        mode = "region";
+        draw();
+      },
+      { passive: false }
+    );
 
     modal.querySelector(".wc-close-modal").addEventListener("click", closeModal);
     modal.addEventListener("click", function (e) {
       if (e.target === modal) closeModal();
     });
     useBtn.addEventListener("click", function () {
-      if (mode === "region" && cropCanvas) {
+      if (mode === "region") {
+        var crop = buildSquare();
+        if (!crop) {
+          window.alert("לא ניתן לשמור את האזור מהתמונה.");
+          return;
+        }
+        var hex = averageHexFromCanvas(crop) || picked;
         useBtn.disabled = true;
-        cropCanvas.toBlob(
+        crop.toBlob(
           function (blob) {
             useBtn.disabled = false;
             if (!blob) {
@@ -494,7 +499,7 @@
               return;
             }
             var file = new File([blob], "swatch-crop.jpg", { type: "image/jpeg" });
-            onPick({ hex: picked, file: file });
+            onPick({ hex: hex, file: file });
             closeModal();
           },
           "image/jpeg",
@@ -503,7 +508,7 @@
         return;
       }
       if (!picked) {
-        window.alert("סמנו אזור בגרירה, או לחצו על נקודה בתמונה");
+        window.alert("לחצו על נקודה בתמונה, או גררו את התמונה בתוך העיגול");
         return;
       }
       onPick({ hex: picked, file: null });

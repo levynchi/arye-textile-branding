@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.admin.views.autocomplete import AutocompleteJsonView
+from django.contrib.admin.widgets import AutocompleteSelect
 from django import forms
 from django.db import models as dj_models
 from django.utils.html import mark_safe
@@ -9,6 +11,7 @@ from .models import (
     WhiteProductVariant, WhiteVariantPackPrice,
     WhiteColor, WhiteColorVariant,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
+    fill_missing_color_sizes, product_color_sizes,
 )
 
 
@@ -95,13 +98,98 @@ class WhiteProductVariantInline(admin.TabularInline):
 	}
 
 
+def colors_to_expand(forms):
+	"""Colors entered once: a new row, or a row whose size was left empty."""
+	color_ids = []
+	for inline_form in forms:
+		cleaned = getattr(inline_form, "cleaned_data", None)
+		if not cleaned or cleaned.get("DELETE"):
+			continue
+		color = cleaned.get("color")
+		if color is None:
+			continue
+		if inline_form.instance.pk is None or cleaned.get("size") is None:
+			color_ids.append(color.pk)
+	return color_ids
+
+
+class ColorAutocompleteSelect(AutocompleteSelect):
+	"""Autocomplete whose selected option carries the swatch for the dropdown."""
+
+	def optgroups(self, name, value, attr=None):
+		groups = super().optgroups(name, value, attr)
+		pks = [
+			str(option.get("value"))
+			for group in groups
+			for option in group[1]
+			if option.get("value") not in (None, "")
+		]
+		colors = {
+			str(color.pk): color
+			for color in WhiteColor.objects.filter(pk__in=pks)
+		}
+		for group in groups:
+			for option in group[1]:
+				color = colors.get(str(option.get("value")))
+				if color is None:
+					continue
+				option["label"] = color.name
+				if color.swatch_image:
+					option["attrs"]["data-swatch"] = color.swatch_image.url
+				elif color.hex_color:
+					option["attrs"]["data-hex"] = color.hex_color
+		return groups
+
+
+class SwatchAutocompleteJsonView(AutocompleteJsonView):
+	def serialize_result(self, obj, to_field_name):
+		payload = super().serialize_result(obj, to_field_name)
+		if isinstance(obj, WhiteColor):
+			payload["text"] = obj.name
+			if obj.swatch_image:
+				payload["swatch"] = obj.swatch_image.url
+			elif obj.hex_color:
+				payload["hex"] = obj.hex_color
+		return payload
+
+
+def _swatch_autocomplete_view(request):
+	return SwatchAutocompleteJsonView.as_view(admin_site=admin.site)(request)
+
+
+admin.site.autocomplete_view = _swatch_autocomplete_view
+
+
 class WhiteColorVariantInline(admin.TabularInline):
-	"""Inline: one row = color from the fan + its own barcode."""
+	"""Inline: one new color row is copied onto every size of this product."""
 	model = WhiteColorVariant
 	extra = 1
 	fields = ("color", "size", "barcode", "unit_price", "image", "is_active", "order")
 	autocomplete_fields = ("color", "size")
 	show_change_link = True
+
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "color":
+			kwargs["widget"] = ColorAutocompleteSelect(
+				db_field, self.admin_site, using=kwargs.get("using")
+			)
+		form_field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+		if db_field.name == "color" and form_field is not None:
+			form_field.label_from_instance = lambda obj: obj.name
+		return form_field
+
+	def get_formset(self, request, obj=None, **kwargs):
+		formset = super().get_formset(request, obj, **kwargs)
+		sizes = product_color_sizes(obj)
+		size_field = formset.form.base_fields.get("size")
+		if size_field is not None:
+			if sizes:
+				names = ", ".join(size.name for size in sizes)
+				size_field.label = f"מידה (ריק = {names})"
+			else:
+				size_field.label = "מידה"
+				size_field.help_text = "ריק — שורה אחת לצבע"
+		return formset
 
 
 @admin.register(WhiteSubcategory)
@@ -119,6 +207,7 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 			'https://cdn.tiny.cloud/1/w5lgvxlmv9pmgod7jvot3fppp8plvel9074nteezuwx81znf/tinymce/6/tinymce.min.js',
 			'admin_tinymce_init.js',
 			'white_catalog/admin_product_color_sample.js',
+			'white_catalog/admin_color_autocomplete.js',
 		)
 		css = {
 			'all': (
@@ -128,6 +217,12 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 		}
 	
 	inlines = [WhiteSubcategoryPriceInline, WhiteSubcategoryImageInline, WhiteProductVariantInline, WhiteColorVariantInline]
+
+	def save_formset(self, request, form, formset, change):
+		color_ids = colors_to_expand(formset.forms) if formset.model is WhiteColorVariant else []
+		super().save_formset(request, form, formset, change)
+		if color_ids:
+			fill_missing_color_sizes(form.instance, color_ids)
 
 	fieldsets = (
 		(None, {
@@ -305,10 +400,10 @@ class WhitePackTypeAdmin(admin.ModelAdmin):
 
 @admin.register(WhiteColor)
 class WhiteColorAdmin(admin.ModelAdmin):
-	list_display = ("swatch_preview", "name", "hex_color", "order", "is_active")
+	list_display = ("swatch_preview", "name", "notes", "hex_color", "order", "is_active")
 	list_display_links = ("name",)
-	list_editable = ("hex_color", "order", "is_active")
-	search_fields = ("name", "hex_color")
+	list_editable = ("notes", "hex_color", "order", "is_active")
+	search_fields = ("name", "notes", "hex_color")
 	list_filter = ("is_active",)
 	ordering = ("order", "name")
 
@@ -318,12 +413,11 @@ class WhiteColorAdmin(admin.ModelAdmin):
 
 	fieldsets = (
 		(None, {
-			"fields": ("name", "hex_color", "swatch_image", "order", "is_active"),
+			"fields": ("name", "notes", "hex_color", "swatch_image", "order", "is_active"),
 			"description": (
-				"אפשר לדגום צבע מתמונה עם הכפתורים ליד שדה קוד HEX. "
-				"גררו מלבן על התמונה — האזור יישמר כתמונת הדוגמית שמוצגת בקטלוג, "
-				"וקוד HEX יהיה ממוצע הצבע באזור. לחיצה על נקודה דוגמת רק את הקוד. "
-				"אפשר גם לדגום קודם מתמונת המוצר בעמוד העריכה ואז ללחוץ + כאן — הקוד יוזן אוטומטית."
+				"אחרי בחירת תמונת דוגמית, «ערוך תמונת דוגמית» מציג עיגול באותו גודל שהלקוח רואה. "
+				"גוררים את התמונה מתחת לעיגול ומגדילים בגלגלת. מה שבתוך העיגול נשמר כדוגמית. "
+				"לחיצה על נקודה דוגמת רק את קוד הצבע, בלי להחליף את התמונה."
 			),
 		}),
 	)
@@ -348,10 +442,29 @@ class WhiteColorVariantAdmin(admin.ModelAdmin):
 	list_display = ("product", "color", "size", "barcode", "unit_price", "is_active", "order")
 	list_editable = ("barcode", "unit_price", "is_active", "order")
 	list_filter = ("color", "size", "product", "is_active")
-	search_fields = ("color__name", "size__name", "product__name", "barcode")
+	search_fields = ("color__name", "color__notes", "size__name", "product__name", "barcode")
 	autocomplete_fields = ("product", "color", "size")
 	ordering = ("product__name", "order", "color__order")
 	list_per_page = 200
+
+	class Media:
+		js = ("white_catalog/admin_color_autocomplete.js",)
+		css = {"all": ("white_catalog/admin_color_picker.css",)}
+
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		if db_field.name == "color":
+			kwargs["widget"] = ColorAutocompleteSelect(
+				db_field, self.admin_site, using=kwargs.get("using")
+			)
+		form_field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+		if db_field.name == "color" and form_field is not None:
+			form_field.label_from_instance = lambda obj: obj.name
+		return form_field
+
+	def save_model(self, request, obj, form, change):
+		super().save_model(request, obj, form, change)
+		if not change or obj.size_id is None:
+			fill_missing_color_sizes(obj.product, [obj.color_id])
 
 
 class WhiteVariantPackPriceInline(admin.TabularInline):

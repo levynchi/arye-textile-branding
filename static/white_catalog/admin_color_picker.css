@@ -66,31 +66,66 @@
   color: #555;
 }
 
-.wc-sample-canvas-wrap {
+.wc-sample-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+.wc-sample-stage {
   position: relative;
-  display: inline-block;
-  max-width: 100%;
-  cursor: crosshair;
+  flex: 1 1 320px;
+  height: 360px;
   border: 1px solid #ddd;
   border-radius: 8px;
   overflow: hidden;
-  background: #f4f4f4;
+  background: #1c1c1c;
   user-select: none;
   touch-action: none;
+  cursor: grab;
 }
 
-.wc-sample-selection {
+.wc-sample-stage.is-dragging {
+  cursor: grabbing;
+}
+
+.wc-sample-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wc-sample-circle {
   position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 104px;
+  height: 104px;
+  margin: -52px 0 0 -52px;
+  border-radius: 50%;
   border: 2px solid #fff;
-  box-shadow: 0 0 0 1px #1a6b8a;
-  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
   pointer-events: none;
 }
 
-.wc-sample-canvas-wrap canvas {
-  display: block;
-  max-width: 100%;
-  height: auto;
+.wc-customer-preview {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #f0f0f0 center / cover no-repeat;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.wc-sample-live {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #555;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .wc-sample-toolbar {
@@ -117,18 +152,18 @@
 }
 
 .wc-sample-toolbar .wc-picked-swatch.is-crop {
-  width: 56px;
-  height: 40px;
-  border-radius: 4px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
 }
 
 .wc-swatch-file-preview {
   display: block;
   margin-top: 8px;
-  width: 120px;
-  height: 84px;
+  width: 104px;
+  height: 104px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 50%;
   border: 1px solid #ccc;
 }
 
@@ -146,4 +181,28 @@
 
 .wc-inline-sample-bar strong {
   margin-left: 4px;
+}
+
+.wc-ac-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wc-ac-swatch {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  background-color: #f3f3f3;
+  background-size: cover;
+  background-position: center;
+}
+
+.select2-results__option .wc-ac-swatch {
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
 }
