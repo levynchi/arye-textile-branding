@@ -1104,7 +1104,7 @@
                                     <input type="hidden" name="product_id" value="{{ subcategory.id }}">
 
                                     {% if color_variants_data %}
-                                        <label class="variant-label">{% if color_variants_have_sizes %}הזן כמות. אותה כמות נלקחת מכל מידה:{% elif color_variants_have_images %}בחר הדפס והזן כמות:{% else %}בחר צבעים מהמניפה והזן כמות לכל צבע:{% endif %}</label>
+                                        <label class="variant-label">{% if color_variants_share_quantity %}הזן כמות. אותה כמות נלקחת מכל מידה:{% elif color_variants_have_sizes %}הזן כמות:{% elif color_variants_have_images %}בחר הדפס והזן כמות:{% else %}בחר צבעים מהמניפה והזן כמות לכל צבע:{% endif %}</label>
                                         <div class="color-fan{% if color_variants_have_images %} color-fan-photos{% endif %}" id="colorFan">
                                             {% regroup color_variants_data by color_id as color_groups %}
                                             {% for group in color_groups %}
@@ -1116,7 +1116,7 @@
                                                 <div class="color-chip-main">
                                                     <div class="color-chip-name">{{ cv.color_name }}</div>
                                                     <div class="color-size-names">{% for row in group.list %}{{ row.size_name }}{% if row.barcode %} ({{ row.barcode }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
-                                                    <div class="color-set-hint">הכמות זהה בכל המידות</div>
+                                                    {% if cv.size_count > 1 %}<div class="color-set-hint">הכמות זהה בכל המידות</div>{% endif %}
                                                 </div>
                                                 <div class="color-chip-buy">
                                                     {% if cv.unit_price %}
@@ -1139,7 +1139,7 @@
                                                             oninput="syncColorQtyChange(this)"
                                                             onblur="syncColorQtyBlur(this)">
                                                     </div>
-                                                    <div class="color-set-note">{% if cv.set_quantity %}{{ cv.set_quantity }} מכל מידה = {{ cv.set_total }} סטים{% endif %}</div>
+                                                    <div class="color-set-note">{% if cv.set_quantity %}{% if cv.size_count > 1 %}{{ cv.set_quantity }} מכל מידה = {{ cv.set_total }} סטים{% else %}{{ cv.set_quantity }} סטים{% endif %}{% endif %}</div>
                                                 </div>
                                             </div>
                                             {% else %}
@@ -1289,7 +1289,9 @@
                                         const note = input.closest('.color-chip').querySelector('.color-set-note');
                                         if (note) {
                                             note.textContent = qtyNum > 0
-                                                ? (qtyNum + ' מכל מידה = ' + sets + ' סטים')
+                                                ? (count > 1
+                                                    ? (qtyNum + ' מכל מידה = ' + sets + ' סטים')
+                                                    : (qtyNum + ' סטים'))
                                                 : '';
                                         }
                                         const chip = input.closest('.color-chip');

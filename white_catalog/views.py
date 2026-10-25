@@ -741,6 +741,7 @@ def _subcategory_detail_context(request, subcategory, category=None):
         "pack_types_data": pack_types_data,
         "color_variants_data": color_variants_data,
         "color_variants_have_sizes": any(cv.get("size_name") for cv in color_variants_data),
+        "color_variants_share_quantity": any(cv.get("size_count", 1) > 1 for cv in color_variants_data),
         "color_variants_have_images": any(
             (cv.get("image_url") or cv.get("swatch_url")) for cv in color_variants_data
         ),

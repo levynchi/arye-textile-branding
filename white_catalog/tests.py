@@ -284,7 +284,7 @@ class ClothingThreesOnlyTests(TestCase):
             has_order_variants=True,
         )
         fabric = WhiteFabricType.objects.create(name="טריקו")
-        size = WhiteSizeType.objects.create(name="0-3")
+        size, _created = WhiteSizeType.objects.get_or_create(name="0-3")
         self.variant = WhiteProductVariant.objects.create(
             product=self.product,
             fabric_type=fabric,
@@ -468,7 +468,7 @@ class CustomerPriceListTests(TestCase):
             unit_price=Decimal("13.00"),
         )
         fabric = WhiteFabricType.objects.create(name="פלנל")
-        size = WhiteSizeType.objects.create(name="0-3")
+        size, _created = WhiteSizeType.objects.get_or_create(name="0-3")
         self.variant = WhiteProductVariant.objects.create(
             product=self.product,
             fabric_type=fabric,
@@ -679,7 +679,7 @@ class StoreImportExportTests(TestCase):
 
         self.category = WhiteCategory.objects.create(name="לבנים", slug="basics-test")
         fabric = WhiteFabricType.objects.create(name="פלנל")
-        size_a = WhiteSizeType.objects.create(name="0-3")
+        size_a, _created = WhiteSizeType.objects.get_or_create(name="0-3")
         size_b = WhiteSizeType.objects.create(name="3-6")
         self.product = WhiteSubcategory.objects.create(
             name="בגד גוף חורף",
@@ -1043,7 +1043,7 @@ class ColorSizePerVariantTests(TestCase):
             unit_price=Decimal("23.00"),
         )
         self.color = WhiteColor.objects.create(name="ורוד בדיקה", hex_color="#ffc0cb")
-        self.s1 = WhiteSizeType.objects.create(name="18-24", order=1)
+        self.s1, _created = WhiteSizeType.objects.get_or_create(name="18-24", defaults={"order": 1})
         self.s2 = WhiteSizeType.objects.create(name="12-18-בדיקה", order=2)
         self.row1 = WhiteColorVariant.objects.create(
             product=self.product,
@@ -1198,7 +1198,7 @@ class ColorFilledOntoProductSizesTests(TestCase):
             unit_price=Decimal("23.00"),
         )
         self.sizes = [
-            WhiteSizeType.objects.create(name=name, order=index)
+            WhiteSizeType.objects.get_or_create(name=name, defaults={"order": index})[0]
             for index, name in enumerate(("12-18", "18-24", "24-30"), start=1)
         ]
         for size in self.sizes:
