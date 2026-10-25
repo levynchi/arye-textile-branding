@@ -75,6 +75,11 @@ class WhiteSubcategory(models.Model):
 		default=False,
 		help_text="סמן אם המוצר מוזמן דרך מניפת צבעים (לכל צבע ברקוד משלו). לא לשלב עם גרסאות + מארזים"
 	)
+	sizes_share_quantity = models.BooleanField(
+		"כמות אחת לכל המידות",
+		default=True,
+		help_text="כשצבע כולל כמה מידות, כמות אחת מועתקת לכל מידה. בטל כדי להזמין כל מידה בנפרד",
+	)
 	category = models.ForeignKey(
 		WhiteCategory,
 		on_delete=models.CASCADE,

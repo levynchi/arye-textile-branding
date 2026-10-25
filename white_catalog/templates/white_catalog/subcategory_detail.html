@@ -467,6 +467,14 @@
             color: #333;
             line-height: 1.45;
         }
+        .color-size-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 6px;
+        }
+        .color-size-line .color-size-names { margin-top: 0; min-width: 4.5rem; }
+        .color-size-line .qty-input { width: 68px; margin: 0; }
         .color-set-hint,
         .color-set-note {
             margin-top: 4px;
@@ -1104,12 +1112,12 @@
                                     <input type="hidden" name="product_id" value="{{ subcategory.id }}">
 
                                     {% if color_variants_data %}
-                                        <label class="variant-label">{% if color_variants_share_quantity %}הזן כמות. אותה כמות נלקחת מכל מידה:{% elif color_variants_have_sizes %}הזן כמות:{% elif color_variants_have_images %}בחר הדפס והזן כמות:{% else %}בחר צבעים מהמניפה והזן כמות לכל צבע:{% endif %}</label>
+                                        <label class="variant-label">{% if color_variants_share_quantity %}הזן כמות. אותה כמות נלקחת מכל מידה:{% elif color_variants_have_sizes %}הזן כמות לכל מידה:{% elif color_variants_have_images %}בחר הדפס והזן כמות:{% else %}בחר צבעים מהמניפה והזן כמות לכל צבע:{% endif %}</label>
                                         <div class="color-fan{% if color_variants_have_images %} color-fan-photos{% endif %}" id="colorFan">
                                             {% regroup color_variants_data by color_id as color_groups %}
                                             {% for group in color_groups %}
                                             {% with cv=group.list.0 %}
-                                            {% if color_variants_have_sizes and cv.size_name %}
+                                            {% if color_variants_have_sizes and cv.size_name and color_variants_share_quantity %}
                                             <div class="color-chip has-sizes{% if cv.set_quantity %} has-qty{% endif %}" data-color-id="{{ cv.color_id }}" data-color-variant-id="{{ cv.id }}">
                                                 <button type="button" class="color-chip-swatch" aria-label="{% if color_variants_have_images %}בחר הדפס{% else %}בחר צבע{% endif %} {{ cv.color_name }}"
                                                     {% if cv.swatch_url %}style="background-image:url('{{ cv.swatch_url }}');"{% elif cv.hex_color %}style="background-color: {{ cv.hex_color }};"{% endif %}></button>
@@ -1126,7 +1134,7 @@
                                                             {% else %}
                                                                 ₪{{ cv.unit_price }}
                                                             {% endif %}
-                                                            לסט
+                                                            ל{{ subcategory.simple_price_label_display }}
                                                         </div>
                                                     {% endif %}
                                                     <div class="color-chip-qty">
@@ -1140,6 +1148,38 @@
                                                             onblur="syncColorQtyBlur(this)">
                                                     </div>
                                                     <div class="color-set-note">{% if cv.set_quantity %}{% if cv.size_count > 1 %}{{ cv.set_quantity }} מכל מידה = {{ cv.set_total }} סטים{% else %}{{ cv.set_quantity }} סטים{% endif %}{% endif %}</div>
+                                                </div>
+                                            </div>
+                                            {% elif color_variants_have_sizes and cv.size_name %}
+                                            <div class="color-chip has-sizes{% for row in group.list %}{% if row.cart_quantity %} has-qty{% endif %}{% endfor %}" data-color-id="{{ cv.color_id }}" data-color-variant-id="{{ cv.id }}">
+                                                <button type="button" class="color-chip-swatch" aria-label="{% if color_variants_have_images %}בחר הדפס{% else %}בחר צבע{% endif %} {{ cv.color_name }}"
+                                                    {% if cv.swatch_url %}style="background-image:url('{{ cv.swatch_url }}');"{% elif cv.hex_color %}style="background-color: {{ cv.hex_color }};"{% endif %}></button>
+                                                <div class="color-chip-main">
+                                                    <div class="color-chip-name">{{ cv.color_name }}</div>
+                                                    {% for row in group.list %}
+                                                    <label class="color-size-line" data-color-variant-id="{{ row.id }}">
+                                                        <span class="color-size-names">{{ row.size_name }}{% if row.barcode %} ({{ row.barcode }}){% endif %}</span>
+                                                        <input type="number" name="color_qty_{{ row.id }}" min="0" step="1"
+                                                            value="{% if row.cart_quantity %}{{ row.cart_quantity }}{% endif %}"
+                                                            class="qty-input" placeholder="0" inputmode="numeric"
+                                                            data-unit-price="{{ row.unit_price|default:'' }}"
+                                                            {% if not row.unit_price %}disabled{% endif %}
+                                                            oninput="syncColorQtyChange(this)"
+                                                            onblur="syncColorQtyBlur(this)">
+                                                    </label>
+                                                    {% endfor %}
+                                                </div>
+                                                <div class="color-chip-buy">
+                                                    {% if cv.unit_price %}
+                                                        <div class="color-chip-price">
+                                                            {% if cv.list_unit_price and cv.list_unit_price != cv.unit_price %}
+                                                                <span class="price-pair"><s class="price-was">₪{{ cv.list_unit_price }}</s> <span class="price-now">₪{{ cv.unit_price }}</span></span>
+                                                            {% else %}
+                                                                ₪{{ cv.unit_price }}
+                                                            {% endif %}
+                                                            ל{{ subcategory.simple_price_label_display }}
+                                                        </div>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                             {% else %}
@@ -1225,7 +1265,9 @@
                                 }
 
                                 function chipFor(id) {
-                                    return fan.querySelector('[data-color-variant-id="' + id + '"]');
+                                    const node = fan.querySelector('[data-color-variant-id="' + id + '"]');
+                                    if (!node) return null;
+                                    return node.classList.contains('color-chip') ? node : (node.closest('.color-chip') || node);
                                 }
                                 function inputFor(id) {
                                     return form.querySelector('input[name="color_qty_' + id + '"]');
@@ -1298,7 +1340,6 @@
                                         if (chip) chip.classList.toggle('has-qty', qtyNum > 0);
                                     });
                                     colorVariants.forEach(function(cv) {
-                                        if (cv.size_name) return;
                                         const input = inputFor(cv.id);
                                         if (!input) return;
                                         const qty = parseInt(input.value, 10);
@@ -1307,7 +1348,12 @@
                                         totalUnits += qtyNum;
                                         totalPrice += qtyNum * price;
                                         const node = chipFor(cv.id);
-                                        if (node) node.classList.toggle('has-qty', qtyNum > 0);
+                                        if (!node) return;
+                                        const anyQty = Array.prototype.some.call(node.querySelectorAll('input.qty-input'), function(el) {
+                                            const n = parseInt(el.value, 10);
+                                            return Number.isFinite(n) && n > 0;
+                                        });
+                                        node.classList.toggle('has-qty', anyQty);
                                     });
                                     const unitLabel = countedSets ? 'סטים' : 'יחידות';
                                     totalSummary.textContent = totalUnits > 0

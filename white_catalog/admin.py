@@ -226,7 +226,7 @@ class WhiteSubcategoryAdmin(admin.ModelAdmin):
 
 	fieldsets = (
 		(None, {
-			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable", "has_order_variants", "has_color_variants")
+			"fields": ("category", "name", "slug", "description", "image", "order", "is_orderable", "has_order_variants", "has_color_variants", "sizes_share_quantity")
 		}),
 		("מחירים", {
 			"fields": ("unit_price", "simple_price_label", "online_price"),

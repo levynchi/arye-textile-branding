@@ -118,13 +118,13 @@ def require_catalog_login(view_func):
     return wrapper
 
 
-def _mark_equal_size_sets(rows):
-	"""A color with sizes is ordered as one quantity, copied onto every size."""
+def _mark_equal_size_sets(rows, share_quantity=True):
+	"""When sizes share a quantity, one number is copied onto every size of the color."""
 	grouped = {}
 	for row in rows:
 		grouped.setdefault(row["color_id"], []).append(row)
 	for group in grouped.values():
-		sized = bool(group[0].get("size_name"))
+		sized = share_quantity and bool(group[0].get("size_name"))
 		quantities = {row["cart_quantity"] for row in group}
 		shared = group[0]["cart_quantity"] if len(quantities) == 1 else 0
 		count = len(group) if sized else 1
@@ -256,6 +256,14 @@ def _build_cart_page_context(request):
                 def flush_size_batch():
                     if not size_batch:
                         return
+                    if not group["product"].sizes_share_quantity:
+                        for cv, quantity, line_total, existing_item in size_batch:
+                            label = cv.color.name
+                            if cv.size_id:
+                                label = f"{label} · {cv.size.name}"
+                            append_color_row(existing_item, cv, quantity, line_total, label)
+                        size_batch.clear()
+                        return
                     quantities = {row[1] for row in size_batch}
                     quantity = size_batch[0][1] if len(quantities) == 1 else 0
                     names = [row[0].size.name for row in size_batch]
@@ -374,6 +382,7 @@ def _build_order_grouped_items(order):
                 "group_total": Decimal("0"),
                 "is_simple": is_simple,
                 "is_color": is_color,
+                "sizes_share_quantity": item.product.sizes_share_quantity if item.product_id else True,
             }
             groups_map[key] = group
             grouped_items.append(group)
@@ -395,7 +404,7 @@ def _build_order_grouped_items(order):
         groups_map[key]["group_total"] += item.get_line_total()
 
     for group in grouped_items:
-        if group.get("is_color"):
+        if group.get("is_color") and group.get("sizes_share_quantity", True):
             group["items"] = _collapse_equal_size_order_rows(group["items"])
 
     return grouped_items
@@ -714,7 +723,10 @@ def _subcategory_detail_context(request, subcategory, category=None):
                 "list_unit_price": str(list_price) if list_price is not None else None,
                 "cart_quantity": cart_qty_map.get(cv.id, 0),
             })
-        _mark_equal_size_sets(color_variants_data)
+        _mark_equal_size_sets(
+            color_variants_data,
+            share_quantity=subcategory.sizes_share_quantity,
+        )
     elif show_simple_ordering and active_cart:
         simple_item = (
             active_cart.items.filter(
@@ -1014,7 +1026,7 @@ def cart_add(request):
             messages.info(request, "המוצר הוסר מדף ההזמנה")
         return redirect(request.POST.get("next") or "white_catalog:cart")
 
-    # Color-fan ordering. A sized color uses one quantity, copied onto every size.
+    # Color-fan ordering. A product that shares sizes copies one quantity onto every size.
     if any(key.startswith("color_qty_") or key.startswith("color_set_qty_") for key in request.POST):
         added = 0
         product_id = request.POST.get("product_id")
@@ -1046,6 +1058,8 @@ def cart_add(request):
                     ).select_related("product", "color", "size")
                 )
                 if not variants:
+                    continue
+                if not variants[0].product.sizes_share_quantity:
                     continue
                 if not variants[0].product.is_orderable or not variants[0].product.has_color_variants:
                     continue
@@ -1356,7 +1370,9 @@ def cart_update(request):
     bundle_source = color_variant
     if bundle_source is None and item is not None and item.color_variant_id:
         bundle_source = item.color_variant
-    bundle = _sized_color_variants(bundle_source)
+    bundle = []
+    if bundle_source is not None and bundle_source.product.sizes_share_quantity:
+        bundle = _sized_color_variants(bundle_source)
     if bundle and action in ("remove", "update"):
         target_cart = item.cart if item is not None else cart
         try:

@@ -1041,6 +1041,7 @@ class ColorSizePerVariantTests(TestCase):
             is_orderable=True,
             has_color_variants=True,
             unit_price=Decimal("23.00"),
+            simple_price_label="סט",
         )
         self.color = WhiteColor.objects.create(name="ורוד בדיקה", hex_color="#ffc0cb")
         self.s1, _created = WhiteSizeType.objects.get_or_create(name="18-24", defaults={"order": 1})
@@ -1086,6 +1087,8 @@ class ColorSizePerVariantTests(TestCase):
         self.assertNotContains(response, f'name="color_qty_{self.row1.id}"')
         self.assertContains(response, "111222333")
         self.assertContains(response, "הכמות זהה בכל המידות")
+        self.assertContains(response, "אותה כמות נלקחת מכל מידה")
+        self.assertContains(response, "לסט")
 
     def test_one_quantity_is_copied_onto_every_size(self):
         added = self.client.post(
@@ -1112,6 +1115,127 @@ class ColorSizePerVariantTests(TestCase):
             )
         )
         self.assertContains(page, "2 מכל מידה = 4 סטים")
+        cart_page = self.client.get(reverse("white_catalog:cart"))
+        self.assertContains(cart_page, "2 מכל מידה = 4 סטים")
+
+    def test_separate_size_quantities_stay_independent(self):
+        self.product.sizes_share_quantity = False
+        self.product.simple_price_label = "אוברול"
+        self.product.save(update_fields=["sizes_share_quantity", "simple_price_label"])
+
+        page = self.client.get(
+            reverse(
+                "white_catalog:subcategory_detail",
+                kwargs={"category_slug": self.category.slug, "subcategory_slug": self.product.slug},
+            )
+        )
+        self.assertEqual(page.status_code, 200)
+        html = page.content.decode()
+        self.assertIn(f'name="color_qty_{self.row1.id}"', html)
+        self.assertIn(f'name="color_qty_{self.row2.id}"', html)
+        self.assertNotIn(f'name="color_set_qty_{self.color.id}"', html)
+        self.assertIn("18-24", html)
+        self.assertIn("12-18-בדיקה", html)
+        self.assertIn("לאוברול", html)
+        self.assertNotIn("הכמות זהה בכל המידות", html)
+        self.assertNotIn("אותה כמות נלקחת מכל מידה", html)
+
+        added = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "product_id": str(self.product.id),
+                f"color_qty_{self.row1.id}": "4",
+                f"color_qty_{self.row2.id}": "4",
+            },
+        )
+        self.assertEqual(added.status_code, 200)
+        self.assertEqual(added.json()["added"], 2)
+        self.assertEqual(
+            list(
+                WhiteCartItem.objects.filter(cart__user=self.user)
+                .order_by("color_variant__order")
+                .values_list("quantity", flat=True)
+            ),
+            [4, 4],
+        )
+
+        ignored = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "product_id": str(self.product.id),
+                f"color_set_qty_{self.color.id}": "3",
+            },
+        )
+        self.assertEqual(ignored.status_code, 200)
+        self.assertEqual(
+            list(
+                WhiteCartItem.objects.filter(cart__user=self.user)
+                .order_by("color_variant__order")
+                .values_list("quantity", flat=True)
+            ),
+            [4, 4],
+        )
+
+        cart_page = self.client.get(reverse("white_catalog:cart"))
+        cart_html = cart_page.content.decode()
+        self.assertGreaterEqual(cart_html.count("ורוד בדיקה · 18-24"), 2)
+        self.assertGreaterEqual(cart_html.count("ורוד בדיקה · 12-18-בדיקה"), 2)
+        self.assertNotIn("מכל מידה", cart_html)
+        self.assertNotIn("הכמות זהה בכל המידות", cart_html)
+
+        first = WhiteCartItem.objects.get(cart__user=self.user, color_variant=self.row1)
+        updated = self.client.post(
+            reverse("white_catalog:cart_update"),
+            {
+                "format": "json",
+                "action": "update",
+                "item_id": str(first.id),
+                "color_variant_id": str(self.row1.id),
+                "quantity": "9",
+            },
+        )
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(
+            list(
+                WhiteCartItem.objects.filter(cart__user=self.user)
+                .order_by("color_variant__order")
+                .values_list("quantity", flat=True)
+            ),
+            [9, 4],
+        )
+
+        checkout = self.client.post(reverse("white_catalog:checkout"), {"notes": ""}, follow=True)
+        self.assertEqual(checkout.status_code, 200)
+        saved = list(
+            WhiteOrderItem.objects.filter(order__user=self.user).order_by("color_variant__order")
+        )
+        self.assertEqual([row.quantity for row in saved], [9, 4])
+        self.assertEqual(
+            [row.size_name for row in saved],
+            ["ורוד בדיקה · 18-24", "ורוד בדיקה · 12-18-בדיקה"],
+        )
+        confirm_html = checkout.content.decode()
+        self.assertNotIn("מכל מידה", confirm_html)
+        self.assertIn("ורוד בדיקה · 18-24", confirm_html)
+        self.assertIn("ורוד בדיקה · 12-18-בדיקה", confirm_html)
+
+    def test_migrated_romper_is_ordered_per_size_and_pajama_still_shares(self):
+        romper = WhiteSubcategory.objects.get(slug="colorful_double_zip_romper")
+        self.assertEqual(romper.simple_price_label, "אוברול")
+        self.assertFalse(romper.sizes_share_quantity)
+        self.assertEqual(romper.unit_price, Decimal("26.00"))
+        self.assertNotIn("כמות אחת", romper.sizes or "")
+        self.assertIn("כל מידה מוזמנת בנפרד", romper.sizes or "")
+
+        pajama = (
+            WhiteSubcategory.objects.filter(slug="pijama_set").first()
+            or WhiteSubcategory.objects.filter(name="סט פיג'מה").first()
+        )
+        self.assertIsNotNone(pajama)
+        self.assertTrue(pajama.sizes_share_quantity)
+        self.assertEqual(pajama.simple_price_label, "סט")
 
     def test_each_size_is_its_own_cart_and_order_line(self):
         added = self.client.post(
