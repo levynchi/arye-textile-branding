@@ -498,7 +498,7 @@
               window.alert("לא ניתן לשמור את האזור מהתמונה.");
               return;
             }
-            var file = new File([blob], "swatch-crop.jpg", { type: "image/jpeg" });
+            var file = new File([blob], "swatch-" + Date.now() + ".jpg", { type: "image/jpeg" });
             onPick({ hex: hex, file: file });
             closeModal();
           },
