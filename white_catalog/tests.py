@@ -680,7 +680,7 @@ class StoreImportExportTests(TestCase):
         self.category = WhiteCategory.objects.create(name="לבנים", slug="basics-test")
         fabric = WhiteFabricType.objects.create(name="פלנל")
         size_a, _created = WhiteSizeType.objects.get_or_create(name="0-3")
-        size_b = WhiteSizeType.objects.create(name="3-6")
+        size_b, _created = WhiteSizeType.objects.get_or_create(name="3-6")
         self.product = WhiteSubcategory.objects.create(
             name="בגד גוף חורף",
             slug="winter-bodysuit",
