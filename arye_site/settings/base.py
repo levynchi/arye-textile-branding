@@ -152,6 +152,8 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'info@arye-boutique.co.il')
 CONTACT_EMAIL = 'levynchi@gmail.com'
 MOLLY_ORDER_NOTIFY_EMAIL = os.environ.get('MOLLY_ORDER_NOTIFY_EMAIL', 'levynchi@gmail.com')
+# White-catalog orders mail the same inbox unless overridden.
+WHITE_ORDER_NOTIFY_EMAIL = os.environ.get('WHITE_ORDER_NOTIFY_EMAIL', MOLLY_ORDER_NOTIFY_EMAIL)
 
 # OpenAI — mockup studio all-over prompt recolor (optional; local color fallback if empty)
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')

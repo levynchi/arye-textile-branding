@@ -3,6 +3,7 @@ import io
 import json
 import re
 import tempfile
+from unittest.mock import patch
 
 from decimal import Decimal
 
@@ -31,7 +32,7 @@ from .models import (
     apply_price_list,
 )
 from .templatetags.white_catalog_extras import has_price_discount
-from .views import _product_gallery_images
+from .views import _product_gallery_images, send_white_order_notification
 
 
 class WhiteCatalogAdminBridgeTests(TestCase):
@@ -989,6 +990,87 @@ class CheckoutResetsCartTests(TestCase):
                 cart__status=WhiteCart.STATUS_ACTIVE,
             ).exists()
         )
+
+    @patch("white_catalog.views.send_white_order_notification")
+    def test_checkout_notifies_by_email(self, notify):
+        add_response = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {
+                "format": "json",
+                "pack_type_id": str(self.threes.id),
+                f"qty_{self.variant.id}": "2",
+            },
+        )
+        self.assertEqual(add_response.status_code, 200)
+
+        checkout = self.client.post(
+            reverse("white_catalog:checkout"),
+            {"notes": "בבקשה לארוז בנפרד"},
+        )
+        self.assertEqual(checkout.status_code, 302)
+        notify.assert_called_once()
+        order = notify.call_args.args[0]
+        self.assertEqual(order.user, self.user)
+        self.assertEqual(order.notes, "בבקשה לארוז בנפרד")
+        self.assertEqual(order.items.count(), 1)
+
+
+class WhiteOrderNotificationTests(TestCase):
+    def setUp(self):
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="חנות הדוגמה",
+            contact_name="דנה",
+            contact_phone="0501234567",
+            username="dana-shop",
+        )
+        self.user.set_password("pass")
+        self.user.save()
+        self.order = WhiteOrder.objects.create(
+            user=self.user,
+            status=WhiteOrder.STATUS_PENDING,
+            notes="דחוף",
+            total_amount=Decimal("78.00"),
+        )
+        WhiteOrderItem.objects.create(
+            order=self.order,
+            product_name="בגד גוף",
+            variant_name="פלנל",
+            barcode="2001",
+            size_name="0-3",
+            pack_type_name="שלישיות",
+            pack_quantity=3,
+            quantity=2,
+            unit_price=Decimal("39.00"),
+        )
+
+    @override_settings(RESEND_API_KEY="", WHITE_ORDER_NOTIFY_EMAIL="orders@example.com")
+    @patch("white_catalog.views.resend.Emails.send")
+    def test_skips_when_resend_is_not_configured(self, send):
+        send_white_order_notification(self.order)
+        send.assert_not_called()
+
+    @override_settings(RESEND_API_KEY="test-key", WHITE_ORDER_NOTIFY_EMAIL="orders@example.com")
+    @patch("white_catalog.views.resend.Emails.send")
+    def test_sends_order_summary_to_notify_inbox(self, send):
+        send_white_order_notification(self.order)
+
+        send.assert_called_once()
+        payload = send.call_args.args[0]
+        self.assertEqual(payload["to"], ["orders@example.com"])
+        self.assertEqual(payload["subject"], f"הזמנה חדשה מקטלוג לבנים: {self.order.order_number}")
+        self.assertIn("חנות הדוגמה", payload["text"])
+        self.assertIn("דנה", payload["text"])
+        self.assertIn("0501234567", payload["text"])
+        self.assertIn("בגד גוף", payload["text"])
+        self.assertIn("6 יח'", payload["text"])
+        self.assertIn("78.00", payload["text"])
+        self.assertIn("דחוף", payload["text"])
+
+    @override_settings(RESEND_API_KEY="test-key", WHITE_ORDER_NOTIFY_EMAIL="orders@example.com")
+    @patch("white_catalog.views.resend.Emails.send", side_effect=RuntimeError("resend down"))
+    def test_email_failure_does_not_raise(self, send):
+        send_white_order_notification(self.order)
+        send.assert_called_once()
 
 
 class WhiteOrderPrintTests(TestCase):

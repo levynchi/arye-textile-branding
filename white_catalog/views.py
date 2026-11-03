@@ -6,6 +6,9 @@ from functools import wraps
 from decimal import Decimal
 from io import BytesIO, StringIO
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
+
+import resend
 from django.conf import settings
 from django.contrib.auth import authenticate, logout as django_logout
 from django.shortcuts import render, get_object_or_404, redirect
@@ -1537,6 +1540,60 @@ def cart_clear(request):
 # Checkout & Orders
 # ---------------------------------------------------------------------------
 
+def send_white_order_notification(order):
+    """Email the manufacturer a summary when a white-catalog customer checks out."""
+    try:
+        if not settings.RESEND_API_KEY:
+            logger.warning("RESEND_API_KEY not set, skipping white catalog order email")
+            return
+        resend.api_key = settings.RESEND_API_KEY
+
+        lines = []
+        total_units = 0
+        for item in order.items.all():
+            units = item.quantity * item.pack_quantity
+            total_units += units
+            parts = [item.product_name or "מוצר"]
+            if item.variant_name:
+                parts.append(item.variant_name)
+            if item.color_name and item.color_name != item.variant_name:
+                parts.append(item.color_name)
+            if item.size_name:
+                parts.append(f"מידה: {item.size_name}")
+            pack_name = item.pack_type_name or "מארז"
+            parts.append(f"{pack_name} × {item.quantity} ({units} יח')")
+            if item.barcode:
+                parts.append(f"ברקוד: {item.barcode}")
+            parts.append(f"{item.get_line_total():.2f} ₪")
+            lines.append("- " + " | ".join(parts))
+
+        user = order.user
+        created = timezone.localtime(order.created, ZoneInfo("Asia/Jerusalem"))
+        body = (
+            "התקבלה הזמנה חדשה מקטלוג הלבנים!\n\n"
+            f"מספר הזמנה: {order.order_number}\n"
+            f"עסק: {user.company_name}\n"
+            f"איש קשר: {user.contact_name}\n"
+            f"טלפון: {user.contact_phone or 'אין'}\n"
+            f"משתמש: {user.username}\n"
+            f"תאריך: {created:%d/%m/%Y %H:%M}\n"
+            f'סה"כ יחידות: {total_units}\n'
+            f'סה"כ לפני מע"מ: {order.total_amount:.2f} ₪\n\n'
+            "פריטים:\n" + "\n".join(lines) + "\n\n"
+            f"הערות לקוח: {order.notes or 'אין'}\n"
+        )
+
+        resend.Emails.send({
+            "from": "Arye Textile <onboarding@resend.dev>",
+            "to": [settings.WHITE_ORDER_NOTIFY_EMAIL],
+            "subject": f"הזמנה חדשה מקטלוג לבנים: {order.order_number}",
+            "text": body,
+        })
+        logger.info("White catalog order email sent for %s", order.order_number)
+    except Exception:
+        logger.exception("Failed to send white catalog order notification")
+
+
 @require_catalog_login
 def checkout(request):
     """Submit the order (POST only). GET redirects to cart."""
@@ -1596,6 +1653,8 @@ def checkout(request):
     cart.status = WhiteCart.STATUS_SUBMITTED
     cart.save(update_fields=["status", "updated"])
     _bump_cart_generation(request)
+
+    send_white_order_notification(order)
 
     messages.success(request, f"ההזמנה {order.order_number} התקבלה בהצלחה!")
     response = redirect("white_catalog:order_confirm", order_number=order.order_number)
