@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הזמנה {{ order.order_number }} — הדפסה</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Assistant', 'Heebo', Arial, sans-serif;
+            color: #111;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 24px;
+            direction: rtl;
+        }
+        .sheet {
+            max-width: 980px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 28px 28px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        .actions {
+            max-width: 980px;
+            margin: 0 auto 16px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            font: inherit;
+            font-weight: 700;
+            padding: 10px 22px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            color: #fff;
+            background: #1a1a1a;
+        }
+        .btn-secondary {
+            background: #fff;
+            color: #1a1a1a;
+            border: 1px solid #bbb;
+        }
+        .doc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #1a1a1a;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+        }
+        .brand { font-size: 1.5rem; font-weight: 800; }
+        .brand small { display: block; font-size: 0.8rem; font-weight: 400; color: #555; }
+        .order-no { text-align: left; }
+        .order-no .num { font-size: 1.2rem; font-weight: 800; }
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px 24px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        .meta div span { color: #555; }
+        .meta div strong { font-weight: 700; }
+        .notes {
+            border: 1px solid #ddd;
+            background: #fafafa;
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        h2 { font-size: 1.1rem; margin: 0 0 10px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px 7px;
+            text-align: right;
+            vertical-align: top;
+        }
+        th { background: #eee; font-weight: 700; }
+        td.qty, th.qty { text-align: center; font-weight: 700; white-space: nowrap; }
+        td.money, th.money { text-align: left; white-space: nowrap; }
+        tr { page-break-inside: avoid; }
+        .total-row td { font-weight: 800; background: #f4f4f4; }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .sheet { box-shadow: none; max-width: none; padding: 0; }
+            .no-print { display: none !important; }
+            th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: A4 landscape; margin: 12mm; }
+        }
+    </style>
+</head>
+<body>
+    <div class="actions no-print">
+        <button type="button" class="btn" onclick="window.print()">הדפס</button>
+        <a href="{% url 'admin:white_catalog_whiteorder_change' order.pk %}" class="btn btn-secondary">חזרה להזמנה</a>
+    </div>
+
+    <div class="sheet">
+        <div class="doc-header">
+            <div class="brand">
+                Arye Textile
+                <small>הזמנת קטלוג לבנים</small>
+            </div>
+            <div class="order-no">
+                <div class="num">{{ order.order_number }}</div>
+                <div>{{ order.get_status_display }}</div>
+            </div>
+        </div>
+
+        <div class="meta">
+            <div><span>לקוח:</span> <strong>{{ order.user.company_name }}</strong></div>
+            <div><span>איש קשר:</span> <strong>{{ order.user.contact_name|default:"—" }}</strong></div>
+            <div><span>טלפון:</span> <strong>{{ order.user.contact_phone|default:"—" }}</strong></div>
+            <div><span>תאריך הזמנה:</span> <strong>{{ order.created|date:"d/m/Y H:i" }}</strong></div>
+            <div><span>סה"כ מארזים:</span> <strong>{{ total_packs }}</strong> ({{ rows|length }} שורות)</div>
+            <div><span>סה"כ יחידות:</span> <strong>{{ total_units }}</strong></div>
+            <div><span>סה"כ מחיר (לא כולל מע"מ):</span> <strong>₪{{ order.total_amount|floatformat:2 }}</strong></div>
+        </div>
+
+        {% if order.notes %}
+            <div class="notes">
+                <strong>הערות הלקוח:</strong><br>
+                {{ order.notes|linebreaksbr }}
+            </div>
+        {% endif %}
+
+        <h2>פריטים בהזמנה</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>מוצר</th>
+                    <th>גרסה</th>
+                    <th>צבע</th>
+                    <th>מידה</th>
+                    <th>ברקוד</th>
+                    <th>מארז</th>
+                    <th class="qty">כמות</th>
+                    <th class="qty">יחידות</th>
+                    <th class="money">מחיר למארז</th>
+                    <th class="money">סה"כ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ row.item.product_name }}</td>
+                        <td>{{ row.item.variant_name|default:"—" }}</td>
+                        <td>{{ row.item.color_name|default:"—" }}</td>
+                        <td>{{ row.item.size_name|default:"—" }}</td>
+                        <td>{{ row.item.barcode|default:"—" }}</td>
+                        <td>{{ row.item.pack_type_name|default:"—" }}{% if row.item.pack_quantity %} (×{{ row.item.pack_quantity }}){% endif %}</td>
+                        <td class="qty">{{ row.item.quantity }}</td>
+                        <td class="qty">{{ row.units }}</td>
+                        <td class="money">₪{{ row.item.unit_price|floatformat:2 }}</td>
+                        <td class="money">₪{{ row.line_total|floatformat:2 }}</td>
+                    </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="7">סה"כ</td>
+                    <td class="qty">{{ total_packs }}</td>
+                    <td class="qty">{{ total_units }}</td>
+                    <td class="money"></td>
+                    <td class="money">₪{{ order.total_amount|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

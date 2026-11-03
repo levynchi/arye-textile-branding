@@ -3,6 +3,8 @@ from django.contrib.admin.views.autocomplete import AutocompleteJsonView
 from django.contrib.admin.widgets import AutocompleteSelect
 from django import forms
 from django.db import models as dj_models
+from django.shortcuts import get_object_or_404, render
+from django.urls import path
 from django.utils.html import mark_safe
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice,
@@ -568,6 +570,7 @@ class WhiteOrderAdmin(admin.ModelAdmin):
 	search_fields = ("order_number", "user__company_name", "user__username")
 	readonly_fields = ("order_number", "user", "cart", "total_amount", "created", "updated")
 	inlines = [WhiteOrderItemInline]
+	change_form_template = "admin/white_catalog/whiteorder_change_form.html"
 
 	fieldsets = (
 		("פרטי הזמנה", {
@@ -577,4 +580,43 @@ class WhiteOrderAdmin(admin.ModelAdmin):
 			"fields": ("notes", "admin_notes"),
 		}),
 	)
+
+	def get_urls(self):
+		urls = super().get_urls()
+		custom = [
+			path(
+				"<int:object_id>/print/",
+				self.admin_site.admin_view(self.print_order),
+				name="white_catalog_whiteorder_print",
+			),
+		]
+		return custom + urls
+
+	def print_order(self, request, object_id):
+		order = get_object_or_404(
+			WhiteOrder.objects.prefetch_related("items").select_related("user"),
+			pk=object_id,
+		)
+		rows = []
+		total_units = 0
+		total_packs = 0
+		for item in order.items.all():
+			units = item.quantity * item.pack_quantity
+			total_units += units
+			total_packs += item.quantity
+			rows.append({
+				"item": item,
+				"units": units,
+				"line_total": item.get_line_total(),
+			})
+		return render(
+			request,
+			"admin/white_catalog/order_print.html",
+			{
+				"order": order,
+				"rows": rows,
+				"total_units": total_units,
+				"total_packs": total_packs,
+			},
+		)
 

@@ -991,6 +991,76 @@ class CheckoutResetsCartTests(TestCase):
         )
 
 
+class WhiteOrderPrintTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(
+            username="staff",
+            password="pass",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="רן לתינוק",
+            contact_name="רן",
+            contact_phone="0520000000",
+            username="ran-baby",
+        )
+        self.order = WhiteOrder.objects.create(
+            user=self.user,
+            status=WhiteOrder.STATUS_PENDING,
+            notes="לארוז בנפרד",
+            admin_notes="הערה פנימית",
+            total_amount=Decimal("1131.10"),
+        )
+        WhiteOrderItem.objects.create(
+            order=self.order,
+            product_name="בגד גוף",
+            variant_name="אינטרלוק",
+            color_name="לבן",
+            barcode="7290001",
+            size_name="0-3",
+            pack_type_name="שלישיות",
+            pack_quantity=3,
+            quantity=2,
+            unit_price=Decimal("39.00"),
+        )
+
+    def test_change_form_links_to_printable_order(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            reverse("admin:white_catalog_whiteorder_change", args=[self.order.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "הדפסת הזמנה")
+        self.assertContains(
+            response,
+            reverse("admin:white_catalog_whiteorder_print", args=[self.order.pk]),
+        )
+
+    def test_print_page_lists_customer_and_line_items(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(
+            reverse("admin:white_catalog_whiteorder_print", args=[self.order.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.order.order_number)
+        self.assertContains(response, "רן לתינוק")
+        self.assertContains(response, "0520000000")
+        self.assertContains(response, "בגד גוף")
+        self.assertContains(response, "7290001")
+        self.assertContains(response, "לארוז בנפרד")
+        self.assertContains(response, "1131.10")
+        self.assertContains(response, "window.print()")
+        self.assertNotContains(response, "הערה פנימית")
+
+    def test_print_page_requires_staff(self):
+        response = self.client.get(
+            reverse("admin:white_catalog_whiteorder_print", args=[self.order.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+
+
 class ColorfulHomePlacementTests(TestCase):
     def test_colorful_products_sit_below_categories_and_have_no_category_page(self):
         clothing = WhiteCategory.objects.create(name="ביגוד", slug="clothing", order=1)
