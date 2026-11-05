@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import admin
 from django.contrib.admin.views.autocomplete import AutocompleteJsonView
 from django.contrib.admin.widgets import AutocompleteSelect
@@ -13,7 +15,7 @@ from .models import (
     WhiteProductVariant, WhiteVariantPackPrice,
     WhiteColor, WhiteColorVariant,
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
-    fill_missing_color_sizes, product_color_sizes,
+    apply_price_list, fill_missing_color_sizes, product_color_sizes,
 )
 
 
@@ -548,19 +550,138 @@ class WhiteCartAdmin(admin.ModelAdmin):
 		return False
 
 
+def _pick_pack_type(variant, user):
+	"""The pack a staff-added variant row is sold in: the customer's route, else threes."""
+	packs = list(variant.pack_types.filter(is_active=True)) or list(WhitePackType.objects.filter(is_active=True))
+	if not packs:
+		return None
+	route = getattr(user, "pack_route", None)
+	if route == WhiteCatalogUser.ROUTE_FIVES:
+		wanted = 5
+	else:
+		wanted = 3
+	for pack in packs:
+		if pack.quantity == wanted:
+			return pack
+	return packs[0]
+
+
+def fill_order_item_from_catalog(item, user):
+	"""Snapshot catalog data onto a staff-added order line, pricing it like the cart does.
+
+	A price typed by staff wins; otherwise the catalog price after the customer's
+	discount is used (pack price when defined, else unit price x pack size).
+	"""
+	typed_price = item.unit_price
+	if item.color_variant_id:
+		cv = item.color_variant
+		item.product = cv.product
+		item.variant = None
+		item.product_name = cv.product.name
+		item.variant_name = "מניפת צבעים"
+		item.color_name = cv.color.name
+		item.barcode = cv.barcode or ""
+		item.size_name = f"{cv.color.name} · {cv.size.name}" if cv.size_id else cv.color.name
+		item.pack_type_name = "יחידה"
+		item.pack_quantity = 1
+		if typed_price is None:
+			item.unit_price = apply_price_list(cv.get_effective_price(), user)
+	elif item.variant_id:
+		variant = item.variant
+		item.product = variant.product
+		item.color_variant = None
+		item.product_name = variant.product.name
+		item.variant_name = variant.name
+		item.color_name = ""
+		item.barcode = variant.barcode or ""
+		item.size_name = variant.size_type.name if variant.size_type_id else ""
+		pack = _pick_pack_type(variant, user)
+		item.pack_type_name = pack.name if pack else "יחידה"
+		item.pack_quantity = pack.quantity if pack else 1
+		if typed_price is None:
+			pack_price = None
+			if pack is not None:
+				pack_price = variant.pack_prices.filter(pack_type=pack).values_list("price", flat=True).first()
+			if pack_price is not None:
+				item.unit_price = apply_price_list(pack_price, user)
+			else:
+				unit = variant.unit_price if variant.unit_price is not None else variant.product.unit_price
+				effective = apply_price_list(unit, user)
+				item.unit_price = (effective or Decimal("0")) * item.pack_quantity
+	if item.unit_price is None:
+		item.unit_price = Decimal("0")
+	return item
+
+
+def recalc_order_total(order):
+	total = sum((line.get_line_total() for line in order.items.all()), Decimal("0"))
+	order.total_amount = total
+	WhiteOrder.objects.filter(pk=order.pk).update(total_amount=total)
+	return total
+
+
+class WhiteOrderItemForm(forms.ModelForm):
+	class Meta:
+		model = WhiteOrderItem
+		fields = ("variant", "color_variant", "quantity", "unit_price")
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields["unit_price"].required = False
+		self.fields["unit_price"].help_text = "ריק = מחיר הקטלוג אחרי ההנחה של הלקוח"
+		if self.instance.pk:
+			# Existing lines are snapshots: the catalog pickers only matter for new rows.
+			for name in ("variant", "color_variant"):
+				if name in self.fields:
+					self.fields[name].disabled = True
+					self.fields[name].required = False
+
+	def clean(self):
+		cleaned = super().clean()
+		quantity = cleaned.get("quantity")
+		if quantity is not None and quantity < 1 and not cleaned.get("DELETE"):
+			self.add_error("quantity", "כמות חייבת להיות לפחות 1. למחיקה סמן את תיבת המחיקה.")
+		if self.instance.pk:
+			return cleaned
+		if not cleaned.get("variant") and not cleaned.get("color_variant"):
+			if cleaned.get("quantity") or cleaned.get("unit_price") is not None:
+				raise forms.ValidationError("בשורה חדשה צריך לבחור גרסה (מוצר + בד + מידה) או צבע מהמניפה.")
+		if cleaned.get("variant") and cleaned.get("color_variant"):
+			raise forms.ValidationError("בחר גרסה או צבע, לא את שניהם.")
+		return cleaned
+
+	def has_changed(self):
+		# An untouched extra row must stay empty so the formset skips it.
+		if self.instance.pk:
+			return super().has_changed()
+		return bool(self.data.get(self.add_prefix("variant")) or self.data.get(self.add_prefix("color_variant")))
+
+
 class WhiteOrderItemInline(admin.TabularInline):
 	model = WhiteOrderItem
-	extra = 0
-	readonly_fields = ("product_name", "variant_name", "color_name", "barcode", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
-	fields = ("product_name", "variant_name", "color_name", "barcode", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
-	can_delete = False
+	form = WhiteOrderItemForm
+	extra = 1
+	fields = ("variant", "color_variant", "product_name", "variant_name", "color_name", "barcode", "size_name", "pack_type_name", "pack_quantity", "quantity", "unit_price", "get_line_total")
+	readonly_fields = ("product_name", "variant_name", "color_name", "barcode", "size_name", "pack_type_name", "pack_quantity", "get_line_total")
+	autocomplete_fields = ("variant", "color_variant")
+	can_delete = True
+	verbose_name = "פריט"
+	verbose_name_plural = "פריטי הזמנה — אפשר לשנות כמות ומחיר, למחוק, או להוסיף שורה (בחר גרסה או צבע; המחיר והפרטים יתמלאו לבד בשמירה)"
 
 	def get_line_total(self, obj):
+		if not obj.pk or obj.unit_price is None:
+			return "—"
 		return f"₪{obj.get_line_total()}"
 	get_line_total.short_description = "סה\"כ"
 
-	def has_add_permission(self, request, obj=None):
-		return False
+	def formfield_for_foreignkey(self, db_field, request, **kwargs):
+		form_field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+		if form_field is not None and db_field.name == "variant":
+			form_field.label = "גרסה (מוצר + בד + מידה)"
+			form_field.label_from_instance = lambda obj: f"{obj.product.name} — {obj.name}"
+		if form_field is not None and db_field.name == "color_variant":
+			form_field.label = "צבע מהמניפה"
+		return form_field
 
 
 @admin.register(WhiteOrder)
@@ -574,12 +695,30 @@ class WhiteOrderAdmin(admin.ModelAdmin):
 
 	fieldsets = (
 		("פרטי הזמנה", {
-			"fields": ("order_number", "user", "status", "total_amount", "created", "updated")
+			"fields": ("order_number", "user", "status", "total_amount", "created", "updated"),
+			"description": "סה\"כ מחושב מחדש מהפריטים בכל שמירה.",
 		}),
 		("הערות", {
 			"fields": ("notes", "admin_notes"),
 		}),
 	)
+
+	def save_formset(self, request, form, formset, change):
+		if formset.model is not WhiteOrderItem:
+			return super().save_formset(request, form, formset, change)
+		order = form.instance
+		instances = formset.save(commit=False)
+		for obj in formset.deleted_objects:
+			obj.delete()
+		for item in instances:
+			item.order = order
+			if item.pk is None or not item.product_name:
+				fill_order_item_from_catalog(item, order.user)
+			elif item.unit_price is None:
+				item.unit_price = Decimal("0")
+			item.save()
+		formset.save_m2m()
+		recalc_order_total(order)
 
 	def get_urls(self):
 		urls = super().get_urls()

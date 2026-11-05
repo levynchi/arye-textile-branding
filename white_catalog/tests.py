@@ -1143,6 +1143,176 @@ class WhiteOrderPrintTests(TestCase):
         self.assertIn("/admin/login/", response.url)
 
 
+class WhiteOrderAdminEditTests(TestCase):
+    """Staff can fix a submitted order from the admin: quantities, deletions, new lines."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(
+            username="staff-edit",
+            password="pass",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.threes = WhitePackType.objects.create(name="מארז שלישיות", quantity=3, is_active=True)
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="רון לתינוק",
+            contact_name="רון",
+            contact_phone="0520000000",
+            username="ron-baby-edit",
+            price_percent=Decimal("15.00"),
+        )
+        fabric = WhiteFabricType.objects.create(name="פלנל-עריכה")
+        size_36, _ = WhiteSizeType.objects.get_or_create(name="3-6")
+        size_2430, _ = WhiteSizeType.objects.get_or_create(name="24-30")
+        self.pants = WhiteSubcategory.objects.create(
+            name="מכנס פתוח (געטקס)",
+            slug="open-pants-edit",
+            is_orderable=True,
+            has_order_variants=True,
+            unit_price=Decimal("11.40"),
+        )
+        self.pants_36 = WhiteProductVariant.objects.create(
+            product=self.pants, fabric_type=fabric, size_type=size_36, barcode="5001",
+        )
+        self.pants_2430 = WhiteProductVariant.objects.create(
+            product=self.pants, fabric_type=fabric, size_type=size_2430, barcode="5002",
+        )
+        self.color = WhiteColor.objects.create(name="חום עתיק")
+        self.sheet = WhiteSubcategory.objects.create(
+            name="סדין עגלה",
+            slug="stroller-sheet-edit",
+            is_orderable=True,
+            has_color_variants=True,
+            unit_price=Decimal("14.20"),
+        )
+        self.sheet_color = WhiteColorVariant.objects.create(
+            product=self.sheet, color=self.color, barcode="6001",
+        )
+        self.order = WhiteOrder.objects.create(
+            user=self.user,
+            status=WhiteOrder.STATUS_PENDING,
+            total_amount=Decimal("87.30"),
+        )
+        self.line = WhiteOrderItem.objects.create(
+            order=self.order,
+            product=self.pants,
+            variant=self.pants_36,
+            product_name=self.pants.name,
+            variant_name="פלנל 3-6",
+            size_name="3-6",
+            pack_type_name="מארז שלישיות",
+            pack_quantity=3,
+            quantity=3,
+            unit_price=Decimal("29.10"),
+        )
+        self.client.force_login(self.admin)
+        self.url = reverse("admin:white_catalog_whiteorder_change", args=[self.order.pk])
+
+    def _post(self, rows):
+        """rows: list of dicts for the items formset (existing first, then new)."""
+        data = {
+            "status": self.order.status,
+            "notes": "",
+            "admin_notes": "",
+            "items-TOTAL_FORMS": str(len(rows)),
+            "items-INITIAL_FORMS": str(sum(1 for r in rows if r.get("id"))),
+            "items-MIN_NUM_FORMS": "0",
+            "items-MAX_NUM_FORMS": "1000",
+            "_continue": "1",
+        }
+        for i, row in enumerate(rows):
+            for key, value in row.items():
+                data[f"items-{i}-{key}"] = value
+        return self.client.post(self.url, data)
+
+    def _existing(self, **overrides):
+        row = {
+            "id": self.line.pk,
+            "order": self.order.pk,
+            "quantity": "3",
+            "unit_price": "29.10",
+        }
+        row.update(overrides)
+        return row
+
+    def test_change_form_shows_editable_quantity_and_delete(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="items-0-quantity"')
+        self.assertContains(response, 'name="items-0-DELETE"')
+        self.assertContains(response, 'name="items-1-variant"')
+
+    def test_quantity_change_recalculates_total(self):
+        response = self._post([self._existing(quantity="5")])
+        self.assertEqual(response.status_code, 302, response.content.decode()[:2000])
+        self.line.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(self.line.quantity, 5)
+        self.assertEqual(self.order.total_amount, Decimal("145.50"))
+
+    def test_delete_line_and_add_variant_line_with_catalog_price(self):
+        response = self._post([
+            self._existing(DELETE="on"),
+            {"variant": self.pants_2430.pk, "quantity": "2", "unit_price": ""},
+        ])
+        self.assertEqual(response.status_code, 302, response.content.decode()[:2000])
+        items = list(self.order.items.all())
+        self.assertEqual(len(items), 1)
+        added = items[0]
+        self.assertEqual(added.product_name, "מכנס פתוח (געטקס)")
+        self.assertEqual(added.variant_name, "פלנל-עריכה 24-30")
+        self.assertEqual(added.size_name, "24-30")
+        self.assertEqual(added.barcode, "5002")
+        self.assertEqual(added.pack_type_name, "מארז שלישיות")
+        self.assertEqual(added.pack_quantity, 3)
+        # 11.40 minus 15% = 9.7 per unit, x3 per pack = 29.10, like the cart.
+        self.assertEqual(added.unit_price, Decimal("29.10"))
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.total_amount, Decimal("58.20"))
+
+    def test_add_color_line_uses_unit_pack_and_discount(self):
+        response = self._post([
+            self._existing(),
+            {"color_variant": self.sheet_color.pk, "quantity": "3", "unit_price": ""},
+        ])
+        self.assertEqual(response.status_code, 302, response.content.decode()[:2000])
+        added = self.order.items.exclude(pk=self.line.pk).get()
+        self.assertEqual(added.product_name, "סדין עגלה")
+        self.assertEqual(added.variant_name, "מניפת צבעים")
+        self.assertEqual(added.color_name, "חום עתיק")
+        self.assertEqual(added.size_name, "חום עתיק")
+        self.assertEqual(added.pack_type_name, "יחידה")
+        self.assertEqual(added.pack_quantity, 1)
+        self.assertEqual(added.unit_price, Decimal("12.10"))
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.total_amount, Decimal("87.30") + Decimal("36.30"))
+
+    def test_typed_price_wins_over_catalog(self):
+        response = self._post([
+            self._existing(),
+            {"variant": self.pants_2430.pk, "quantity": "1", "unit_price": "25"},
+        ])
+        self.assertEqual(response.status_code, 302)
+        added = self.order.items.exclude(pk=self.line.pk).get()
+        self.assertEqual(added.unit_price, Decimal("25"))
+
+    def test_new_row_without_catalog_pick_is_rejected(self):
+        response = self._post([
+            self._existing(),
+            {"quantity": "2", "unit_price": "10"},
+        ])
+        # Row has no variant/color so it is treated as untouched and ignored.
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.order.items.count(), 1)
+
+    def test_zero_quantity_is_rejected(self):
+        response = self._post([self._existing(quantity="0")])
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "כמות חייבת להיות לפחות 1")
+        self.line.refresh_from_db()
+        self.assertEqual(self.line.quantity, 3)
+
+
 class ColorfulHomePlacementTests(TestCase):
     def test_colorful_products_sit_below_categories_and_have_no_category_page(self):
         clothing = WhiteCategory.objects.create(name="ביגוד", slug="clothing", order=1)
