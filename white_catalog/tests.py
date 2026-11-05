@@ -1771,3 +1771,187 @@ class ColorAutocompleteSwatchTests(TestCase):
         self.assertNotIn("swatch", size_row)
 
 
+class _FakeRivhitClient:
+    """Stands in for RivhitOnlineClient: records Document.New payloads."""
+
+    def __init__(self):
+        self.payloads = []
+
+    def document_type_list(self):
+        return [{"document_type": 1, "document_name": "חשבונית מס"}, {"document_type": 6, "document_name": "הצעת מחיר"}]
+
+    def customer_list(self):
+        return [
+            {"customer_id": 67, "last_name": "רון לתינוק-ראשון לציון", "first_name": "רמי", "phone": "0505779115", "city": "רמלה"},
+            {"customer_id": 3794, "last_name": "רון לתינוק באר שבע", "first_name": "יוגב", "phone": "0532553199", "city": "באר שבע"},
+            {"customer_id": 9, "last_name": "חנות אחרת", "first_name": "", "phone": "0500000000", "city": "חיפה"},
+        ]
+
+    def item_list(self):
+        return [{"item_id": 2627, "item_name": "רגליות פלנל (3-6)", "barcode": "5001"}]
+
+    def document_new(self, payload):
+        self.payloads.append(payload)
+        return {"document_number": 1234, "document_identity": "abc", "document_link": "https://rivhit.example/q/1234.pdf"}
+
+
+@override_settings(RIVHIT_API_TOKEN="test-token", RIVHIT_QUOTE_DOCUMENT_TYPE="", CACHES={
+    "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
+})
+class WhiteOrderRivhitQuoteTests(TestCase):
+    """Export a website order to a Rivhit quote from the order admin page."""
+
+    def setUp(self):
+        from .models import WhiteQuote  # noqa: F401 — ensures the model is registered
+
+        self.admin = get_user_model().objects.create_user(
+            username="staff-quote", password="pass", is_staff=True, is_superuser=True,
+        )
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="רון לתינוק",
+            contact_name="רון",
+            contact_phone="053-2553199",
+            username="ron-baby-quote",
+            price_percent=Decimal("15.00"),
+        )
+        self.order = WhiteOrder.objects.create(
+            user=self.user, status=WhiteOrder.STATUS_PENDING, total_amount=Decimal("123.60"),
+        )
+        self.leggings = WhiteOrderItem.objects.create(
+            order=self.order,
+            product_name="רגליות לתינוק",
+            variant_name="פלנל 3-6",
+            size_name="3-6",
+            barcode="5001",
+            pack_type_name="מארז שלישיות",
+            pack_quantity=3,
+            quantity=3,
+            unit_price=Decimal("29.10"),
+        )
+        self.sheet = WhiteOrderItem.objects.create(
+            order=self.order,
+            product_name="סדין עגלה",
+            variant_name="מניפת צבעים",
+            color_name="חום עתיק",
+            size_name="חום עתיק",
+            barcode="6001",
+            pack_type_name="יחידה",
+            pack_quantity=1,
+            quantity=3,
+            unit_price=Decimal("12.10"),
+        )
+        self.client.force_login(self.admin)
+        self.url = reverse("admin:white_catalog_whiteorder_quote", args=[self.order.pk])
+        self.fake = _FakeRivhitClient()
+        patcher = patch("white_catalog.admin.get_rivhit_client", return_value=self.fake)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_order_page_links_to_quote(self):
+        resp = self.client.get(reverse("admin:white_catalog_whiteorder_change", args=[self.order.pk]))
+        self.assertContains(resp, self.url)
+        self.assertContains(resp, "הצעת מחיר בריווחית")
+
+    def test_quote_page_suggests_matching_customers_and_lines(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        choices = resp.context["customer_choices"]
+        self.assertEqual([c["id"] for c in choices], [3794, 67])  # phone match first, then name
+        self.assertContains(resp, "רגליות לתינוק")
+        self.assertContains(resp, 'name="qty_%d"' % self.leggings.pk)
+        self.assertEqual(resp.context["quote_amount_total"], Decimal("123.60"))
+
+    def test_post_creates_quote_and_remembers_customer(self):
+        resp = self.client.post(self.url, {
+            "customer_id": "67",
+            f"qty_{self.leggings.pk}": "2",
+            f"qty_{self.sheet.pk}": "0",
+        })
+        self.assertRedirects(resp, reverse("admin:white_catalog_whiteorder_change", args=[self.order.pk]))
+        self.assertEqual(len(self.fake.payloads), 1)
+        payload = self.fake.payloads[0]
+        self.assertEqual(payload["document_type"], 6)
+        self.assertEqual(payload["customer_id"], 67)
+        self.assertFalse(payload["price_include_vat"])
+        self.assertTrue(payload["no_update_inventory"])
+        self.assertEqual(payload["order"], self.order.order_number.replace("ORD-", ""))
+        self.assertEqual(len(payload["items"]), 1)
+        line = payload["items"][0]
+        self.assertEqual(line["item_id"], 2627)  # barcode matched to the Rivhit item
+        self.assertEqual(line["quantity"], 2.0)
+        self.assertEqual(line["price_nis"], 29.10)
+        self.assertIn("רגליות לתינוק", line["description"])
+        self.assertIn("3-6", line["description"])
+        self.assertIn("מארז שלישיות (3 יח')", line["description"])
+
+        quote = self.order.quotes.get()
+        self.assertEqual(quote.rivhit_document_number, "1234")
+        self.assertEqual(quote.rivhit_customer_id, 67)
+        self.assertEqual(quote.rivhit_document_link, "https://rivhit.example/q/1234.pdf")
+        self.assertEqual(quote.lines[0]["quote_quantity"], 2)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.rivhit_customer_id, 67)
+
+        # The order itself is untouched.
+        self.leggings.refresh_from_db()
+        self.assertEqual(self.leggings.quantity, 3)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.total_amount, Decimal("123.60"))
+
+        # Next visit preselects the remembered customer and lists the quote.
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.context["selected_customer"], 67)
+        self.assertContains(resp, "הצעה 1234")
+
+    def test_unmatched_barcode_is_sent_as_free_text(self):
+        self.client.post(self.url, {
+            "customer_id": "67",
+            f"qty_{self.leggings.pk}": "0",
+            f"qty_{self.sheet.pk}": "3",
+        })
+        line = self.fake.payloads[0]["items"][0]
+        self.assertEqual(line["item_id"], 0)
+        self.assertEqual(line["description"], "סדין עגלה | חום עתיק")
+
+    def test_requires_customer_and_a_positive_line(self):
+        resp = self.client.post(self.url, {
+            "customer_id": "",
+            f"qty_{self.leggings.pk}": "1",
+            f"qty_{self.sheet.pk}": "0",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "צריך לבחור לקוח בריווחית")
+        resp = self.client.post(self.url, {
+            "customer_id": "67",
+            f"qty_{self.leggings.pk}": "0",
+            f"qty_{self.sheet.pk}": "0",
+        })
+        self.assertContains(resp, "לפחות שורה אחת")
+        self.assertEqual(self.fake.payloads, [])
+        self.assertFalse(self.order.quotes.exists())
+
+    def test_rivhit_error_is_shown_not_saved(self):
+        from .rivhit import RivhitApiError
+
+        def boom(payload):
+            raise RivhitApiError("לקוח לא קיים (קוד 7)", error_code=7)
+
+        self.fake.document_new = boom
+        resp = self.client.post(self.url, {
+            "customer_id": "67",
+            f"qty_{self.leggings.pk}": "1",
+            f"qty_{self.sheet.pk}": "0",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "לקוח לא קיים")
+        self.assertFalse(self.order.quotes.exists())
+
+    @override_settings(RIVHIT_API_TOKEN="")
+    def test_missing_token_disables_form(self):
+        with patch.dict("os.environ", {"RIVHIT_API_TOKEN": ""}):
+            resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "RIVHIT_API_TOKEN")
+        self.assertContains(resp, "disabled")
+
+

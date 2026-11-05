@@ -1,6 +1,7 @@
 {% extends "admin/change_form.html" %}
 {% block object-tools-items %}
     {% if original %}
+    <li><a href="{% url 'admin:white_catalog_whiteorder_quote' original.pk %}" class="historylink">הצעת מחיר בריווחית</a></li>
     <li><a href="{% url 'admin:white_catalog_whiteorder_print' original.pk %}" target="_blank" class="historylink">הדפסת הזמנה</a></li>
     {% endif %}
     {{ block.super }}

@@ -1,0 +1,185 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .quote-wrap { max-width: 1100px; }
+    .quote-note, .quote-error, .quote-customer {
+        padding: 12px 14px;
+        border-radius: 6px;
+        margin-bottom: 18px;
+    }
+    .quote-note { background: #f5f5f5; }
+    .quote-error { background: #fdecea; color: #8a1f11; }
+    .quote-customer { background: #eef5ff; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+    .quote-customer label { font-weight: 700; }
+    .quote-customer select, .quote-customer input[type="number"] { padding: 6px 8px; min-width: 16rem; }
+    .quote-customer input[type="number"] { min-width: 8rem; }
+    .quote-customer .hint { color: #555; font-size: 0.85rem; flex-basis: 100%; }
+    .quote-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .quote-table th, .quote-table td {
+        border: 1px solid #ccc;
+        padding: 8px 10px;
+        text-align: right;
+        vertical-align: middle;
+    }
+    .quote-table th { background: #eee; }
+    .quote-table input[type="number"] { width: 5.5rem; padding: 6px 8px; text-align: center; }
+    .quote-table .qty, .quote-table .money { white-space: nowrap; }
+    .quote-table .total-row td { font-weight: 800; background: #f4f4f4; }
+    .quote-actions { margin-top: 22px; display: flex; gap: 10px; align-items: center; }
+    .quote-history { margin-top: 28px; }
+    .quote-history a { font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="quote-wrap">
+    <h1>הצעת מחיר בריווחית — הזמנה {{ order.order_number }} — {{ order.user.company_name }}</h1>
+
+    <p class="quote-note">
+        ההזמנה באתר לא משתנה. כאן בוחרים את כרטיס הלקוח בריווחית ומשנים כמויות להצעה בלבד.
+        כמות 0 = השורה לא נכנסת להצעה. הכמויות הן מארזים והמחירים למארז, לא כולל מע״מ — כמו באתר.
+        שורות עם ברקוד שקיים בריווחית מקושרות לפריט שם; השאר נשלחות כטקסט חופשי.
+    </p>
+
+    {% if config_error %}
+        <p class="quote-error">{{ config_error }}</p>
+    {% endif %}
+    {% if form_error %}
+        <p class="quote-error">{{ form_error }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="quote-customer">
+            <label for="customer-select">לקוח בריווחית:</label>
+            <select id="customer-select" {% if config_error %}disabled{% endif %}>
+                <option value="">— בחר מהרשימה —</option>
+                {% for choice in customer_choices %}
+                    <option value="{{ choice.id }}" {% if choice.id == selected_customer %}selected{% endif %}>
+                        {{ choice.label }} (#{{ choice.id }})
+                    </option>
+                {% endfor %}
+                <option value="manual" {% if selected_customer and not selected_in_choices %}selected{% endif %}>אחר — הקלד מזהה</option>
+            </select>
+            <label for="customer-id">מזהה לקוח:</label>
+            <input type="number" id="customer-id" name="customer_id" min="1" step="1"
+                   value="{{ selected_customer|default_if_none:'' }}" {% if config_error %}disabled{% endif %}>
+            <span class="hint">
+                הרשימה מציעה לקוחות בריווחית עם אותו טלפון ({{ order.user.contact_phone }}) או שם ({{ order.user.company_name }}).
+                הבחירה נשמרת בכרטיס המשתמש באתר להצעות הבאות.
+            </span>
+        </div>
+
+        <table class="quote-table" id="quote-table">
+            <thead>
+                <tr>
+                    <th>מוצר</th>
+                    <th>גרסה</th>
+                    <th>צבע / מידה</th>
+                    <th>מארז</th>
+                    <th>ברקוד</th>
+                    <th>כמות בהזמנה</th>
+                    <th>כמות להצעה</th>
+                    <th>מחיר למארז</th>
+                    <th>סה"כ שורה</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr data-price="{{ row.price }}">
+                        <td>{{ row.item.product_name }}</td>
+                        <td>{{ row.item.variant_name|default:"—" }}</td>
+                        <td>{{ row.item.size_name|default:row.item.color_name|default:"—" }}</td>
+                        <td>{{ row.item.pack_type_name }}{% if row.item.pack_quantity > 1 %} ({{ row.item.pack_quantity }}){% endif %}</td>
+                        <td dir="ltr">{{ row.item.barcode|default:"—" }}</td>
+                        <td class="qty">{{ row.item.quantity }}</td>
+                        <td class="qty">
+                            <input type="number" min="0" step="1" name="qty_{{ row.item.pk }}"
+                                   value="{{ row.quote_qty }}" {% if config_error %}disabled{% endif %}>
+                        </td>
+                        <td class="money">₪{{ row.price|floatformat:2 }}</td>
+                        <td class="money js-line-total">₪{{ row.line_total|floatformat:2 }}</td>
+                    </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="6">סה"כ להצעה</td>
+                    <td class="qty" id="quote-qty-total">{{ quote_qty_total }}</td>
+                    <td></td>
+                    <td class="money" id="quote-amount-total">₪{{ quote_amount_total|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="quote-actions">
+            <button type="submit" class="default" {% if config_error %}disabled{% endif %}>
+                לייצר הצעת מחיר בריווחית
+            </button>
+            <a href="{% url 'admin:white_catalog_whiteorder_change' order.pk %}" class="button">
+                חזרה להזמנה
+            </a>
+        </div>
+    </form>
+
+    {% if quotes %}
+        <div class="quote-history">
+            <h2>הצעות שכבר הופקו מהזמנה זו</h2>
+            <ul>
+                {% for quote in quotes %}
+                    <li>
+                        {{ quote.created|date:"d/m/Y H:i" }}
+                        — הצעה {{ quote.rivhit_document_number|default:"—" }}
+                        — לקוח #{{ quote.rivhit_customer_id|default:"—" }}
+                        {% if quote.rivhit_document_link %}
+                            — <a href="{{ quote.rivhit_document_link }}" target="_blank" rel="noopener">PDF</a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    var table = document.getElementById('quote-table');
+    var select = document.getElementById('customer-select');
+    var idInput = document.getElementById('customer-id');
+    if (select && idInput) {
+        select.addEventListener('change', function () {
+            if (select.value && select.value !== 'manual') {
+                idInput.value = select.value;
+            } else if (select.value === 'manual') {
+                idInput.focus();
+            }
+        });
+        idInput.addEventListener('input', function () {
+            var match = Array.prototype.some.call(select.options, function (opt) {
+                return opt.value === idInput.value;
+            });
+            select.value = match ? idInput.value : (idInput.value ? 'manual' : '');
+        });
+    }
+    if (!table) return;
+    function money(n) { return '₪' + Number(n).toFixed(2); }
+    function recalc() {
+        var qtyTotal = 0, amountTotal = 0;
+        table.querySelectorAll('tbody tr[data-price]').forEach(function (tr) {
+            var input = tr.querySelector('input[type="number"]');
+            var qty = parseInt(input && input.value, 10);
+            if (isNaN(qty) || qty < 0) qty = 0;
+            qtyTotal += qty;
+            var line = qty * parseFloat(tr.getAttribute('data-price') || '0');
+            tr.querySelector('.js-line-total').textContent = money(line);
+            amountTotal += line;
+        });
+        document.getElementById('quote-qty-total').textContent = qtyTotal;
+        document.getElementById('quote-amount-total').textContent = money(amountTotal);
+    }
+    table.addEventListener('input', recalc);
+    recalc();
+})();
+</script>
+{% endblock %}

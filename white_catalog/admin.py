@@ -4,18 +4,24 @@ from django.contrib import admin
 from django.contrib.admin.views.autocomplete import AutocompleteJsonView
 from django.contrib.admin.widgets import AutocompleteSelect
 from django import forms
+from django.contrib import messages
 from django.db import models as dj_models
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
-from django.urls import path
-from django.utils.html import mark_safe
+from django.urls import path, reverse
+from django.utils.html import format_html, mark_safe
 from .models import (
     WhiteCategory, WhiteSubcategory, WhiteSubcategoryImage, WhiteSubcategoryPrice,
     WhiteCatalogUser, WhiteCatalogUserActivity,
     WhiteFabricType, WhiteSizeType, WhitePackType,
     WhiteProductVariant, WhiteVariantPackPrice,
     WhiteColor, WhiteColorVariant,
-    WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem,
+    WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem, WhiteQuote,
     apply_price_list, fill_missing_color_sizes, product_color_sizes,
+)
+from .rivhit import (
+    RivhitApiError, cached_customers, cached_item_ids_by_barcode, create_quote_document,
+    customer_display, get_rivhit_client, match_customers, quote_line_description, rivhit_token,
 )
 
 
@@ -260,7 +266,7 @@ class WhiteCatalogUserForm(forms.ModelForm):
 		model = WhiteCatalogUser
 		fields = (
 			'company_name', 'contact_name', 'contact_phone', 'username',
-			'pack_route', 'price_percent', 'is_active',
+			'pack_route', 'price_percent', 'is_active', 'rivhit_customer_id',
 			'hidden_categories', 'hidden_products',
 		)
 	
@@ -689,7 +695,7 @@ class WhiteOrderAdmin(admin.ModelAdmin):
 	list_display = ("order_number", "user", "status", "total_amount", "created", "updated")
 	list_filter = ("status", "created")
 	search_fields = ("order_number", "user__company_name", "user__username")
-	readonly_fields = ("order_number", "user", "cart", "total_amount", "created", "updated")
+	readonly_fields = ("order_number", "user", "cart", "total_amount", "created", "updated", "quotes_display")
 	inlines = [WhiteOrderItemInline]
 	change_form_template = "admin/white_catalog/whiteorder_change_form.html"
 
@@ -701,7 +707,33 @@ class WhiteOrderAdmin(admin.ModelAdmin):
 		("הערות", {
 			"fields": ("notes", "admin_notes"),
 		}),
+		("הצעות מחיר בריווחית", {
+			"fields": ("quotes_display",),
+			"description": "להפקת הצעה חדשה: כפתור «הצעת מחיר בריווחית» למעלה.",
+		}),
 	)
+
+	def quotes_display(self, obj):
+		if not obj or not obj.pk:
+			return "—"
+		quotes = list(obj.quotes.all())
+		if not quotes:
+			return "עדיין לא הופקה הצעת מחיר מהזמנה זו."
+		rows = []
+		for quote in quotes:
+			link = (
+				format_html(' — <a href="{}" target="_blank" rel="noopener">פתח PDF</a>', quote.rivhit_document_link)
+				if quote.rivhit_document_link else ""
+			)
+			rows.append(format_html(
+				"<li>{} — הצעה {} — לקוח #{}{}</li>",
+				quote.created.strftime("%d/%m/%Y %H:%M"),
+				quote.rivhit_document_number or "—",
+				quote.rivhit_customer_id or "—",
+				link,
+			))
+		return format_html("<ul style='margin:0;padding-inline-start:1.2em'>{}</ul>", mark_safe("".join(rows)))
+	quotes_display.short_description = "הצעות שהופקו"
 
 	def save_formset(self, request, form, formset, change):
 		if formset.model is not WhiteOrderItem:
@@ -728,8 +760,180 @@ class WhiteOrderAdmin(admin.ModelAdmin):
 				self.admin_site.admin_view(self.print_order),
 				name="white_catalog_whiteorder_print",
 			),
+			path(
+				"<int:object_id>/quote/",
+				self.admin_site.admin_view(self.quote_order),
+				name="white_catalog_whiteorder_quote",
+			),
 		]
 		return custom + urls
+
+	# ------------------------------------------------------------------ Rivhit quote
+	@staticmethod
+	def _quote_rows(items, qty_map=None):
+		rows = []
+		qty_total = 0
+		amount_total = Decimal("0")
+		for item in items:
+			qty = item.quantity if qty_map is None else qty_map.get(item.pk, item.quantity)
+			price = item.unit_price if item.unit_price is not None else Decimal("0")
+			line_total = price * qty
+			qty_total += qty
+			amount_total += line_total
+			rows.append({
+				"item": item,
+				"description": quote_line_description(item),
+				"quote_qty": qty,
+				"price": price,
+				"line_total": line_total,
+			})
+		return rows, qty_total, amount_total
+
+	def _quote_customer_choices(self, client, user):
+		"""Rivhit customers that probably belong to this shop (phone match first)."""
+		try:
+			customers = cached_customers(client)
+		except RivhitApiError as exc:
+			return [], str(exc)
+		matched = match_customers(customers, phone=user.contact_phone, name=user.company_name)
+		if user.rivhit_customer_id and not any(int(c.get("customer_id") or 0) == user.rivhit_customer_id for c in matched):
+			current = next((c for c in customers if int(c.get("customer_id") or 0) == user.rivhit_customer_id), None)
+			if current:
+				matched.insert(0, current)
+		choices = [
+			{"id": int(c["customer_id"]), "label": customer_display(c)}
+			for c in matched if c.get("customer_id")
+		]
+		return choices, None
+
+	def quote_order(self, request, object_id):
+		order = get_object_or_404(
+			WhiteOrder.objects.select_related("user").prefetch_related("items", "quotes"),
+			pk=object_id,
+		)
+		user = order.user
+		items = list(order.items.all())
+		config_error = None if rivhit_token() else "לא הוגדר RIVHIT_API_TOKEN בהגדרות האתר (משתנה סביבה ב-Railway)."
+		form_error = None
+		qty_map = None
+		customer_choices = []
+		selected_customer = user.rivhit_customer_id or ""
+		client = None
+
+		if not config_error:
+			client = get_rivhit_client()
+			customer_choices, lookup_error = self._quote_customer_choices(client, user)
+			if lookup_error:
+				form_error = lookup_error
+
+		if request.method == "POST" and not config_error:
+			raw_customer = (request.POST.get("customer_id") or "").strip()
+			selected_customer = raw_customer
+			qty_map = {}
+			try:
+				for item in items:
+					qty = int((request.POST.get(f"qty_{item.pk}") or "").strip())
+					if qty < 0:
+						raise ValueError
+					qty_map[item.pk] = qty
+			except (TypeError, ValueError):
+				form_error = "כמות להצעה חייבת להיות מספר שלם (0 או יותר)."
+			else:
+				try:
+					customer_id = int(raw_customer)
+					if customer_id <= 0:
+						raise ValueError
+				except (TypeError, ValueError):
+					customer_id = None
+					form_error = "צריך לבחור לקוח בריווחית (או להקליד מזהה לקוח)."
+			if not form_error:
+				try:
+					item_ids = cached_item_ids_by_barcode(client)
+				except RivhitApiError:
+					item_ids = {}
+				rivhit_items, stored_lines = [], []
+				for item in items:
+					qty = qty_map[item.pk]
+					if qty == 0:
+						continue
+					price = item.unit_price if item.unit_price is not None else Decimal("0")
+					description = quote_line_description(item)
+					rivhit_item_id = item_ids.get((item.barcode or "").strip(), 0)
+					rivhit_items.append({
+						"item_id": rivhit_item_id,
+						"description": description,
+						"quantity": qty,
+						"price_nis": price,
+					})
+					stored_lines.append({
+						"order_item_id": item.pk,
+						"description": description,
+						"barcode": item.barcode,
+						"rivhit_item_id": rivhit_item_id,
+						"order_quantity": item.quantity,
+						"quote_quantity": qty,
+						"pack_price": str(price),
+					})
+				if not rivhit_items:
+					form_error = "צריך לפחות שורה אחת עם כמות גדולה מ־0."
+				else:
+					try:
+						data = create_quote_document(customer_id, order.order_number, rivhit_items, client=client)
+					except RivhitApiError as exc:
+						form_error = str(exc)
+					else:
+						number = str(data.get("document_number") or "")
+						link = data.get("document_link") or data.get("link_document") or ""
+						WhiteQuote.objects.create(
+							order=order,
+							rivhit_customer_id=customer_id,
+							rivhit_document_type=data.get("document_type") or None,
+							rivhit_document_number=number,
+							rivhit_document_identity=str(data.get("document_identity") or ""),
+							rivhit_document_link=link,
+							lines=stored_lines,
+						)
+						if user.rivhit_customer_id != customer_id:
+							user.rivhit_customer_id = customer_id
+							user.save(update_fields=["rivhit_customer_id"])
+						if link:
+							self.message_user(
+								request,
+								format_html(
+									'הופקה הצעת מחיר {} בריווחית ללקוח {}. <a href="{}" target="_blank" rel="noopener">פתח PDF</a>',
+									number or "—", customer_id, link,
+								),
+								messages.SUCCESS,
+							)
+						else:
+							self.message_user(
+								request,
+								f"הופקה הצעת מחיר {number or '—'} בריווחית ללקוח {customer_id}.",
+								messages.SUCCESS,
+							)
+						return HttpResponseRedirect(reverse("admin:white_catalog_whiteorder_change", args=[order.pk]))
+
+		rows, quote_qty_total, quote_amount_total = self._quote_rows(items, qty_map)
+		try:
+			selected_customer_int = int(selected_customer)
+		except (TypeError, ValueError):
+			selected_customer_int = None
+		context = {
+			**self.admin_site.each_context(request),
+			"title": f"הצעת מחיר בריווחית — {order.order_number}",
+			"order": order,
+			"rows": rows,
+			"quote_qty_total": quote_qty_total,
+			"quote_amount_total": quote_amount_total,
+			"config_error": config_error,
+			"form_error": form_error,
+			"customer_choices": customer_choices,
+			"selected_customer": selected_customer_int,
+			"selected_in_choices": any(c["id"] == selected_customer_int for c in customer_choices),
+			"quotes": order.quotes.all(),
+			"opts": self.model._meta,
+		}
+		return render(request, "admin/white_catalog/order_quote.html", context)
 
 	def print_order(self, request, object_id):
 		order = get_object_or_404(

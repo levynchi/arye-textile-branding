@@ -265,6 +265,12 @@ class WhiteCatalogUser(models.Model):
 	)
 	last_login = models.DateTimeField("כניסה אחרונה", null=True, blank=True)
 	last_activity_at = models.DateTimeField("פעילות אחרונה", null=True, blank=True)
+	rivhit_customer_id = models.PositiveIntegerField(
+		"מזהה לקוח בריווחית",
+		null=True,
+		blank=True,
+		help_text="כרטיס הלקוח בריווחית אונליין. נשמר אוטומטית בהפקת הצעת מחיר ראשונה.",
+	)
 	created = models.DateTimeField(auto_now_add=True)
 	updated = models.DateTimeField(auto_now=True)
 
@@ -966,4 +972,37 @@ class WhiteOrderItem(models.Model):
 
 	def get_line_total(self):
 		return self.unit_price * self.quantity
+
+
+class WhiteQuote(models.Model):
+	"""A Rivhit quotation produced from a white catalog order. Does not mutate the order."""
+
+	order = models.ForeignKey(
+		WhiteOrder,
+		on_delete=models.CASCADE,
+		related_name="quotes",
+		verbose_name="הזמנה",
+	)
+	rivhit_customer_id = models.PositiveIntegerField("מזהה לקוח בריווחית", null=True, blank=True)
+	rivhit_document_type = models.PositiveIntegerField("סוג מסמך ריווחית", null=True, blank=True)
+	rivhit_document_number = models.CharField("מספר הצעה בריווחית", max_length=50, blank=True)
+	rivhit_document_identity = models.CharField("מזהה מסמך", max_length=80, blank=True)
+	rivhit_document_link = models.URLField("קישור PDF", max_length=500, blank=True)
+	lines = models.JSONField(
+		"שורות שנשלחו",
+		default=list,
+		blank=True,
+		help_text="הכמויות והמחירים שנשלחו לריווחית. ההזמנה המקורית לא משתנה.",
+	)
+	created = models.DateTimeField("נוצר", auto_now_add=True)
+
+	class Meta:
+		app_label = "white_catalog"
+		ordering = ("-created",)
+		verbose_name = "הצעת מחיר"
+		verbose_name_plural = "הצעות מחיר"
+
+	def __str__(self):
+		number = self.rivhit_document_number or "?"
+		return f"הצעה {number} — {self.order.order_number}"
 
