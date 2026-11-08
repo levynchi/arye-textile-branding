@@ -228,6 +228,8 @@ class StaffLoginAsCustomerTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.login_as_url)
         self.assertContains(response, "https://wa.me/972501234567?text=")
+        self.assertContains(response, reverse("white_catalog:cart"))
+        self.assertNotContains(response, reverse("white_catalog:login"))
         self.assertContains(response, "1 פריטים בדף ההזמנה")
         self.assertContains(response, "toyland")
 

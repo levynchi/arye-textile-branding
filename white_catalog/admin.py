@@ -297,26 +297,26 @@ def whatsapp_phone(raw_phone):
 	return digits
 
 
-def customer_order_message(user, login_url):
-	"""WhatsApp text inviting the customer to review the order staff prepared for them."""
+def customer_order_message(user, order_url):
+	"""WhatsApp text inviting a logged-in customer to open the order prepared for them."""
 	first_name = (user.contact_name or "").strip().split(" ")[0] or user.company_name
 	return (
 		f"היי {first_name},\n"
 		f"הכנו עבורכם ({user.company_name}) הצעה להזמנה בקטלוג הלבנים של אריה טקסטיל.\n"
-		f"כנסו לקטלוג עם שם המשתמש: {user.username}\n"
-		f"{login_url}\n"
-		"בדף ההזמנה תראו את המוצרים והכמויות שהכנו. אפשר לשנות כמויות, להוסיף או להוריד מוצרים, "
+		f"ההזמנה מחכה לכם כאן:\n"
+		f"{order_url}\n"
+		"אפשר לשנות כמויות, להוסיף או להוריד מוצרים, "
 		"וכשהכל מתאים - ללחוץ על \"שלח הזמנה\".\n"
 		"לכל שאלה אנחנו כאן."
 	)
 
 
-def whatsapp_link(user, login_url):
+def whatsapp_link(user, order_url):
 	phone = whatsapp_phone(user.contact_phone)
 	if not phone:
 		return ""
 	from urllib.parse import quote
-	return f"https://wa.me/{phone}?text={quote(customer_order_message(user, login_url))}"
+	return f"https://wa.me/{phone}?text={quote(customer_order_message(user, order_url))}"
 
 
 @admin.register(WhiteCatalogUser)
@@ -353,10 +353,10 @@ class WhiteCatalogUserAdmin(admin.ModelAdmin):
 		extra_context = dict(extra_context or {})
 		user = WhiteCatalogUser.objects.filter(pk=object_id).first()
 		if user:
-			login_url = request.build_absolute_uri(reverse("white_catalog:login"))
+			order_url = request.build_absolute_uri(reverse("white_catalog:cart"))
 			extra_context["login_as_url"] = reverse("white_catalog:admin_login_as", args=[user.pk])
-			extra_context["whatsapp_url"] = whatsapp_link(user, login_url)
-			extra_context["whatsapp_message"] = customer_order_message(user, login_url)
+			extra_context["whatsapp_url"] = whatsapp_link(user, order_url)
+			extra_context["whatsapp_message"] = customer_order_message(user, order_url)
 			cart = WhiteCart.objects.filter(user=user, status=WhiteCart.STATUS_ACTIVE).first()
 			extra_context["active_cart_count"] = cart.get_item_count() if cart else 0
 		return super().change_view(request, object_id, form_url, extra_context=extra_context)
