@@ -285,17 +285,81 @@ class WhiteCatalogUserForm(forms.ModelForm):
 		return user
 
 
+def whatsapp_phone(raw_phone):
+	"""Israeli phone as typed by staff -> international digits for wa.me (05X... -> 9725X...)."""
+	digits = "".join(ch for ch in (raw_phone or "") if ch.isdigit())
+	if not digits:
+		return ""
+	if digits.startswith("00"):
+		digits = digits[2:]
+	if digits.startswith("0"):
+		digits = "972" + digits[1:]
+	return digits
+
+
+def customer_order_message(user, login_url):
+	"""WhatsApp text inviting the customer to review the order staff prepared for them."""
+	first_name = (user.contact_name or "").strip().split(" ")[0] or user.company_name
+	return (
+		f"היי {first_name},\n"
+		f"הכנו עבורכם ({user.company_name}) הצעה להזמנה בקטלוג הלבנים של אריה טקסטיל.\n"
+		f"כנסו לקטלוג עם שם המשתמש: {user.username}\n"
+		f"{login_url}\n"
+		"בדף ההזמנה תראו את המוצרים והכמויות שהכנו. אפשר לשנות כמויות, להוסיף או להוריד מוצרים, "
+		"וכשהכל מתאים - ללחוץ על \"שלח הזמנה\".\n"
+		"לכל שאלה אנחנו כאן."
+	)
+
+
+def whatsapp_link(user, login_url):
+	phone = whatsapp_phone(user.contact_phone)
+	if not phone:
+		return ""
+	from urllib.parse import quote
+	return f"https://wa.me/{phone}?text={quote(customer_order_message(user, login_url))}"
+
+
 @admin.register(WhiteCatalogUser)
 class WhiteCatalogUserAdmin(admin.ModelAdmin):
 	"""Admin interface for WhiteCatalogUser model."""
 	form = WhiteCatalogUserForm
-	list_display = ("company_name", "username", "contact_name", "contact_phone", "pack_route", "price_percent", "is_active", "last_login_display", "last_activity_display", "created")
+	change_form_template = "admin/white_catalog/whitecataloguser_change_form.html"
+	list_display = ("company_name", "username", "contact_name", "contact_phone", "pack_route", "price_percent", "is_active", "active_cart_display", "last_login_display", "last_activity_display", "created")
 	list_editable = ("price_percent", "is_active")
 	list_filter = ("pack_route", "price_percent", "is_active", "created", "last_login", "last_activity_at")
 	search_fields = ("company_name", "username", "contact_name", "contact_phone")
 	readonly_fields = ("created", "updated", "last_login", "last_activity_at", "activity_count")
 	filter_horizontal = ("hidden_categories", "hidden_products")
 	inlines = [WhiteCatalogUserActivityInline]
+
+	def active_cart_display(self, obj):
+		"""Items waiting in the customer's open order page + a one-click 'enter as customer' button."""
+		cart = WhiteCart.objects.filter(user=obj, status=WhiteCart.STATUS_ACTIVE).first()
+		count = cart.get_item_count() if cart else 0
+		label = f"{count} פריטים" if count else "ריק"
+		if not obj.is_active:
+			return label
+		# The changelist is already one big POST form (list_editable), so the button
+		# re-targets that form instead of nesting a second one.
+		return format_html(
+			'{} &nbsp;<button type="submit" class="button" formmethod="post" formaction="{}" '
+			'style="padding:2px 8px;">כניסה כלקוח</button>',
+			label,
+			reverse("white_catalog:admin_login_as", args=[obj.pk]),
+		)
+	active_cart_display.short_description = "דף הזמנה פתוח"
+
+	def change_view(self, request, object_id, form_url="", extra_context=None):
+		extra_context = dict(extra_context or {})
+		user = WhiteCatalogUser.objects.filter(pk=object_id).first()
+		if user:
+			login_url = request.build_absolute_uri(reverse("white_catalog:login"))
+			extra_context["login_as_url"] = reverse("white_catalog:admin_login_as", args=[user.pk])
+			extra_context["whatsapp_url"] = whatsapp_link(user, login_url)
+			extra_context["whatsapp_message"] = customer_order_message(user, login_url)
+			cart = WhiteCart.objects.filter(user=user, status=WhiteCart.STATUS_ACTIVE).first()
+			extra_context["active_cart_count"] = cart.get_item_count() if cart else 0
+		return super().change_view(request, object_id, form_url, extra_context=extra_context)
 	
 	def last_login_display(self, obj):
 		"""Display last login time in a user-friendly format."""

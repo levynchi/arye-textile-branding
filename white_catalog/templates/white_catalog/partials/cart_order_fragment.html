@@ -136,6 +136,18 @@
 
                 <p class="vat-note">* המחירים אינם כוללים מע"מ</p>
 
+                {% if impersonating %}
+                <div class="impersonation-checkout-note" role="status" style="background:#fff4d6;border:1px solid #e3c06a;color:#5a4200;padding:14px 16px;border-radius:8px;font-weight:600;margin-bottom:12px;">
+                    אתה בונה הזמנה עבור {{ impersonated_user.company_name }}. ההזמנה תישלח על ידי הלקוח לאחר שיאשר אותה.
+                </div>
+                <div class="order-actions">
+                    <a href="{% url 'white_catalog:home' %}" class="btn-add-more{% if drawer_mode %} cart-drawer-dismiss-link{% endif %}">
+                        <span class="btn-add-more-lines">
+                            <span class="btn-add-more-line-a">← המשך להוסיף</span><span class="btn-add-more-line-b">מוצרים להזמנה</span>
+                        </span>
+                    </a>
+                </div>
+                {% else %}
                 <form method="post" action="{% url 'white_catalog:checkout' %}">
                     {% csrf_token %}
                     <div class="notes-box">
@@ -151,6 +163,7 @@
                         </a>
                     </div>
                 </form>
+                {% endif %}
 
             {% else %}
                 <div class="cart-empty">

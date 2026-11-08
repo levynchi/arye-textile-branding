@@ -1,0 +1,42 @@
+{% extends "admin/change_form.html" %}
+{% block object-tools-items %}
+    {% if original and original.is_active %}
+    <li>
+        <form method="post" action="{{ login_as_url }}" style="display:inline;margin:0;">
+            {% csrf_token %}
+            <button type="submit" class="historylink" style="border:none;cursor:pointer;font:inherit;">
+                כניסה כלקוח לבניית הזמנה{% if active_cart_count %} ({{ active_cart_count }} פריטים בדף ההזמנה){% endif %}
+            </button>
+        </form>
+    </li>
+    {% if whatsapp_url %}
+    <li><a href="{{ whatsapp_url }}" target="_blank" rel="noopener noreferrer" class="historylink">שלח הודעת וואטסאפ ללקוח</a></li>
+    {% endif %}
+    {% endif %}
+    {{ block.super }}
+{% endblock %}
+
+{% block after_field_sets %}
+    {{ block.super }}
+    {% if original and original.is_active %}
+    <fieldset class="module aligned" style="margin-top:20px;">
+        <h2>בניית הזמנה עבור הלקוח</h2>
+        <div class="form-row">
+            <p style="margin:0 0 8px;">
+                1. לחץ על <strong>"כניסה כלקוח לבניית הזמנה"</strong> למעלה, מלא את דף ההזמנה בקטלוג כאילו אתה הלקוח, ואז "חזרה לאדמין".<br>
+                2. ודא שאתה יודע את הסיסמה של הלקוח (אפשר להגדיר חדשה בשדה הסיסמה למעלה).<br>
+                3. שלח ללקוח את ההודעה (וואטסאפ או כל דרך אחרת) והוסף את הסיסמה. הלקוח יתחבר, יראה את דף ההזמנה מלא, יערוך ויישלח בעצמו.
+            </p>
+            {% if active_cart_count %}
+            <p style="margin:0 0 8px;color:#5a4200;background:#fff4d6;border:1px solid #e3c06a;padding:8px 12px;border-radius:6px;">
+                כרגע יש <strong>{{ active_cart_count }}</strong> פריטים בדף ההזמנה הפתוח של הלקוח.
+            </p>
+            {% endif %}
+            {% if not whatsapp_url %}
+            <p style="margin:0 0 8px;color:#a33;">אין טלפון תקין לאיש הקשר, לכן קישור הוואטסאפ לא נוצר. אפשר להעתיק את ההודעה ידנית:</p>
+            {% endif %}
+            <textarea readonly rows="7" style="width:100%;max-width:700px;direction:rtl;font-family:inherit;" onclick="this.select();">{{ whatsapp_message }}</textarea>
+        </div>
+    </fieldset>
+    {% endif %}
+{% endblock %}

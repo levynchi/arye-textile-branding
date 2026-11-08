@@ -82,6 +82,160 @@ class WhiteCatalogAdminBridgeTests(TestCase):
         self.assertNotContains(response, "Admin Test Account")
 
 
+class StaffLoginAsCustomerTests(TestCase):
+    """צוות נכנס לקטלוג כלקוח, ממלא לו את דף ההזמנה, והלקוח שולח בעצמו."""
+
+    def setUp(self):
+        self.staff = get_user_model().objects.create_user(
+            username="staff-impersonate", password="pass", is_staff=True, is_superuser=True,
+        )
+        self.customer = WhiteCatalogUser.objects.create(
+            company_name="טוילנד",
+            contact_name="ניר כהן",
+            contact_phone="050-1234567",
+            username="toyland",
+        )
+        self.customer.set_password("secret")
+        self.customer.save()
+        self.product = WhiteSubcategory.objects.create(
+            name="סדין", slug="sheet", is_orderable=True, unit_price=Decimal("20.00"),
+        )
+        self.login_as_url = reverse("white_catalog:admin_login_as", args=[self.customer.pk])
+        self.stop_url = reverse("white_catalog:admin_stop_login_as")
+
+    def _staff_enters_as_customer(self):
+        self.client.force_login(self.staff)
+        return self.client.post(self.login_as_url)
+
+    def test_staff_login_as_switches_catalog_session_without_touching_customer_activity(self):
+        response = self._staff_enters_as_customer()
+
+        self.assertRedirects(response, reverse("white_catalog:home"), fetch_redirect_response=False)
+        self.assertEqual(self.client.session["white_catalog_user_id"], self.customer.id)
+        self.assertTrue(self.client.session["white_catalog_impersonating"])
+        self.assertEqual(self.client.session["white_catalog_impersonator"], "staff-impersonate")
+        self.customer.refresh_from_db()
+        self.assertIsNone(self.customer.last_login)
+        self.assertEqual(self.customer.activities.count(), 0)
+
+        home = self.client.get(reverse("white_catalog:home"))
+        self.assertContains(home, "טוילנד")
+        self.assertContains(home, "חזרה לאדמין")
+        self.assertNotContains(home, reverse("white_catalog:logout"))
+        # The browser-side quantity cache of the staff member is flushed on the first page.
+        self.assertTrue(home.context["reset_cart"])
+
+    def test_items_added_while_impersonating_land_in_customer_cart(self):
+        self._staff_enters_as_customer()
+
+        response = self.client.post(
+            reverse("white_catalog:cart_add"),
+            {"format": "json", "product_id": str(self.product.id), "simple_quantity": "4"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        cart = WhiteCart.objects.get(user=self.customer, status=WhiteCart.STATUS_ACTIVE)
+        self.assertEqual(cart.items.get(product=self.product).quantity, 4)
+        self.assertFalse(WhiteCart.objects.filter(user__username="staff-impersonate").exists())
+
+    def test_checkout_is_blocked_while_impersonating(self):
+        self._staff_enters_as_customer()
+        self.client.post(
+            reverse("white_catalog:cart_add"),
+            {"format": "json", "product_id": str(self.product.id), "simple_quantity": "2"},
+        )
+
+        cart_page = self.client.get(reverse("white_catalog:cart"))
+        self.assertNotContains(cart_page, "שלח הזמנה ✓")
+        self.assertContains(cart_page, "ההזמנה תישלח על ידי הלקוח")
+
+        response = self.client.post(reverse("white_catalog:checkout"), {"notes": "x"})
+
+        self.assertRedirects(response, reverse("white_catalog:cart"))
+        self.assertEqual(WhiteOrder.objects.count(), 0)
+        cart = WhiteCart.objects.get(user=self.customer)
+        self.assertEqual(cart.status, WhiteCart.STATUS_ACTIVE)
+        self.assertEqual(cart.items.count(), 1)
+
+    def test_customer_sees_prepared_cart_and_can_submit_it(self):
+        self._staff_enters_as_customer()
+        self.client.post(
+            reverse("white_catalog:cart_add"),
+            {"format": "json", "product_id": str(self.product.id), "simple_quantity": "3"},
+        )
+        self.client.post(self.stop_url)
+        self.client.logout()
+
+        login = self.client.post(
+            reverse("white_catalog:login"), {"username": "toyland", "password": "secret"},
+        )
+        self.assertRedirects(login, reverse("white_catalog:home"))
+        cart_page = self.client.get(reverse("white_catalog:cart"))
+        self.assertContains(cart_page, "שלח הזמנה ✓")
+        self.assertContains(cart_page, self.product.name)
+
+        with patch("white_catalog.views.send_white_order_notification"):
+            response = self.client.post(reverse("white_catalog:checkout"), {"notes": ""})
+
+        order = WhiteOrder.objects.get(user=self.customer)
+        self.assertRedirects(response, reverse("white_catalog:order_confirm", args=[order.order_number]))
+        self.assertEqual(order.items.get().quantity, 3)
+
+    def test_stop_impersonation_clears_catalog_session_and_returns_to_admin(self):
+        self._staff_enters_as_customer()
+
+        response = self.client.post(self.stop_url)
+
+        self.assertRedirects(
+            response,
+            reverse("admin:white_catalog_whitecataloguser_change", args=[self.customer.pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertIsNone(self.client.session.get("white_catalog_user_id"))
+        self.assertIsNone(self.client.session.get("white_catalog_impersonating"))
+        self.assertTrue(self.client.session.get("_auth_user_id"))
+
+    def test_non_staff_cannot_login_as_customer(self):
+        anonymous = self.client.post(self.login_as_url)
+        self.assertEqual(anonymous.status_code, 302)
+        self.assertIn("/admin/login/", anonymous["Location"])
+        self.assertIsNone(self.client.session.get("white_catalog_user_id"))
+
+        session = self.client.session
+        session["white_catalog_user_id"] = self.customer.id
+        session.save()
+        as_customer = self.client.post(self.login_as_url)
+        self.assertEqual(as_customer.status_code, 302)
+        self.assertIn("/admin/login/", as_customer["Location"])
+        self.assertIsNone(self.client.session.get("white_catalog_impersonating"))
+
+    def test_login_as_requires_post(self):
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(self.login_as_url).status_code, 405)
+        self.assertIsNone(self.client.session.get("white_catalog_user_id"))
+
+    def test_admin_customer_page_offers_login_as_and_whatsapp(self):
+        self.client.force_login(self.staff)
+        WhiteCartItem.objects.create(
+            cart=WhiteCart.objects.create(user=self.customer),
+            product=self.product, quantity=2, price_at_add=Decimal("20.00"),
+        )
+
+        response = self.client.get(
+            reverse("admin:white_catalog_whitecataloguser_change", args=[self.customer.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.login_as_url)
+        self.assertContains(response, "https://wa.me/972501234567?text=")
+        self.assertContains(response, "1 פריטים בדף ההזמנה")
+        self.assertContains(response, "toyland")
+
+        changelist = self.client.get(reverse("admin:white_catalog_whitecataloguser_changelist"))
+        self.assertContains(changelist, self.login_as_url)
+        self.assertContains(changelist, "1 פריטים")
+
+
 @override_settings(WHITE_CATALOG_API_TOKEN="test-token", MEDIA_ROOT=tempfile.mkdtemp())
 class ImportColorVariantsTests(TestCase):
     """ייבוא שורות צבע מהתוכנה השולחנית אל 'צבעים למוצר'."""

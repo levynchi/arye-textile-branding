@@ -19,6 +19,9 @@ urlpatterns = [
     path("orders/", views.order_list, name="order_list"),
     path("orders/<str:order_number>/export/", views.export_order_excel, name="export_order"),
     path("orders/<str:order_number>/", views.order_confirm, name="order_confirm"),
+    # Staff: browse the catalog as a customer to build an order on their behalf
+    path("staff/login-as/<int:user_id>/", views.admin_login_as_customer, name="admin_login_as"),
+    path("staff/stop-login-as/", views.admin_stop_impersonation, name="admin_stop_login_as"),
     # Product data export for customer site integration
     path("export/products/", views.export_products_excel, name="export_products"),
     path("export/store-import/", views.export_store_import_csv, name="export_store_import"),

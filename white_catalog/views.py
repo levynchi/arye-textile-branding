@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 import resend
 from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import authenticate, logout as django_logout
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
@@ -38,11 +39,34 @@ logger = logging.getLogger(__name__)
 # Auth helpers
 # ---------------------------------------------------------------------------
 
+IMPERSONATION_SESSION_KEY = "white_catalog_impersonating"
+IMPERSONATOR_SESSION_KEY = "white_catalog_impersonator"
+CATALOG_SESSION_KEYS = (
+    "white_catalog_user_id",
+    "white_catalog_username",
+    "white_catalog_company_name",
+    IMPERSONATION_SESSION_KEY,
+    IMPERSONATOR_SESSION_KEY,
+)
+
+
 def _catalog_session_login(request, user):
     """Persist the white catalog session for the selected user."""
     request.session["white_catalog_user_id"] = user.id
     request.session["white_catalog_username"] = user.username
     request.session["white_catalog_company_name"] = user.company_name
+
+
+def is_impersonating(request):
+    """True when a staff member is browsing the catalog as one of the customers."""
+    if request is None:
+        return False
+    try:
+        return bool(request.session.get(IMPERSONATION_SESSION_KEY)) and bool(
+            request.session.get("white_catalog_user_id")
+        )
+    except Exception:
+        return False
 
 
 def _sync_admin_to_catalog_user(django_user, raw_password=None):
@@ -495,6 +519,8 @@ def _nav_context(request=None):
     }
     if request is not None:
         context["catalog_user"] = catalog_user
+        context["impersonating"] = is_impersonating(request)
+        context["impersonated_user"] = catalog_user if context["impersonating"] else None
         try:
             context["reset_cart"] = bool(request.session.pop(CART_RESET_SESSION_KEY, False))
         except Exception:
@@ -907,11 +933,47 @@ def login_view(request):
 
 def logout_view(request):
     """Logout view for white catalog users."""
-    for key in ("white_catalog_user_id", "white_catalog_username", "white_catalog_company_name"):
+    for key in CATALOG_SESSION_KEYS:
         request.session.pop(key, None)
     django_logout(request)
     messages.success(request, "התנתקת בהצלחה")
     return redirect("white_catalog:home")
+
+
+# ---------------------------------------------------------------------------
+# Staff: browse the catalog as a customer (build an order on their behalf)
+# ---------------------------------------------------------------------------
+
+@require_POST
+@staff_member_required
+def admin_login_as_customer(request, user_id):
+    """Switch the catalog session to a customer so staff can fill their order page.
+
+    The customer's own login/activity records are left untouched; checkout is
+    blocked while impersonating so the customer always submits the order herself.
+    """
+    customer = get_object_or_404(WhiteCatalogUser, pk=user_id, is_active=True)
+    _catalog_session_login(request, customer)
+    request.session[IMPERSONATION_SESSION_KEY] = True
+    request.session[IMPERSONATOR_SESSION_KEY] = request.user.get_username()
+    # The browser caches quantities per device (localStorage); switching identity must
+    # drop the staff member's own numbers so they don't bleed into the customer's cart.
+    _bump_cart_generation(request)
+    messages.info(request, f"אתה בונה הזמנה עבור {customer.company_name}. ההזמנה תישלח על ידי הלקוח.")
+    return redirect("white_catalog:home")
+
+
+@require_POST
+@staff_member_required
+def admin_stop_impersonation(request):
+    """Leave customer mode and go back to the customer's admin page."""
+    user_id = request.session.get("white_catalog_user_id")
+    for key in CATALOG_SESSION_KEYS:
+        request.session.pop(key, None)
+    _bump_cart_generation(request)
+    if user_id:
+        return redirect(reverse("admin:white_catalog_whitecataloguser_change", args=[user_id]))
+    return redirect(reverse("admin:white_catalog_whitecataloguser_changelist"))
 
 
 # ---------------------------------------------------------------------------
@@ -1598,6 +1660,10 @@ def send_white_order_notification(order):
 def checkout(request):
     """Submit the order (POST only). GET redirects to cart."""
     if request.method != "POST":
+        return redirect("white_catalog:cart")
+
+    if is_impersonating(request):
+        messages.error(request, "במצב בניית הזמנה עבור לקוח לא ניתן לשלוח את ההזמנה. הלקוח מאשר ושולח אותה בעצמו.")
         return redirect("white_catalog:cart")
 
     user = get_current_catalog_user(request)

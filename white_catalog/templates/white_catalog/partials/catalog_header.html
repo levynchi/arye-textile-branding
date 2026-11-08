@@ -116,6 +116,43 @@
         }
     }
 
+    .catalog-impersonation-banner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 10px 16px;
+        background: #fff4d6;
+        border-bottom: 2px solid #e3c06a;
+        color: #5a4200;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .catalog-impersonation-banner form {
+        margin: 0;
+    }
+
+    .catalog-impersonation-exit {
+        min-height: 36px;
+        padding: 6px 16px;
+        border: 1px solid #b38a1d;
+        border-radius: 999px;
+        background: #fff;
+        color: #5a4200;
+        font-size: 0.9rem;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .catalog-impersonation-exit:hover {
+        background: #fbe9b7;
+    }
+
     .catalog-barcode-search {
         background: #f5f6f7;
         border-bottom: 1px solid #e4e7ec;
@@ -181,7 +218,12 @@
     <div class="catalog-top-bar">
         <div class="catalog-top-inner">
             <div class="catalog-auth-section">
-                {% if request.session.white_catalog_user_id %}
+                {% if impersonating %}
+                    <form method="post" action="{% url 'white_catalog:admin_stop_login_as' %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" class="catalog-auth-link" style="border:none;cursor:pointer;font-family:inherit;">חזרה לאדמין</button>
+                    </form>
+                {% elif request.session.white_catalog_user_id %}
                     <a href="{% url 'white_catalog:logout' %}" class="catalog-auth-link">התנתק</a>
                 {% else %}
                     <a href="{% url 'white_catalog:login' %}" class="catalog-auth-link">התחבר</a>
@@ -209,6 +251,18 @@
             </div>
         </div>
     </div>
+    {% if impersonating %}
+    <div class="catalog-impersonation-banner" role="status">
+        <span>
+            מצב בניית הזמנה: אתה ממלא את דף ההזמנה עבור <strong>{{ impersonated_user.company_name }}</strong> ({{ impersonated_user.username }}).
+            הלקוח יראה את ההזמנה בכניסה הבאה שלו ויוכל לשנות, להוסיף ולשלוח אותה.
+        </span>
+        <form method="post" action="{% url 'white_catalog:admin_stop_login_as' %}">
+            {% csrf_token %}
+            <button type="submit" class="catalog-impersonation-exit">חזרה לאדמין</button>
+        </form>
+    </div>
+    {% endif %}
     {% if catalog_user|has_price_discount %}
     <div class="catalog-discount-banner" role="status">
         יש לך {{ catalog_user.price_percent|floatformat:-2 }}% הנחה. המחירים המוצגים הם אחרי ההנחה.
