@@ -1,0 +1,116 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .send-wrap { max-width: 1100px; }
+    .send-note, .send-error, .send-warn {
+        padding: 12px 14px;
+        border-radius: 6px;
+        margin-bottom: 18px;
+    }
+    .send-note { background: #f5f5f5; }
+    .send-error { background: #fdecea; color: #8a1f11; }
+    .send-warn { background: #fff4d6; color: #6b4a00; }
+    .send-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .send-table th, .send-table td {
+        border: 1px solid #ccc;
+        padding: 8px 10px;
+        text-align: right;
+        vertical-align: middle;
+    }
+    .send-table th { background: #eee; }
+    .send-table .num { white-space: nowrap; }
+    .send-table .site { color: #666; font-size: 0.85rem; }
+    .send-table .total-row td { font-weight: 800; background: #f4f4f4; }
+    .send-actions { margin-top: 22px; display: flex; gap: 10px; align-items: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="send-wrap">
+    <h1>שליחה להזמנות — הזמנה {{ order.order_number }} — {{ order.user.company_name }}</h1>
+
+    <p class="send-note">
+        ההזמנה תיכנס לרשימת ההזמנות של התוכנה ושל
+        <a href="{{ orders_page_url }}" target="_blank" rel="noopener">דף ההזמנות בטלפון</a>,
+        בסטטוס פתוח, עם השורות שבטבלה. ההזמנה באתר לא משתנה.
+    </p>
+
+    {% if config_error %}
+        <p class="send-error">{{ config_error }}</p>
+    {% endif %}
+    {% if form_error %}
+        <p class="send-error">{{ form_error }}</p>
+    {% endif %}
+    {% if lookup_error %}
+        <p class="send-error">לא הצלחתי לבדוק אם ההזמנה כבר נמצאת בהזמנות: {{ lookup_error }}</p>
+    {% endif %}
+    {% if is_blocked and not form_error %}
+        <p class="send-error">
+            ההזמנה כבר נמצאת בהזמנות והתחילו להכין אותה (יש שורות מסומנות, שקים, או שהיא נסגרה).
+            כדי לא למחוק את הסימונים, שינויים עושים ישירות
+            <a href="{{ existing_url }}" target="_blank" rel="noopener">בדף ההזמנות</a>.
+        </p>
+    {% endif %}
+    {% if is_replace %}
+        <p class="send-warn">
+            ההזמנה כבר נמצאת <a href="{{ existing_url }}" target="_blank" rel="noopener">בהזמנות</a>
+            ועוד לא התחילו להכין אותה. שליחה תחליף את השורות שם בשורות שבטבלה.
+        </p>
+    {% endif %}
+
+    <table class="send-table">
+        <thead>
+            <tr>
+                <th>מוצר בהזמנות</th>
+                <th>מידה</th>
+                <th>בד</th>
+                <th>צבע</th>
+                <th>אריזה</th>
+                <th>כמות</th>
+                <th>יחידות</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+                <tr>
+                    <td>
+                        {{ row.line.product }}
+                        {% if row.line.product != row.item.product_name %}
+                            <div class="site">באתר: {{ row.item.product_name }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="num" dir="ltr">{{ row.line.size|default:"—" }}</td>
+                    <td>{{ row.line.fabric_type|default:"—" }}</td>
+                    <td>{{ row.line.fabric_color|default:"—" }}</td>
+                    <td>{{ row.line.packaging }}</td>
+                    <td class="num">{{ row.line.quantity }}</td>
+                    <td class="num">{{ row.line.total_units }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7">אין בהזמנה שורות לשליחה.</td></tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="5">סה"כ — {{ rows|length }} שורות</td>
+                <td></td>
+                <td class="num">{{ total_units }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {% if factory_notes %}
+        <p class="send-note" style="margin-top:18px">הערות שיעברו עם ההזמנה: {{ factory_notes }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="send-actions">
+            <button type="submit" class="default" {% if not can_send %}disabled{% endif %}>
+                {% if is_replace %}עדכן בהזמנות{% else %}שלח להזמנות{% endif %}
+            </button>
+            <a href="{{ change_url }}" class="button">חזרה להזמנה</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

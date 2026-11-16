@@ -19,6 +19,7 @@ from .models import (
     WhiteCart, WhiteCartItem, WhiteOrder, WhiteOrderItem, WhiteQuote,
     apply_price_list, fill_missing_color_sizes, product_color_sizes,
 )
+from . import factory_orders
 from .rivhit import (
     RivhitApiError, cached_customers, cached_item_ids_by_barcode, create_quote_document,
     customer_display, get_rivhit_client, match_customers, quote_line_description, rivhit_token,
@@ -829,8 +830,77 @@ class WhiteOrderAdmin(admin.ModelAdmin):
 				self.admin_site.admin_view(self.quote_order),
 				name="white_catalog_whiteorder_quote",
 			),
+			path(
+				"<int:object_id>/send-to-factory/",
+				self.admin_site.admin_view(self.send_to_factory),
+				name="white_catalog_whiteorder_send_to_factory",
+			),
 		]
 		return custom + urls
+
+	# ------------------------------------------------------------------ factory orders
+	def send_to_factory(self, request, object_id):
+		"""Preview the order as the factory will see it, then write it to the shared orders file."""
+		order = get_object_or_404(
+			WhiteOrder.objects.select_related("user").prefetch_related("items", "quotes"),
+			pk=object_id,
+		)
+		rows = factory_orders.preview_rows(order)
+		change_url = reverse("admin:white_catalog_whiteorder_change", args=[order.pk])
+		config_error = None if factory_orders.github_token() else (
+			"לא הוגדר CARTON_LOOKUP_GITHUB_TOKEN בהגדרות האתר (משתנה סביבה ב-Railway)."
+		)
+		form_error = None
+
+		if request.method == "POST" and not config_error:
+			if not rows:
+				form_error = "אין בהזמנה שורות לשליחה."
+			else:
+				try:
+					result = factory_orders.send_order(order)
+				except factory_orders.FactoryOrdersError as exc:
+					form_error = str(exc)
+				else:
+					verb = "נוספה להזמנות" if result["action"] == factory_orders.ACTION_CREATE else "עודכנה בהזמנות"
+					self.message_user(
+						request,
+						format_html(
+							'ההזמנה {} {} (מספר {} בתוכנה). <a href="{}" target="_blank" rel="noopener">פתח בדף ההזמנות</a>',
+							order.order_number, verb, result["id"], result["url"],
+						),
+						messages.SUCCESS,
+					)
+					return HttpResponseRedirect(change_url)
+
+		# Where the order stands in the shared file right now.
+		action, existing, lookup_error = None, None, None
+		if not config_error:
+			try:
+				data, _sha = factory_orders.fetch_orders_file()
+			except factory_orders.FactoryOrdersError as exc:
+				lookup_error = str(exc)
+			else:
+				action, existing = factory_orders.plan_send(order, data.get("orders") or [])
+
+		context = {
+			**self.admin_site.each_context(request),
+			"title": f"שליחה להזמנות — {order.order_number}",
+			"order": order,
+			"rows": rows,
+			"total_units": sum(row["line"]["total_units"] for row in rows),
+			"factory_notes": factory_orders.order_notes(order),
+			"config_error": config_error,
+			"form_error": form_error,
+			"lookup_error": lookup_error if lookup_error != form_error else None,
+			"is_replace": action == factory_orders.ACTION_REPLACE,
+			"is_blocked": action == factory_orders.ACTION_BLOCKED,
+			"existing_url": factory_orders.order_page_url(existing.get("id")) if existing else "",
+			"can_send": bool(rows) and not config_error and action != factory_orders.ACTION_BLOCKED,
+			"change_url": change_url,
+			"orders_page_url": factory_orders.PAGE_URL,
+			"opts": self.model._meta,
+		}
+		return render(request, "admin/white_catalog/order_send.html", context)
 
 	# ------------------------------------------------------------------ Rivhit quote
 	@staticmethod

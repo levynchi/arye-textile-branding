@@ -3,6 +3,8 @@ import io
 import json
 import re
 import tempfile
+import urllib.error
+from datetime import datetime, timezone as dt_timezone
 from unittest.mock import patch
 
 from decimal import Decimal
@@ -2109,5 +2111,323 @@ class WhiteOrderRivhitQuoteTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "RIVHIT_API_TOKEN")
         self.assertContains(resp, "disabled")
+
+
+class _FakeGitHubResponse:
+    def __init__(self, payload):
+        self._raw = json.dumps(payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return self._raw
+
+
+class _FakeGitHub:
+    """Stands in for the GitHub Contents API of carton-lookup/orders.json."""
+
+    def __init__(self, data=None, raw=None):
+        if raw is None and data is not None:
+            raw = json.dumps(data, ensure_ascii=False, indent=1).encode("utf-8")
+        self.raw = raw
+        self.sha = "sha-0" if raw is not None else None
+        self.gets = 0
+        self.puts = []
+        self.tokens = set()
+        self.conflicts = 0  # reject this many writes first, as if someone else wrote in between
+
+    def data(self):
+        return json.loads(self.raw.decode("utf-8"))
+
+    def _error(self, req, code, message):
+        body = io.BytesIO(json.dumps({"message": message}).encode("utf-8"))
+        return urllib.error.HTTPError(req.full_url, code, message, {}, body)
+
+    def urlopen(self, req, timeout=None):
+        self.tokens.add(req.get_header("Authorization"))
+        if req.get_method() == "PUT":
+            body = json.loads(req.data.decode("utf-8"))
+            if self.conflicts:
+                self.conflicts -= 1
+                raise self._error(req, 409, "is at a different sha")
+            if body.get("sha") != self.sha:
+                raise self._error(req, 422, "sha wasn't supplied")
+            self.raw = base64.b64decode(body["content"])
+            self.puts.append(body)
+            self.sha = f"sha-{len(self.puts)}"
+            return _FakeGitHubResponse({"content": {"sha": self.sha}})
+        self.gets += 1
+        if self.raw is None:
+            raise self._error(req, 404, "Not Found")
+        return _FakeGitHubResponse({"content": base64.b64encode(self.raw).decode("ascii"), "sha": self.sha})
+
+
+@override_settings(CARTON_LOOKUP_GITHUB_TOKEN="gh-test-token")
+class WhiteOrderSendToFactoryTests(TestCase):
+    """Send a website order to the factory's order list (FactorySync + carton-lookup phone page)."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(
+            username="staff-factory", password="pass", is_staff=True, is_superuser=True,
+        )
+        self.user = WhiteCatalogUser.objects.create(
+            company_name="טוילנד",
+            contact_name="דנה",
+            contact_phone="050-1234567",
+            username="toyland-factory",
+        )
+        self.order = WhiteOrder.objects.create(
+            user=self.user, status=WhiteOrder.STATUS_PENDING, total_amount=Decimal("300.00"),
+            notes="לספק עד סוף החודש",
+        )
+        self.bodysuit = WhiteOrderItem.objects.create(
+            order=self.order,
+            product_name="בגד גוף שרוול ארוך",
+            variant_name="פלנל 3-6",
+            size_name="3-6",
+            barcode="5001",
+            pack_type_name="מארז שלישיות",
+            pack_quantity=3,
+            quantity=4,
+            unit_price=Decimal("29.10"),
+        )
+        self.vest = WhiteOrderItem.objects.create(
+            order=self.order,
+            product_name="בגד גוף גופייה",
+            variant_name="טריקו ג'רזי 12-18",
+            size_name="12-18",
+            barcode="5002",
+            pack_type_name="מארז חמישיות",
+            pack_quantity=5,
+            quantity=2,
+            unit_price=Decimal("40.00"),
+        )
+        self.sheet = WhiteOrderItem.objects.create(
+            order=self.order,
+            product_name="סדין עגלה",
+            variant_name="מניפת צבעים",
+            color_name="חום עתיק",
+            size_name="חום עתיק",
+            barcode="6001",
+            pack_type_name="יחידה",
+            pack_quantity=1,
+            quantity=6,
+            unit_price=Decimal("12.10"),
+        )
+        self.packed_order = {
+            "id": 4,
+            "order_number": "ORD-0001",
+            "customer": "קניון עפולה",
+            "date": "2026-11-09",
+            "items": [{
+                "product": "גטקס", "size": "6-12", "fabric_type": "פלנל", "fabric_color": "לבן",
+                "quantity": 30, "packaging": "יחידים", "total_units": 30, "done": True, "sack": "4",
+            }],
+            "total_items": 1,
+            "status": "פתוח",
+            "notes": "",
+            "created_at": "2026-11-09 10:19:33",
+            "updated_at": "2026-11-09 13:38:28",
+        }
+        self.customers = [{"id": 3, "name": "קניון עפולה", "phone": "0505322893"}]
+        self.github = _FakeGitHub({
+            "updated": "2026-11-09 13:38:29",
+            "customers": self.customers,
+            "orders": [self.packed_order],
+        })
+        patcher = patch("white_catalog.factory_orders.urllib.request.urlopen", side_effect=self.github.urlopen)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.client.force_login(self.admin)
+        self.url = reverse("admin:white_catalog_whiteorder_send_to_factory", args=[self.order.pk])
+        self.change_url = reverse("admin:white_catalog_whiteorder_change", args=[self.order.pk])
+
+    def _sent(self):
+        return next(o for o in self.github.data()["orders"] if o["order_number"] == self.order.order_number)
+
+    def test_order_page_links_to_send_page(self):
+        resp = self.client.get(self.change_url)
+        self.assertContains(resp, self.url)
+        self.assertContains(resp, "שלח להזמנות")
+
+    def test_preview_shows_factory_lines_without_writing(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "בגד גוף ש.א")
+        self.assertContains(resp, "באתר: בגד גוף שרוול ארוך")
+        self.assertContains(resp, "שלישיות")
+        self.assertContains(resp, "חמישיות")
+        self.assertContains(resp, "לספק עד סוף החודש")
+        self.assertEqual(resp.context["total_units"], 12 + 10 + 6)
+        self.assertTrue(resp.context["can_send"])
+        self.assertFalse(resp.context["is_replace"])
+        self.assertEqual(self.github.puts, [])
+
+    def test_post_adds_order_and_keeps_the_rest_of_the_file(self):
+        resp = self.client.post(self.url)
+        self.assertRedirects(resp, self.change_url, fetch_redirect_response=False)
+        self.assertEqual(len(self.github.puts), 1)
+        self.assertEqual(self.github.tokens, {"Bearer gh-test-token"})
+        self.assertEqual(self.github.puts[0]["branch"], "main")
+
+        data = self.github.data()
+        self.assertEqual(data["customers"], self.customers)
+        self.assertEqual([o["id"] for o in data["orders"]], [4, 5])
+        self.assertEqual(data["orders"][0], self.packed_order)  # other orders are written back untouched
+
+        sent = data["orders"][1]
+        self.assertEqual(sent["order_number"], self.order.order_number)
+        self.assertEqual(sent["customer"], "טוילנד")
+        self.assertEqual(sent["status"], "פתוח")
+        self.assertEqual(sent["notes"], "לספק עד סוף החודש")
+        self.assertEqual(sent["total_items"], 3)
+        self.assertRegex(sent["updated_at"], r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+        self.assertEqual(sent["created_at"], sent["updated_at"])
+        self.assertEqual(data["updated"], sent["updated_at"])
+        self.assertNotIn("rivhit_quote", sent)
+        self.assertEqual(sent["items"], [
+            {
+                "product": "בגד גוף ש.א", "size": "3-6", "fabric_type": "פלנל", "fabric_color": "לבן",
+                "quantity": 4, "packaging": "שלישיות", "total_units": 12, "done": False, "sack": "",
+            },
+            {
+                "product": "בגד גוף גופייה", "size": "12-18", "fabric_type": "טריקו", "fabric_color": "לבן",
+                "quantity": 2, "packaging": "חמישיות", "total_units": 10, "done": False, "sack": "",
+            },
+            {
+                "product": "סדין עגלה", "size": "", "fabric_type": "", "fabric_color": "חום עתיק",
+                "quantity": 6, "packaging": "יחידים", "total_units": 6, "done": False, "sack": "",
+            },
+        ])
+
+        # The success message links to the order on the phone page.
+        resp = self.client.get(self.change_url)
+        self.assertContains(resp, "orders.html?o=5")
+
+    def test_creates_the_file_when_it_does_not_exist_yet(self):
+        self.github.raw, self.github.sha = None, None
+        self.client.post(self.url)
+        data = self.github.data()
+        self.assertEqual([o["id"] for o in data["orders"]], [1])
+        self.assertEqual(data["customers"], [])
+
+    def test_color_line_with_size_and_unusual_pack(self):
+        self.sheet.size_name = "חום עתיק · 66x128"
+        self.sheet.save()
+        self.bodysuit.pack_quantity = 6
+        self.bodysuit.pack_type_name = "מארז שישיות"
+        self.bodysuit.save()
+        self.client.post(self.url)
+        lines = self._sent()["items"]
+        self.assertEqual(lines[2]["size"], "66x128")
+        self.assertEqual(lines[2]["fabric_color"], "חום עתיק")
+        # The factory only counts packs of 5, 3 and 1: 4 packs of 6 become 24 singles.
+        self.assertEqual((lines[0]["packaging"], lines[0]["quantity"], lines[0]["total_units"]), ("יחידים", 24, 24))
+
+    def test_latest_rivhit_quote_travels_with_the_order(self):
+        from .models import WhiteQuote
+
+        WhiteQuote.objects.create(
+            order=self.order, rivhit_customer_id=67, rivhit_document_type=6,
+            rivhit_document_number="1234", rivhit_document_link="https://rivhit.example/q/1234.pdf",
+        )
+        self.client.post(self.url)
+        quote = self._sent()["rivhit_quote"]
+        self.assertEqual(quote["document_number"], 1234)
+        self.assertEqual(quote["document_type"], 6)
+        self.assertEqual(quote["document_link"], "https://rivhit.example/q/1234.pdf")
+
+    def test_resend_replaces_an_order_nobody_started_packing(self):
+        self.client.post(self.url)
+        first = self._sent()
+        self.bodysuit.quantity = 9
+        self.bodysuit.save()
+        self.sheet.delete()
+
+        resp = self.client.get(self.url)
+        self.assertTrue(resp.context["is_replace"])
+        self.assertContains(resp, "עדכן בהזמנות")
+
+        self.client.post(self.url)
+        data = self.github.data()
+        self.assertEqual([o["id"] for o in data["orders"]], [4, 5])
+        second = data["orders"][1]
+        self.assertEqual(second["created_at"], first["created_at"])
+        self.assertEqual(len(second["items"]), 2)
+        self.assertEqual(second["items"][0]["quantity"], 9)
+        self.assertEqual(second["items"][0]["total_units"], 27)
+
+    def test_resend_is_blocked_once_packing_started(self):
+        self.client.post(self.url)
+        data = self.github.data()
+        data["orders"][1]["items"][0]["done"] = True
+        data["orders"][1]["items"][0]["sack"] = "2"
+        self.github.raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        self.bodysuit.quantity = 9
+        self.bodysuit.save()
+
+        resp = self.client.get(self.url)
+        self.assertTrue(resp.context["is_blocked"])
+        self.assertFalse(resp.context["can_send"])
+
+        resp = self.client.post(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "כבר בהכנה")
+        self.assertEqual(len(self.github.puts), 1)  # only the first send was written
+        kept = self._sent()["items"][0]
+        self.assertEqual((kept["quantity"], kept["done"], kept["sack"]), (4, True, "2"))
+
+    def test_write_conflict_is_retried_on_fresh_data(self):
+        self.github.conflicts = 1
+        resp = self.client.post(self.url)
+        self.assertRedirects(resp, self.change_url)
+        self.assertEqual(len(self.github.puts), 1)
+        self.assertEqual([o["id"] for o in self.github.data()["orders"]], [4, 5])
+
+    def test_repeated_conflicts_are_reported_not_written(self):
+        self.github.conflicts = 5
+        resp = self.client.post(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "נסו שוב")
+        self.assertEqual(self.github.puts, [])
+
+    def test_unreadable_file_is_never_overwritten(self):
+        self.github.raw = b"{not json"
+        resp = self.client.post(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "אינו JSON תקין")
+        self.assertEqual(self.github.puts, [])
+        self.assertEqual(self.github.raw, b"{not json")
+
+    @override_settings(CARTON_LOOKUP_GITHUB_TOKEN="")
+    def test_missing_token_disables_sending(self):
+        with patch.dict("os.environ", {"CARTON_LOOKUP_GITHUB_TOKEN": ""}):
+            resp = self.client.get(self.url)
+            self.assertContains(resp, "CARTON_LOOKUP_GITHUB_TOKEN")
+            self.assertContains(resp, "disabled")
+            self.assertContains(resp, "בגד גוף ש.א")  # the preview still works
+            self.client.post(self.url)
+        self.assertEqual(self.github.gets, 0)
+        self.assertEqual(self.github.puts, [])
+
+    def test_non_staff_cannot_send(self):
+        self.client.logout()
+        resp = self.client.post(self.url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.github.puts, [])
+
+    def test_timestamps_are_israel_local_time(self):
+        from . import factory_orders
+
+        utc_now = datetime(2026, 11, 16, 6, 41, 5, tzinfo=dt_timezone.utc)
+        with patch("white_catalog.factory_orders.timezone.now", return_value=utc_now):
+            self.assertEqual(factory_orders.now_str(), "2026-11-16 08:41:05")
+        summer = datetime(2026, 7, 1, 21, 30, 0, tzinfo=dt_timezone.utc)
+        with patch("white_catalog.factory_orders.timezone.now", return_value=summer):
+            self.assertEqual(factory_orders.now_str(), "2026-07-02 00:30:00")
 
 
